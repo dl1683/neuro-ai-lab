@@ -168,3 +168,9 @@ Unsafe claim:
 | Claim | Status | Evidence | Scope | Public boundary |
 |---|---|---|---|---|
 | V5 still fails inside the live-repair branch when feature margins are tiny. | `mixed` | `results/04_criticality_pruning/cifar10_tiny_vit_feature_route_margin_selector_v5_90pct_strong_seed312.json`; `experiments/04_criticality_pruning/CIFAR10_TINY_VIT_FEATURE_ROUTE_MARGIN_SELECTOR_V5_90PCT_STRONG_SEED312.md` | One fresh full-CIFAR TinyViT seed at 90% sparsity; V5 selected attention+MLP repair, which trailed magnitude by `0.02` points, while minimal liveness beat magnitude by `0.21` points and was the best evaluated candidate. | This is the next selector limitation. The SynFlow prior is not enough; the live-repair branch needs a masked-before/trainability tie-breaker between repair families. |
+
+## Strong TinyViT V6 addendum
+
+| Claim | Status | Evidence | Scope | Public boundary |
+|---|---|---|---|---|
+| V6 fixes the current live-repair boundary projection and preserves the magnitude guardrail on one fresh seed. | `promising` | `results/04_criticality_pruning/tiny_vit_strong_selector_boundary_synthesis.json`; `results/04_criticality_pruning/cifar10_tiny_vit_feature_route_margin_selector_v6_90pct_strong_seed313.json`; `experiments/04_criticality_pruning/CIFAR10_TINY_VIT_FEATURE_ROUTE_MARGIN_SELECTOR_V6_90PCT_STRONG_SEED313.md` | Thirteen completed full-CIFAR TinyViT seeds at 90% sparsity; V6 projection matches the best evaluated candidate on `13/13`, averages `+3.53` points over magnitude, and leaves zero evaluated-oracle gap. A fresh V6 seed selected magnitude and matched the best evaluated candidate. | V6's live-repair tie-breaker is still only projection-validated on the seed-312 failure. It needs a fresh seed that actually triggers `live_repair_masked_before_tiebreak`. |

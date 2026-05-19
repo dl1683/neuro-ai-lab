@@ -19,6 +19,7 @@ SOURCES = [
     ("v5_strong_seed310", "cifar10_tiny_vit_feature_route_margin_selector_v5_90pct_strong_seed310.json"),
     ("v5_strong_seed311", "cifar10_tiny_vit_feature_route_margin_selector_v5_90pct_strong_seed311.json"),
     ("v5_strong_seed312", "cifar10_tiny_vit_feature_route_margin_selector_v5_90pct_strong_seed312.json"),
+    ("v6_strong_seed313", "cifar10_tiny_vit_feature_route_margin_selector_v6_90pct_strong_seed313.json"),
 ]
 
 CANDIDATES = [
@@ -28,6 +29,12 @@ CANDIDATES = [
     "attn_mlp_readout_repair",
     "all_route_liveness_floor",
 ]
+
+LIVE_REPAIR_METHODS = {
+    "minimal_liveness_repair",
+    "attn_mlp_readout_repair",
+    "all_route_liveness_floor",
+}
 
 
 def load(name: str) -> dict:
@@ -132,6 +139,24 @@ def choose_v5(rows_by_method: dict[str, dict]) -> tuple[str, str, list[dict]]:
     return selected, reason, ranked
 
 
+def choose_v6(rows_by_method: dict[str, dict]) -> tuple[str, str, list[dict]]:
+    selected, reason, ranked = choose_v5(rows_by_method)
+    if selected not in LIVE_REPAIR_METHODS:
+        return selected, reason, ranked
+    live = [item for item in ranked if item["method"] in LIVE_REPAIR_METHODS]
+    selected_item = next(item for item in live if item["method"] == selected)
+    best_before = max(live, key=lambda item: item["before_accuracy"])
+    feature_spread = max(item["centered_cls_cosine_mean"] for item in live) - min(
+        item["centered_cls_cosine_mean"] for item in live
+    )
+    if (
+        feature_spread < 0.003
+        and best_before["before_accuracy"] >= selected_item["before_accuracy"] + 0.0005
+    ):
+        return best_before["method"], "live_repair_masked_before_tiebreak", ranked
+    return selected, reason, ranked
+
+
 def run() -> dict:
     seed_cases = []
     for family, source in SOURCES:
@@ -145,11 +170,13 @@ def run() -> dict:
             selected, reason, ranked = choose_v3(rows_by_method)
             v4_selected, v4_reason, v4_ranked = choose_v4(rows_by_method)
             v5_selected, v5_reason, v5_ranked = choose_v5(rows_by_method)
+            v6_selected, v6_reason, v6_ranked = choose_v6(rows_by_method)
             best_method, best_row = max(rows_by_method.items(), key=lambda item: item[1]["after_accuracy"])
             mag_after = rows_by_method["magnitude"]["after_accuracy"]
             selected_after = rows_by_method[selected]["after_accuracy"]
             v4_after = rows_by_method[v4_selected]["after_accuracy"]
             v5_after = rows_by_method[v5_selected]["after_accuracy"]
+            v6_after = rows_by_method[v6_selected]["after_accuracy"]
             best_after = best_row["after_accuracy"]
             seed_cases.append(
                 {
@@ -183,6 +210,13 @@ def run() -> dict:
                     "v5_gap_to_best": best_after - v5_after,
                     "v5_matches_best": v5_selected == best_method,
                     "v5_ranked_candidates": v5_ranked,
+                    "v6_projected_method": v6_selected,
+                    "v6_projected_reason": v6_reason,
+                    "v6_after": v6_after,
+                    "v6_delta_vs_magnitude": v6_after - mag_after,
+                    "v6_gap_to_best": best_after - v6_after,
+                    "v6_matches_best": v6_selected == best_method,
+                    "v6_ranked_candidates": v6_ranked,
                 }
             )
     positive = [item for item in seed_cases if item["v3_delta_vs_magnitude"] > 0]
@@ -191,6 +225,8 @@ def run() -> dict:
     v4_matched = [item for item in seed_cases if item["v4_matches_best"]]
     v5_positive = [item for item in seed_cases if item["v5_delta_vs_magnitude"] > 0]
     v5_matched = [item for item in seed_cases if item["v5_matches_best"]]
+    v6_positive = [item for item in seed_cases if item["v6_delta_vs_magnitude"] > 0]
+    v6_matched = [item for item in seed_cases if item["v6_matches_best"]]
     result = {
         "experiment": "04_tiny_vit_strong_selector_boundary_synthesis",
         "setup": "Post-hoc synthesis across all completed strong TinyViT 90% sparsity runs. Applies the same V3 selector rule to every evaluated seed and compares the projected choice with the best evaluated candidate.",
@@ -208,6 +244,10 @@ def run() -> dict:
         "v5_matches_best": len(v5_matched),
         "v5_mean_delta_vs_magnitude": sum(item["v5_delta_vs_magnitude"] for item in seed_cases) / len(seed_cases),
         "v5_mean_gap_to_best": sum(item["v5_gap_to_best"] for item in seed_cases) / len(seed_cases),
+        "v6_positive_vs_magnitude": len(v6_positive),
+        "v6_matches_best": len(v6_matched),
+        "v6_mean_delta_vs_magnitude": sum(item["v6_delta_vs_magnitude"] for item in seed_cases) / len(seed_cases),
+        "v6_mean_gap_to_best": sum(item["v6_gap_to_best"] for item in seed_cases) / len(seed_cases),
         "cases": seed_cases,
     }
     out = RESULTS / "tiny_vit_strong_selector_boundary_synthesis.json"
@@ -236,15 +276,20 @@ def write_report(result: dict) -> None:
         f"V5 matched best evaluated candidate: `{result['v5_matches_best']}/{result['seed_count']}`",
         f"Mean V5 delta vs magnitude: `{result['v5_mean_delta_vs_magnitude']:+.4f}`",
         f"Mean V5 gap to best candidate: `{result['v5_mean_gap_to_best']:.4f}`",
+        f"V6 positive vs magnitude: `{result['v6_positive_vs_magnitude']}/{result['seed_count']}`",
+        f"V6 matched best evaluated candidate: `{result['v6_matches_best']}/{result['seed_count']}`",
+        f"Mean V6 delta vs magnitude: `{result['v6_mean_delta_vs_magnitude']:+.4f}`",
+        f"Mean V6 gap to best candidate: `{result['v6_mean_gap_to_best']:.4f}`",
         "",
-        "| Seed | V4 projected | V5 projected | Best evaluated | Magnitude after | V5 after | Best after | V5 delta | V5 gap |",
-        "|---:|---|---|---|---:|---:|---:|---:|---:|",
+        "| Seed | V5 projected | V6 projected | Best evaluated | Magnitude after | V5 after | V6 after | Best after | V6 delta | V6 gap |",
+        "|---:|---|---|---|---:|---:|---:|---:|---:|---:|",
     ]
     for item in result["cases"]:
         lines.append(
-            f"| `{item['seed']}` | `{item['v4_projected_method']}` | `{item['v5_projected_method']}` | "
+            f"| `{item['seed']}` | `{item['v5_projected_method']}` | `{item['v6_projected_method']}` | "
             f"`{item['best_method']}` | `{item['magnitude_after']:.4f}` | `{item['v5_after']:.4f}` | "
-            f"`{item['best_after']:.4f}` | `{item['v5_delta_vs_magnitude']:+.4f}` | `{item['v5_gap_to_best']:.4f}` |"
+            f"`{item['v6_after']:.4f}` | `{item['best_after']:.4f}` | `{item['v6_delta_vs_magnitude']:+.4f}` | "
+            f"`{item['v6_gap_to_best']:.4f}` |"
         )
     lines.extend(
         [
@@ -253,7 +298,7 @@ def write_report(result: dict) -> None:
             "",
             "This is not a new training run; it is a rule projection over all completed strong TinyViT candidate evaluations. The result is useful because the selector is applied before seeing fine-tune recovery, while the scorecard compares that choice against the evaluated recovery.",
             "",
-            "The boundary is now concrete. When SynFlow's centered CLS/residual-stream feature margin is large, the selector chooses SynFlow and the choice usually wins. When feature alignment favors liveness repair, the current rule can still miss the exact repair family. Seed 306 motivated the V5 SynFlow masked-recovery prior. Seed 310 prospectively validates that branch: V4-style liveness selection stays at the magnitude floor, while V5 selects SynFlow and matches the best evaluated candidate. Seed 312 is the new limitation: V5 chooses attention+MLP repair by a small feature margin, but minimal liveness is best and the selected policy slightly trails magnitude. The next selector needs a tie-breaker inside the live-repair family, not only a SynFlow prior.",
+            "The boundary is now concrete. When SynFlow's centered CLS/residual-stream feature margin is large, the selector chooses SynFlow and the choice usually wins. When feature alignment favors liveness repair, V5 can still miss the exact repair family. Seed 306 motivated the V5 SynFlow masked-recovery prior. Seed 310 prospectively validates that branch: V4-style liveness selection stays at the magnitude floor, while V5 selects SynFlow and matches the best evaluated candidate. Seed 312 is the live-repair limitation: V5 chooses attention+MLP repair by a small feature margin, but minimal liveness is best and the selected policy slightly trails magnitude. V6 adds the narrow tie-breaker this failure suggests: when live-repair feature margins are tiny, choose the live repair with better masked-before trainability. In projection, V6 fixes seed 312 and reaches the evaluated oracle on the current boundary set. Seed 313 prospectively validates that V6 does not override magnitude when magnitude is the most trainable sparse template.",
         ]
     )
     md.write_text("\n".join(lines) + "\n", encoding="utf-8")

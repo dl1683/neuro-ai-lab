@@ -767,6 +767,7 @@ Six-seed strong-selector boundary projection:
 | V3 | `12` | `8/12` | `7/12` | `+2.84` pts | `0.98` pts |
 | V4 | `12` | `8/12` | `9/12` | `+2.88` pts | `0.94` pts |
 | V5 | `12` | `9/12` | `11/12` | `+3.80` pts | `0.02` pts |
+| V6 | `13` | `10/13` | `13/13` | `+3.53` pts | `0.00` pts |
 
 Primary artifact:
 
@@ -774,7 +775,7 @@ Primary artifact:
 
 Interpretation:
 
-This synthesis projects the same V3, V4, and V5 rules over all completed strong TinyViT seeds. V4 fixed the two small V3 guardrail misses, but seed 306 and seed 310 expose the deeper failure: live repair masks can look safer and still remain at the magnitude floor, while SynFlow preserves a much more trainable sparse basin. V5 adds a simple SynFlow masked-recovery prior: if SynFlow's masked-before accuracy is at least magnitude and close to the selected repair, prefer SynFlow. Seed 308 validates the feature/SynFlow branch prospectively. Seed 310 validates the SynFlow-prior branch prospectively. Seed 311 is an unselected follow-up and again validates the fixed V5 rule. Seed 312 is the first V5 prospective miss, showing that the live-repair branch needs a tie-breaker between attention+MLP repair and minimal liveness. This is not a solved transformer pruning method, but the failure is now localized.
+This synthesis projects the same V3, V4, V5, and V6 rules over all completed strong TinyViT seeds. V4 fixed the two small V3 guardrail misses, but seed 306 and seed 310 expose the deeper failure: live repair masks can look safer and still remain at the magnitude floor, while SynFlow preserves a much more trainable sparse basin. V5 adds a simple SynFlow masked-recovery prior: if SynFlow's masked-before accuracy is at least magnitude and close to the selected repair, prefer SynFlow. Seed 312 is the first V5 prospective miss, showing that the live-repair branch needs a tie-breaker between attention+MLP repair and minimal liveness. V6 adds that narrow tie-breaker and reaches the evaluated oracle on the current `13`-seed boundary. Seed 313 prospectively validates the magnitude guardrail: V6 keeps magnitude when magnitude is the best evaluated sparse template.
 
 V4 strong-selector test:
 
@@ -882,6 +883,25 @@ Primary artifact:
 Interpretation:
 
 Seed 312 is the first prospective V5 miss. The selector correctly avoids SynFlow, but it overtrusts a tiny centered-CLS advantage for attention+MLP repair. Minimal liveness and all-route liveness have slightly higher masked-before accuracy and better after-FT recovery. This localizes the next algorithmic problem: the SynFlow-prior branch is useful, but the live-repair branch needs a trainability tie-breaker when feature margins are small.
+
+V6 magnitude guardrail:
+
+| Method | Before FT | After FT | Delta vs magnitude | Centered CLS cosine | MLP-down dead | Attn-out dead |
+|---|---:|---:|---:|---:|---:|---:|
+| magnitude | `15.61%` | `16.44%` | baseline | `0.0602` | `69.0` | `5.0` |
+| global SynFlow | `9.03%` | `10.10%` | `-6.34` pts | `0.0013` | `112.0` | `105.0` |
+| minimal liveness repair | `15.40%` | `16.27%` | `-0.17` pts | `0.0599` | `1.0` | `0.0` |
+| attention+MLP/readout repair | `15.53%` | `16.22%` | `-0.22` pts | `0.0597` | `0.0` | `0.0` |
+| all-route liveness floor | `15.42%` | `16.28%` | `-0.16` pts | `0.0596` | `0.0` | `0.0` |
+| V6 feature-route policy | `15.61%` | `16.44%` | `+0.00` pts | `0.0602` | `69.0` | `5.0` |
+
+Primary artifact:
+
+- `experiments/04_criticality_pruning/CIFAR10_TINY_VIT_FEATURE_ROUTE_MARGIN_SELECTOR_V6_90PCT_STRONG_SEED313.md`
+
+Interpretation:
+
+Seed 313 is not the live-repair branch V6 was designed to fix; it is a guardrail test. Magnitude has the best centered-CLS alignment, the best masked-before accuracy, and the best after-FT recovery. V6 correctly leaves the sparse template alone rather than forcing liveness repair. This supports the current biological interpretation: circuit remodeling is conditional, not a blanket rule to eliminate every measured dead row.
 
 ## Mechanism hierarchy
 
