@@ -89,7 +89,7 @@ The full-CIFAR ResNet-20 result makes the homeostasis claim more realistic. The 
 
 TinyViT makes the neuroscience connection sharper because it separates anatomical liveness from functional viability.
 
-In the strong TinyViT runs, masks that eliminate measured dead rows can still remain at the magnitude floor. Seed 310 is the cleanest branch example: all-route liveness leaves zero measured MLP/attention dead rows but recovers only `5.86%`, while SynFlow keeps many dead rows by that metric and recovers `15.16%`. Seed 311 repeats the pattern without branch scanning: all-route liveness reaches `9.97%`, while SynFlow reaches `15.91%`. The V5 selector chooses SynFlow before fine-tuning because the masked-before behavior indicates a more trainable residual-stream basin.
+In the strong TinyViT runs, masks that eliminate measured dead rows can still remain at the magnitude floor. Seed 310 is the cleanest branch example: all-route liveness leaves zero measured MLP/attention dead rows but recovers only `5.86%`, while SynFlow keeps many dead rows by that metric and recovers `15.16%`. Seed 311 repeats the pattern without branch scanning: all-route liveness reaches `9.97%`, while SynFlow reaches `15.91%`. Seed 312 is the counterweight: SynFlow is correctly rejected, but the selector chooses the wrong live repair by overtrusting a tiny feature margin. The V5 selector works when masked-before behavior indicates a more trainable residual-stream basin, but the live-repair branch still needs a trainability tie-breaker.
 
 The biological analogy is that keeping every local pathway anatomically present is not the same as preserving the functional ensemble. A sparse transformer circuit needs:
 

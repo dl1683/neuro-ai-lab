@@ -764,9 +764,9 @@ Six-seed strong-selector boundary projection:
 
 | Selector | Seeds | Positive vs magnitude | Matches best candidate | Mean delta vs magnitude | Mean gap to best |
 |---:|---:|---:|---:|---:|
-| V3 | `11` | `8/11` | `7/11` | `+3.10` pts | `1.05` pts |
-| V4 | `11` | `8/11` | `9/11` | `+3.15` pts | `1.00` pts |
-| V5 | `11` | `9/11` | `11/11` | `+4.15` pts | `0.00` pts |
+| V3 | `12` | `8/12` | `7/12` | `+2.84` pts | `0.98` pts |
+| V4 | `12` | `8/12` | `9/12` | `+2.88` pts | `0.94` pts |
+| V5 | `12` | `9/12` | `11/12` | `+3.80` pts | `0.02` pts |
 
 Primary artifact:
 
@@ -774,7 +774,7 @@ Primary artifact:
 
 Interpretation:
 
-This synthesis projects the same V3, V4, and V5 rules over all completed strong TinyViT seeds. V4 fixed the two small V3 guardrail misses, but seed 306 and seed 310 expose the deeper failure: live repair masks can look safer and still remain at the magnitude floor, while SynFlow preserves a much more trainable sparse basin. V5 adds a simple SynFlow masked-recovery prior: if SynFlow's masked-before accuracy is at least magnitude and close to the selected repair, prefer SynFlow. Seed 308 validates the feature/SynFlow branch prospectively. Seed 310 validates the SynFlow-prior branch prospectively. Seed 311 is an unselected follow-up and again validates the fixed V5 rule. This is not a solved transformer pruning method, but it is now real branch evidence rather than only a projection.
+This synthesis projects the same V3, V4, and V5 rules over all completed strong TinyViT seeds. V4 fixed the two small V3 guardrail misses, but seed 306 and seed 310 expose the deeper failure: live repair masks can look safer and still remain at the magnitude floor, while SynFlow preserves a much more trainable sparse basin. V5 adds a simple SynFlow masked-recovery prior: if SynFlow's masked-before accuracy is at least magnitude and close to the selected repair, prefer SynFlow. Seed 308 validates the feature/SynFlow branch prospectively. Seed 310 validates the SynFlow-prior branch prospectively. Seed 311 is an unselected follow-up and again validates the fixed V5 rule. Seed 312 is the first V5 prospective miss, showing that the live-repair branch needs a tie-breaker between attention+MLP repair and minimal liveness. This is not a solved transformer pruning method, but the failure is now localized.
 
 V4 strong-selector test:
 
@@ -863,6 +863,25 @@ Primary artifact:
 Interpretation:
 
 Seed 311 is an unselected fresh prospective check, not a branch-scanned seed. The fixed V5 rule again selects SynFlow before fine-tuning and matches the best evaluated candidate. This reduces the risk that the seed-310 result is only a scanner artifact, while preserving the same caveat: TinyViT is still a small transformer analogue, not evidence of general LLM pruning transfer.
+
+V5 live-repair miss:
+
+| Method | Before FT | After FT | Delta vs magnitude | Centered CLS cosine | MLP-down dead | Attn-out dead |
+|---|---:|---:|---:|---:|---:|---:|
+| magnitude | `10.23%` | `11.89%` | baseline | `0.0130` | `60.0` | `4.0` |
+| global SynFlow | `7.39%` | `10.68%` | `-1.21` pts | `0.0022` | `75.0` | `64.0` |
+| minimal liveness repair | `10.36%` | `12.10%` | `+0.21` pts | `0.0122` | `0.0` | `0.0` |
+| attention+MLP/readout repair | `10.26%` | `11.87%` | `-0.02` pts | `0.0140` | `0.0` | `0.0` |
+| all-route liveness floor | `10.36%` | `12.05%` | `+0.16` pts | `0.0122` | `0.0` | `0.0` |
+| V5 feature-route policy | `10.26%` | `11.87%` | `-0.02` pts | `0.0140` | `0.0` | `0.0` |
+
+Primary artifact:
+
+- `experiments/04_criticality_pruning/CIFAR10_TINY_VIT_FEATURE_ROUTE_MARGIN_SELECTOR_V5_90PCT_STRONG_SEED312.md`
+
+Interpretation:
+
+Seed 312 is the first prospective V5 miss. The selector correctly avoids SynFlow, but it overtrusts a tiny centered-CLS advantage for attention+MLP repair. Minimal liveness and all-route liveness have slightly higher masked-before accuracy and better after-FT recovery. This localizes the next algorithmic problem: the SynFlow-prior branch is useful, but the live-repair branch needs a trainability tie-breaker when feature margins are small.
 
 ## Mechanism hierarchy
 

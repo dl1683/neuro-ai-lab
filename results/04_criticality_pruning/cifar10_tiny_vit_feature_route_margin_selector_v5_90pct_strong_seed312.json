@@ -1,0 +1,263 @@
+{
+  "experiment": "04_cifar10_tiny_vit_feature_route_margin_selector_v5_90pct_strong_seed312",
+  "setup": "Fresh full-train TinyViT CIFAR-10 90% sparsity validation of the V5 selector on seed 312. The seed is evaluated prospectively with the fixed V5 rule before masked fine-tuning.",
+  "device": "cuda",
+  "gpu_name": "NVIDIA GeForce RTX 5090 Laptop GPU",
+  "seeds": [
+    312
+  ],
+  "sparsity": 0.9,
+  "dense_accuracy_mean": 0.7297,
+  "summary": {
+    "magnitude": {
+      "after_mean": 0.1189,
+      "after_std": 0.0,
+      "centered_cls_cosine_mean": 0.013028775341808796,
+      "dead_outputs_mean": 65.0,
+      "mlp_down_dead_outputs_mean": 60.0,
+      "attn_out_dead_outputs_mean": 4.0
+    },
+    "global_synflow": {
+      "after_mean": 0.1068,
+      "after_std": 0.0,
+      "centered_cls_cosine_mean": 0.0022381250746548176,
+      "dead_outputs_mean": 1619.0,
+      "mlp_down_dead_outputs_mean": 75.0,
+      "attn_out_dead_outputs_mean": 64.0,
+      "after_delta_mean": -0.0121,
+      "after_wins": 0
+    },
+    "minimal_liveness_repair": {
+      "after_mean": 0.121,
+      "after_std": 0.0,
+      "centered_cls_cosine_mean": 0.012202447280287743,
+      "dead_outputs_mean": 0.0,
+      "mlp_down_dead_outputs_mean": 0.0,
+      "attn_out_dead_outputs_mean": 0.0,
+      "after_delta_mean": 0.0020999999999999908,
+      "after_wins": 1
+    },
+    "attn_mlp_readout_repair": {
+      "after_mean": 0.1187,
+      "after_std": 0.0,
+      "centered_cls_cosine_mean": 0.013966558501124382,
+      "dead_outputs_mean": 1.0,
+      "mlp_down_dead_outputs_mean": 0.0,
+      "attn_out_dead_outputs_mean": 0.0,
+      "after_delta_mean": -0.00020000000000000573,
+      "after_wins": 0
+    },
+    "all_route_liveness_floor": {
+      "after_mean": 0.1205,
+      "after_std": 0.0,
+      "centered_cls_cosine_mean": 0.012202447280287743,
+      "dead_outputs_mean": 0.0,
+      "mlp_down_dead_outputs_mean": 0.0,
+      "attn_out_dead_outputs_mean": 0.0,
+      "after_delta_mean": 0.0015999999999999903,
+      "after_wins": 1
+    },
+    "feature_route_margin_policy": {
+      "after_mean": 0.1187,
+      "after_std": 0.0,
+      "centered_cls_cosine_mean": 0.013966558501124382,
+      "dead_outputs_mean": 1.0,
+      "mlp_down_dead_outputs_mean": 0.0,
+      "attn_out_dead_outputs_mean": 0.0,
+      "after_delta_mean": -0.00020000000000000573,
+      "after_wins": 0
+    }
+  },
+  "decisions": [
+    {
+      "seed": 312,
+      "selected_method": "attn_mlp_readout_repair",
+      "reason": "feature_argmax",
+      "ranked_candidates": [
+        {
+          "method": "attn_mlp_readout_repair",
+          "centered_cls_cosine_mean": 0.013966558501124382,
+          "route_dead": 0,
+          "before_accuracy": 0.1026
+        },
+        {
+          "method": "magnitude",
+          "centered_cls_cosine_mean": 0.013028775341808796,
+          "route_dead": 64,
+          "before_accuracy": 0.1023
+        },
+        {
+          "method": "minimal_liveness_repair",
+          "centered_cls_cosine_mean": 0.012202447280287743,
+          "route_dead": 0,
+          "before_accuracy": 0.1036
+        },
+        {
+          "method": "all_route_liveness_floor",
+          "centered_cls_cosine_mean": 0.012202447280287743,
+          "route_dead": 0,
+          "before_accuracy": 0.1036
+        },
+        {
+          "method": "global_synflow",
+          "centered_cls_cosine_mean": 0.0022381250746548176,
+          "route_dead": 139,
+          "before_accuracy": 0.0739
+        }
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "seed": 312,
+      "method": "magnitude",
+      "dense_accuracy": 0.7297,
+      "before_accuracy": 0.1023,
+      "after_accuracy": 0.1189,
+      "feature_alignment": {
+        "cls_cosine_mean": 0.03739222511649132,
+        "cls_cosine_std": 0.1338694989681244,
+        "centered_cls_cosine_mean": 0.013028775341808796,
+        "feature_samples": 2048
+      },
+      "route_quality": {
+        "total_dead_outputs": 65,
+        "mlp_down_dead_outputs": 60,
+        "mlp_down_min": 0.0,
+        "mlp_down_mean": 2.365234375,
+        "attn_out_dead_outputs": 4,
+        "attn_out_min": 0.0,
+        "attn_out_mean": 6.326171875,
+        "head_dead_outputs": 0,
+        "head_min": 21.0,
+        "head_mean": 32.900001525878906
+      }
+    },
+    {
+      "seed": 312,
+      "method": "global_synflow",
+      "dense_accuracy": 0.7297,
+      "before_accuracy": 0.0739,
+      "after_accuracy": 0.1068,
+      "feature_alignment": {
+        "cls_cosine_mean": 0.035164907574653625,
+        "cls_cosine_std": 0.10935603827238083,
+        "centered_cls_cosine_mean": 0.0022381250746548176,
+        "feature_samples": 2048
+      },
+      "route_quality": {
+        "total_dead_outputs": 1619,
+        "mlp_down_dead_outputs": 75,
+        "mlp_down_min": 0.0,
+        "mlp_down_mean": 18.220703125,
+        "attn_out_dead_outputs": 64,
+        "attn_out_min": 0.0,
+        "attn_out_mean": 29.666015625,
+        "head_dead_outputs": 0,
+        "head_min": 101.0,
+        "head_mean": 105.5999984741211
+      }
+    },
+    {
+      "seed": 312,
+      "method": "minimal_liveness_repair",
+      "dense_accuracy": 0.7297,
+      "before_accuracy": 0.1036,
+      "after_accuracy": 0.121,
+      "feature_alignment": {
+        "cls_cosine_mean": 0.03600849211215973,
+        "cls_cosine_std": 0.13565103709697723,
+        "centered_cls_cosine_mean": 0.012202447280287743,
+        "feature_samples": 2048
+      },
+      "route_quality": {
+        "total_dead_outputs": 0,
+        "mlp_down_dead_outputs": 0,
+        "mlp_down_min": 1.0,
+        "mlp_down_mean": 2.48046875,
+        "attn_out_dead_outputs": 0,
+        "attn_out_min": 1.0,
+        "attn_out_mean": 6.30859375,
+        "head_dead_outputs": 0,
+        "head_min": 21.0,
+        "head_mean": 32.900001525878906
+      }
+    },
+    {
+      "seed": 312,
+      "method": "attn_mlp_readout_repair",
+      "dense_accuracy": 0.7297,
+      "before_accuracy": 0.1026,
+      "after_accuracy": 0.1187,
+      "feature_alignment": {
+        "cls_cosine_mean": 0.0377938449382782,
+        "cls_cosine_std": 0.13475917279720306,
+        "centered_cls_cosine_mean": 0.013966558501124382,
+        "feature_samples": 2048
+      },
+      "route_quality": {
+        "total_dead_outputs": 1,
+        "mlp_down_dead_outputs": 0,
+        "mlp_down_min": 1.0,
+        "mlp_down_mean": 2.48046875,
+        "attn_out_dead_outputs": 0,
+        "attn_out_min": 1.0,
+        "attn_out_mean": 6.310546875,
+        "head_dead_outputs": 0,
+        "head_min": 21.0,
+        "head_mean": 32.900001525878906
+      }
+    },
+    {
+      "seed": 312,
+      "method": "all_route_liveness_floor",
+      "dense_accuracy": 0.7297,
+      "before_accuracy": 0.1036,
+      "after_accuracy": 0.1205,
+      "feature_alignment": {
+        "cls_cosine_mean": 0.03600849211215973,
+        "cls_cosine_std": 0.13565103709697723,
+        "centered_cls_cosine_mean": 0.012202447280287743,
+        "feature_samples": 2048
+      },
+      "route_quality": {
+        "total_dead_outputs": 0,
+        "mlp_down_dead_outputs": 0,
+        "mlp_down_min": 1.0,
+        "mlp_down_mean": 2.48046875,
+        "attn_out_dead_outputs": 0,
+        "attn_out_min": 1.0,
+        "attn_out_mean": 6.30859375,
+        "head_dead_outputs": 0,
+        "head_min": 21.0,
+        "head_mean": 32.900001525878906
+      }
+    },
+    {
+      "seed": 312,
+      "method": "feature_route_margin_policy",
+      "dense_accuracy": 0.7297,
+      "before_accuracy": 0.1026,
+      "after_accuracy": 0.1187,
+      "feature_alignment": {
+        "cls_cosine_mean": 0.0377938449382782,
+        "cls_cosine_std": 0.13475917279720306,
+        "centered_cls_cosine_mean": 0.013966558501124382,
+        "feature_samples": 2048
+      },
+      "route_quality": {
+        "total_dead_outputs": 1,
+        "mlp_down_dead_outputs": 0,
+        "mlp_down_min": 1.0,
+        "mlp_down_mean": 2.48046875,
+        "attn_out_dead_outputs": 0,
+        "attn_out_min": 1.0,
+        "attn_out_mean": 6.310546875,
+        "head_dead_outputs": 0,
+        "head_min": 21.0,
+        "head_mean": 32.900001525878906
+      },
+      "policy_source_method": "attn_mlp_readout_repair"
+    }
+  ]
+}
