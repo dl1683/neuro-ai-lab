@@ -767,7 +767,8 @@ Six-seed strong-selector boundary projection:
 | V3 | `12` | `8/12` | `7/12` | `+2.84` pts | `0.98` pts |
 | V4 | `12` | `8/12` | `9/12` | `+2.88` pts | `0.94` pts |
 | V5 | `12` | `9/12` | `11/12` | `+3.80` pts | `0.02` pts |
-| V6 | `14` | `10/14` | `13/14` | `+3.27` pts | `0.01` pts |
+| V6 | `15` | `11/15` | `14/15` | `+3.25` pts | `0.01` pts |
+| V7 | `15` | `11/15` | `15/15` | `+3.25` pts | `0.00` pts |
 
 Primary artifact:
 
@@ -775,7 +776,7 @@ Primary artifact:
 
 Interpretation:
 
-This synthesis projects the same V3, V4, V5, and V6 rules over all completed strong TinyViT seeds. V4 fixed the two small V3 guardrail misses, but seed 306 and seed 310 expose the deeper failure: live repair masks can look safer and still remain at the magnitude floor, while SynFlow preserves a much more trainable sparse basin. V5 adds a simple SynFlow masked-recovery prior: if SynFlow's masked-before accuracy is at least magnitude and close to the selected repair, prefer SynFlow. Seed 312 is the first V5 prospective miss, showing that the live-repair branch needs a tie-breaker between attention+MLP repair and minimal liveness. V6 adds that narrow tie-breaker and fixes seed 312 in projection. Seed 313 prospectively validates the magnitude guardrail. Seed 315 is the new limitation: all-route liveness looks slightly better before fine-tuning, but magnitude still recovers best. The next rule needs a magnitude-vs-live-repair guardrail.
+This synthesis projects the same V3, V4, V5, V6, and V7 rules over all completed strong TinyViT seeds. V4 fixed the two small V3 guardrail misses, but seed 306 and seed 310 expose the deeper failure: live repair masks can look safer and still remain at the magnitude floor, while SynFlow preserves a much more trainable sparse basin. V5 adds a simple SynFlow masked-recovery prior: if SynFlow's masked-before accuracy is at least magnitude and close to the selected repair, prefer SynFlow. Seed 312 is the first V5 prospective miss, showing that the live-repair branch needs a tie-breaker between attention+MLP repair and minimal liveness. V6 adds that narrow tie-breaker and fixes seed 312 in projection. Seed 315 motivates V7's magnitude-vs-live-repair guardrail. V7 reaches the evaluated oracle on the current boundary and seed 320 prospectively validates that the new guardrail does not break the SynFlow branch.
 
 V4 strong-selector test:
 
@@ -921,6 +922,25 @@ Primary artifact:
 Interpretation:
 
 Seed 315 is the live-repair branch failure V6 does not yet solve. The pre-finetune metrics mildly favor all-route liveness, and the mask eliminates measured dead rows, but magnitude still recovers slightly better. This is not a collapse; it is a small but important boundary. The next selector must ask whether the live-repair advantage is large enough to justify disrupting the magnitude template.
+
+V7 SynFlow no-regression:
+
+| Method | Before FT | After FT | Delta vs magnitude | Centered CLS cosine | MLP-down dead | Attn-out dead |
+|---|---:|---:|---:|---:|---:|---:|
+| magnitude | `8.66%` | `9.01%` | baseline | `-0.0134` | `66.0` | `5.0` |
+| global SynFlow | `8.96%` | `11.93%` | `+2.92` pts | `0.0246` | `74.0` | `77.0` |
+| minimal liveness repair | `9.09%` | `9.20%` | `+0.19` pts | `-0.0110` | `1.0` | `0.0` |
+| attention+MLP/readout repair | `9.00%` | `9.16%` | `+0.15` pts | `-0.0118` | `1.0` | `0.0` |
+| all-route liveness floor | `9.10%` | `9.27%` | `+0.26` pts | `-0.0110` | `0.0` | `0.0` |
+| V7 feature-route policy | `8.96%` | `11.93%` | `+2.92` pts | `0.0246` | `74.0` | `77.0` |
+
+Primary artifact:
+
+- `experiments/04_criticality_pruning/CIFAR10_TINY_VIT_FEATURE_ROUTE_MARGIN_SELECTOR_V7_90PCT_STRONG_SEED320.md`
+
+Interpretation:
+
+Seed 320 is not the exact V7 magnitude-vs-live-repair guardrail branch. It is a no-regression test. The new guardrail leaves the SynFlow feature branch untouched, and SynFlow is again the best evaluated candidate. The missing prospective test remains a fresh seed where V7 actually invokes `magnitude_live_repair_tiny_feature_guardrail`.
 
 ## Mechanism hierarchy
 
