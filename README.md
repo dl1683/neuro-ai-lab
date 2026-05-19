@@ -12,6 +12,20 @@ The current standout result is not a toy demo: **global SynFlow can catastrophic
 
 The constructive direction is Path-Capacity Pruning and circuit-viability selection: preserve communication capacity through vulnerable cuts, then fill the remaining parameter budget by saliency. Current experiments rescue SynFlow collapse, beat magnitude pruning in several severe-sparsity regimes, and expose architecture-specific viability rules. CNNs need bridge capacity; residual networks need route-quality and readout constraints; TinyViT shows a transformer analogue where residual-stream feature preservation can matter more than row-level liveness, but trainability still matters.
 
+## Visual overview
+
+These figures are generated from checked-in result artifacts by:
+
+```powershell
+python experiments\04_criticality_pruning\make_readme_visuals.py
+```
+
+![Global SynFlow bridge collapse](figures/04_circuit_viability/readme_synflow_bridge_collapse.svg)
+
+![TinyViT selector evolution](figures/04_circuit_viability/readme_tinyvit_selector_evolution.svg)
+
+![TinyViT branch evidence](figures/04_circuit_viability/readme_tinyvit_branch_cases.svg)
+
 ## Headline finding
 
 At `98-99%` global sparsity, global SynFlow can assign `0` surviving weights to `fc1`, the first dense classifier bridge in CNNs. Once that bridge is gone, masked fine-tuning cannot recover the model.
