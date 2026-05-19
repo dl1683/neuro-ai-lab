@@ -1,0 +1,95 @@
+{
+  "experiment": "04_find_tiny_vit_v5_synflow_prior_seed",
+  "setup": "Dense-training branch scanner for the strong TinyViT V5 selector. Computes only pre-finetune selector diagnostics and stops when V5 enters the SynFlow masked-recovery-prior branch.",
+  "device": "cuda",
+  "gpu_name": "NVIDIA GeForce RTX 5090 Laptop GPU",
+  "candidate_seeds": [
+    309,
+    310,
+    311,
+    312,
+    313,
+    314
+  ],
+  "scanned_count": 2,
+  "found_synflow_prior": true,
+  "synflow_prior_seed": 310,
+  "rows": [
+    {
+      "seed": 309,
+      "dense_accuracy": 0.7226,
+      "selected_method": "global_synflow",
+      "reason": "feature_argmax",
+      "ranked_candidates": [
+        {
+          "method": "global_synflow",
+          "centered_cls_cosine_mean": 0.015135516412556171,
+          "route_dead": 146,
+          "before_accuracy": 0.0825
+        },
+        {
+          "method": "attn_mlp_readout_repair",
+          "centered_cls_cosine_mean": -0.010700369253754616,
+          "route_dead": 0,
+          "before_accuracy": 0.067
+        },
+        {
+          "method": "magnitude",
+          "centered_cls_cosine_mean": -0.010717680677771568,
+          "route_dead": 74,
+          "before_accuracy": 0.0663
+        },
+        {
+          "method": "minimal_liveness_repair",
+          "centered_cls_cosine_mean": -0.010920794680714607,
+          "route_dead": 0,
+          "before_accuracy": 0.067
+        },
+        {
+          "method": "all_route_liveness_floor",
+          "centered_cls_cosine_mean": -0.010920794680714607,
+          "route_dead": 0,
+          "before_accuracy": 0.067
+        }
+      ]
+    },
+    {
+      "seed": 310,
+      "dense_accuracy": 0.7209,
+      "selected_method": "global_synflow",
+      "reason": "synflow_masked_recovery_prior",
+      "ranked_candidates": [
+        {
+          "method": "global_synflow",
+          "centered_cls_cosine_mean": 0.016415730118751526,
+          "route_dead": 181,
+          "before_accuracy": 0.0827
+        },
+        {
+          "method": "minimal_liveness_repair",
+          "centered_cls_cosine_mean": 0.005266586318612099,
+          "route_dead": 1,
+          "before_accuracy": 0.0496
+        },
+        {
+          "method": "all_route_liveness_floor",
+          "centered_cls_cosine_mean": 0.005013784393668175,
+          "route_dead": 0,
+          "before_accuracy": 0.0489
+        },
+        {
+          "method": "magnitude",
+          "centered_cls_cosine_mean": 0.004659181926399469,
+          "route_dead": 98,
+          "before_accuracy": 0.0482
+        },
+        {
+          "method": "attn_mlp_readout_repair",
+          "centered_cls_cosine_mean": 0.004490886349231005,
+          "route_dead": 1,
+          "before_accuracy": 0.0496
+        }
+      ]
+    }
+  ]
+}

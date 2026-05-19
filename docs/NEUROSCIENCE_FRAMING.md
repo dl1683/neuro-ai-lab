@@ -23,7 +23,7 @@ The machine-learning analogue is severe neural-network pruning:
 | Circuit viability | Preserve functional routes through a circuit. | Maintain nonzero capacity across required communication cuts. | SynFlow bridge collapse and capacity rescue experiments. |
 | Homeostatic plasticity | Prevent circuits from becoming silent or unstable. | Prevent dead outputs, dead bridges, and zero-capacity cutsets. | Dense bridge and TinyResNet dead-output diagnostics. |
 | Use-dependent stabilization | Active pathways are more likely to survive. | Use activation-supported path ranking. | TinyResNet activation reserve is a negative first test. |
-| Degeneracy | Multiple different routes can support similar function. | Preserve route diversity rather than a single surviving wire. | Open; likely needed for residual networks. |
+| Degeneracy | Multiple different routes can support similar function. | Preserve route diversity rather than a single surviving wire. | Diversity route optimization and strong TinyViT branch selection. |
 | Communication backbones | Long-range/bottleneck routes support system-level function. | Estimate min-cut or path capacity between representation stages. | Current path-capacity constraints approximate this in CNNs. |
 
 ## What the current experiments show
@@ -44,7 +44,7 @@ Limitations:
 - Residual networks reveal that output liveness alone is not route quality.
 - Naive presynaptic activation support did not solve the residual case.
 - The repo does not yet model richer biological mechanisms such as local competition, neuromodulation, dendritic compartment constraints, or multi-timescale plasticity.
-- There is no transformer analogue yet.
+- The transformer analogue is currently TinyViT-scale; it has branch evidence, not broad transformer or LLM transfer.
 
 ## Important lesson from the negative activation result
 
@@ -84,6 +84,21 @@ The DeepTinyResNet transfer adds a second residual setting. In the deeper model,
 The ResNet-20-style transfer reinforces the same point in a more standard residual architecture. Magnitude and SynFlow both leave large numbers of dead outputs at `99%`, while capacity reserve keeps route families alive and beats magnitude. This is the clearest current machine-learning analogue of homeostatic stabilization: the sparse circuit must remain globally viable before finer-grained route optimization can matter.
 
 The full-CIFAR ResNet-20 result makes the homeostasis claim more realistic. The advantage shrinks when dense training is stronger and the full dataset is used, but it remains positive: reserve capacity eliminates dead outputs and still beats magnitude. That is the right kind of result for a biological analogy: homeostatic viability is not magic performance; it is a guardrail that matters most when severe perturbation would otherwise silence parts of the circuit.
+
+## Important lesson from TinyViT residual-stream branch selection
+
+TinyViT makes the neuroscience connection sharper because it separates anatomical liveness from functional viability.
+
+In the strong TinyViT runs, masks that eliminate measured dead rows can still remain at the magnitude floor. Seed 310 is the cleanest example: all-route liveness leaves zero measured MLP/attention dead rows but recovers only `5.86%`, while SynFlow keeps many dead rows by that metric and recovers `15.16%`. The V5 selector chooses SynFlow before fine-tuning because the masked-before behavior indicates a more trainable residual-stream basin.
+
+The biological analogy is that keeping every local pathway anatomically present is not the same as preserving the functional ensemble. A sparse transformer circuit needs:
+
+- residual-stream feature preservation;
+- globally coherent signal paths;
+- enough trainable capacity for masked recovery;
+- liveness repair only when silence is the actual limiting deficit.
+
+That is why the current theory is not simply "keep units alive." It is constrained circuit remodeling: preserve the route family that keeps the computation recoverable under the task ecology.
 
 ## Next neuroscience-grounded method hypothesis
 

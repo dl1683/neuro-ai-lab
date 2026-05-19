@@ -16,6 +16,7 @@ SOURCES = [
     ("v4_strong_seed304", "cifar10_tiny_vit_feature_route_margin_selector_v4_90pct_strong.json"),
     ("v4_strong_seed306", "cifar10_tiny_vit_feature_route_margin_selector_v4_90pct_strong_seed306.json"),
     ("v5_strong_seed308", "cifar10_tiny_vit_feature_route_margin_selector_v5_90pct_strong.json"),
+    ("v5_strong_seed310", "cifar10_tiny_vit_feature_route_margin_selector_v5_90pct_strong_seed310.json"),
 ]
 
 CANDIDATES = [
@@ -250,7 +251,7 @@ def write_report(result: dict) -> None:
             "",
             "This is not a new training run; it is a rule projection over all completed strong TinyViT candidate evaluations. The result is useful because the selector is applied before seeing fine-tune recovery, while the scorecard compares that choice against the evaluated recovery.",
             "",
-            "The boundary is now concrete. When SynFlow's centered CLS/residual-stream feature margin is large, the selector chooses SynFlow and the choice wins. When feature alignment favors liveness repair, the rule can beat magnitude but can still miss SynFlow. Seed 306 is the important correction: V4 selects attention+MLP repair from pre-finetune feature alignment and masked behavior; that selected repair beats magnitude but trails SynFlow. V5 adds a simple SynFlow masked-recovery prior: if SynFlow's masked-before accuracy is at least magnitude and close to the selected repair, prefer SynFlow. On the completed boundary set, this fixes seed 306 without breaking the earlier guardrail cases. This is still a projection and needs a fresh prospective run.",
+            "The boundary is now concrete. When SynFlow's centered CLS/residual-stream feature margin is large, the selector chooses SynFlow and the choice wins. When feature alignment favors liveness repair, the rule can beat magnitude but can still miss SynFlow. Seed 306 is the important correction: V4 selects attention+MLP repair from pre-finetune feature alignment and masked behavior; that selected repair beats magnitude but trails SynFlow. V5 adds a simple SynFlow masked-recovery prior: if SynFlow's masked-before accuracy is at least magnitude and close to the selected repair, prefer SynFlow. Seed 310 prospectively validates that branch: V4-style liveness selection stays at the magnitude floor, while V5 selects SynFlow and matches the best evaluated candidate. This is still a small strong-TinyViT boundary set, but it is no longer only a projection.",
         ]
     )
     md.write_text("\n".join(lines) + "\n", encoding="utf-8")
