@@ -766,6 +766,7 @@ Six-seed strong-selector boundary projection:
 |---:|---:|---:|---:|---:|
 | V3 | `8` | `6/8` | `5/8` | `+3.14` pts | `0.28` pts |
 | V4 | `8` | `6/8` | `7/8` | `+3.20` pts | `0.21` pts |
+| V5 | `8` | `6/8` | `8/8` | `+3.41` pts | `0.00` pts |
 
 Primary artifact:
 
@@ -773,7 +774,7 @@ Primary artifact:
 
 Interpretation:
 
-This synthesis projects the same V3 and V4 rules over all completed strong TinyViT seeds. V4 fixed the two small V3 guardrail misses, but seed 306 falsifies the perfect-projection story. On that seed, V4 selected attention+MLP repair from pre-finetune diagnostics; the selected repair beat magnitude, but SynFlow recovered better despite lower centered CLS alignment. This is scientifically useful because it isolates the missing term: the selector needs a SynFlow recovery prior or a better trainability metric, not just feature alignment plus row liveness.
+This synthesis projects the same V3, V4, and V5 rules over all completed strong TinyViT seeds. V4 fixed the two small V3 guardrail misses, but seed 306 falsifies the perfect-projection story. On that seed, V4 selected attention+MLP repair from pre-finetune diagnostics; the selected repair beat magnitude, but SynFlow recovered better despite lower centered CLS alignment. V5 adds a simple SynFlow masked-recovery prior: if SynFlow's masked-before accuracy is at least magnitude and close to the selected repair, prefer SynFlow. In projection, this fixes seed 306 without breaking the earlier magnitude/all-route guardrail cases. This is not a solved transformer pruning method; it is the next prospective selector to validate.
 
 V4 strong-selector test:
 

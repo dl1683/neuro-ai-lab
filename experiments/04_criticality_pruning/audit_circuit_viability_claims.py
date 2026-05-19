@@ -269,6 +269,10 @@ def checks():
     out.append(close(tinyvit_boundary["v4_matches_best"], 7, "TinyViT V4 boundary best-match count", "tiny_vit_strong_selector_boundary_synthesis.json"))
     out.append(close(tinyvit_boundary["v4_mean_delta_vs_magnitude"], 0.031962500000000005, "TinyViT V4 boundary mean delta", "tiny_vit_strong_selector_boundary_synthesis.json"))
     out.append(close(tinyvit_boundary["v4_mean_gap_to_best"], 0.0021374999999999988, "TinyViT V4 boundary mean oracle gap", "tiny_vit_strong_selector_boundary_synthesis.json"))
+    out.append(close(tinyvit_boundary["v5_positive_vs_magnitude"], 6, "TinyViT V5 boundary positive count", "tiny_vit_strong_selector_boundary_synthesis.json"))
+    out.append(close(tinyvit_boundary["v5_matches_best"], 8, "TinyViT V5 boundary best-match count", "tiny_vit_strong_selector_boundary_synthesis.json"))
+    out.append(close(tinyvit_boundary["v5_mean_delta_vs_magnitude"], 0.0341, "TinyViT V5 boundary mean delta", "tiny_vit_strong_selector_boundary_synthesis.json"))
+    out.append(close(tinyvit_boundary["v5_mean_gap_to_best"], 0.0, "TinyViT V5 boundary mean oracle gap", "tiny_vit_strong_selector_boundary_synthesis.json"))
 
     synthesis = load("path_capacity_synthesis.json")
     out.append(close(synthesis["best_vs_magnitude"]["label"], "tinyvit feature-route margin selector v3 strong replicate 90", "Path-capacity synthesis best label", "path_capacity_synthesis.json"))
