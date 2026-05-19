@@ -1,0 +1,247 @@
+{
+  "experiment": "04_find_tiny_v7_magnitude_live_guardrail_seed",
+  "setup": "Dense-training branch scanner for the strong TinyViT V7 selector. Computes only pre-finetune selector diagnostics and stops when V7 enters the magnitude-vs-live-repair guardrail branch.",
+  "device": "cuda",
+  "gpu_name": "NVIDIA GeForce RTX 5090 Laptop GPU",
+  "candidate_seeds": [
+    321,
+    322,
+    323,
+    324,
+    325,
+    326
+  ],
+  "scanned_count": 6,
+  "found_magnitude_live_guardrail": false,
+  "magnitude_live_guardrail_seed": null,
+  "rows": [
+    {
+      "seed": 321,
+      "dense_accuracy": 0.7243,
+      "selected_method": "global_synflow",
+      "reason": "feature_argmax",
+      "ranked_candidates": [
+        {
+          "method": "global_synflow",
+          "centered_cls_cosine_mean": 0.06905733048915863,
+          "route_dead": 169,
+          "before_accuracy": 0.1546
+        },
+        {
+          "method": "minimal_liveness_repair",
+          "centered_cls_cosine_mean": 0.04981105029582977,
+          "route_dead": 0,
+          "before_accuracy": 0.1386
+        },
+        {
+          "method": "all_route_liveness_floor",
+          "centered_cls_cosine_mean": 0.04981105029582977,
+          "route_dead": 0,
+          "before_accuracy": 0.1386
+        },
+        {
+          "method": "attn_mlp_readout_repair",
+          "centered_cls_cosine_mean": 0.04638245701789856,
+          "route_dead": 0,
+          "before_accuracy": 0.1314
+        },
+        {
+          "method": "magnitude",
+          "centered_cls_cosine_mean": 0.04405292496085167,
+          "route_dead": 98,
+          "before_accuracy": 0.1347
+        }
+      ]
+    },
+    {
+      "seed": 322,
+      "dense_accuracy": 0.7277,
+      "selected_method": "global_synflow",
+      "reason": "synflow_masked_recovery_prior",
+      "ranked_candidates": [
+        {
+          "method": "minimal_liveness_repair",
+          "centered_cls_cosine_mean": 0.04262663796544075,
+          "route_dead": 0,
+          "before_accuracy": 0.1051
+        },
+        {
+          "method": "all_route_liveness_floor",
+          "centered_cls_cosine_mean": 0.04262663796544075,
+          "route_dead": 0,
+          "before_accuracy": 0.1051
+        },
+        {
+          "method": "attn_mlp_readout_repair",
+          "centered_cls_cosine_mean": 0.04186777397990227,
+          "route_dead": 0,
+          "before_accuracy": 0.1059
+        },
+        {
+          "method": "magnitude",
+          "centered_cls_cosine_mean": 0.03941723704338074,
+          "route_dead": 60,
+          "before_accuracy": 0.1063
+        },
+        {
+          "method": "global_synflow",
+          "centered_cls_cosine_mean": 0.02300095744431019,
+          "route_dead": 164,
+          "before_accuracy": 0.139
+        }
+      ]
+    },
+    {
+      "seed": 323,
+      "dense_accuracy": 0.7317,
+      "selected_method": "global_synflow",
+      "reason": "feature_argmax",
+      "ranked_candidates": [
+        {
+          "method": "global_synflow",
+          "centered_cls_cosine_mean": 0.026379616931080818,
+          "route_dead": 178,
+          "before_accuracy": 0.1065
+        },
+        {
+          "method": "all_route_liveness_floor",
+          "centered_cls_cosine_mean": -0.005788625217974186,
+          "route_dead": 0,
+          "before_accuracy": 0.0889
+        },
+        {
+          "method": "minimal_liveness_repair",
+          "centered_cls_cosine_mean": -0.005837741307914257,
+          "route_dead": 1,
+          "before_accuracy": 0.0889
+        },
+        {
+          "method": "attn_mlp_readout_repair",
+          "centered_cls_cosine_mean": -0.007697575725615025,
+          "route_dead": 1,
+          "before_accuracy": 0.0873
+        },
+        {
+          "method": "magnitude",
+          "centered_cls_cosine_mean": -0.013830204494297504,
+          "route_dead": 80,
+          "before_accuracy": 0.0776
+        }
+      ]
+    },
+    {
+      "seed": 324,
+      "dense_accuracy": 0.7224,
+      "selected_method": "magnitude",
+      "reason": "feature_argmax",
+      "ranked_candidates": [
+        {
+          "method": "magnitude",
+          "centered_cls_cosine_mean": 0.030982211232185364,
+          "route_dead": 80,
+          "before_accuracy": 0.119
+        },
+        {
+          "method": "attn_mlp_readout_repair",
+          "centered_cls_cosine_mean": 0.028518803417682648,
+          "route_dead": 1,
+          "before_accuracy": 0.1203
+        },
+        {
+          "method": "all_route_liveness_floor",
+          "centered_cls_cosine_mean": 0.028239905834197998,
+          "route_dead": 0,
+          "before_accuracy": 0.1145
+        },
+        {
+          "method": "minimal_liveness_repair",
+          "centered_cls_cosine_mean": 0.028143083676695824,
+          "route_dead": 1,
+          "before_accuracy": 0.115
+        },
+        {
+          "method": "global_synflow",
+          "centered_cls_cosine_mean": -0.004627585411071777,
+          "route_dead": 201,
+          "before_accuracy": 0.0608
+        }
+      ]
+    },
+    {
+      "seed": 325,
+      "dense_accuracy": 0.7195,
+      "selected_method": "global_synflow",
+      "reason": "feature_argmax",
+      "ranked_candidates": [
+        {
+          "method": "global_synflow",
+          "centered_cls_cosine_mean": 0.015398910269141197,
+          "route_dead": 188,
+          "before_accuracy": 0.118
+        },
+        {
+          "method": "magnitude",
+          "centered_cls_cosine_mean": -0.0373636893928051,
+          "route_dead": 97,
+          "before_accuracy": 0.1075
+        },
+        {
+          "method": "attn_mlp_readout_repair",
+          "centered_cls_cosine_mean": -0.03851662948727608,
+          "route_dead": 0,
+          "before_accuracy": 0.1103
+        },
+        {
+          "method": "minimal_liveness_repair",
+          "centered_cls_cosine_mean": -0.039588138461112976,
+          "route_dead": 0,
+          "before_accuracy": 0.1089
+        },
+        {
+          "method": "all_route_liveness_floor",
+          "centered_cls_cosine_mean": -0.039588138461112976,
+          "route_dead": 0,
+          "before_accuracy": 0.1089
+        }
+      ]
+    },
+    {
+      "seed": 326,
+      "dense_accuracy": 0.7265,
+      "selected_method": "magnitude",
+      "reason": "feature_argmax",
+      "ranked_candidates": [
+        {
+          "method": "magnitude",
+          "centered_cls_cosine_mean": 0.03712627291679382,
+          "route_dead": 71,
+          "before_accuracy": 0.1428
+        },
+        {
+          "method": "minimal_liveness_repair",
+          "centered_cls_cosine_mean": 0.035447604954242706,
+          "route_dead": 0,
+          "before_accuracy": 0.1434
+        },
+        {
+          "method": "all_route_liveness_floor",
+          "centered_cls_cosine_mean": 0.035447604954242706,
+          "route_dead": 0,
+          "before_accuracy": 0.1434
+        },
+        {
+          "method": "attn_mlp_readout_repair",
+          "centered_cls_cosine_mean": 0.0345955491065979,
+          "route_dead": 0,
+          "before_accuracy": 0.1431
+        },
+        {
+          "method": "global_synflow",
+          "centered_cls_cosine_mean": 0.010518442839384079,
+          "route_dead": 165,
+          "before_accuracy": 0.1132
+        }
+      ]
+    }
+  ]
+}

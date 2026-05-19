@@ -186,3 +186,9 @@ Unsafe claim:
 | Claim | Status | Evidence | Scope | Public boundary |
 |---|---|---|---|---|
 | V7 fixes the current magnitude-vs-live-repair boundary projection and preserves SynFlow on one fresh seed. | `promising-projection` | `results/04_criticality_pruning/tiny_vit_strong_selector_boundary_synthesis.json`; `results/04_criticality_pruning/cifar10_tiny_vit_feature_route_margin_selector_v7_90pct_strong_seed320.json`; `experiments/04_criticality_pruning/CIFAR10_TINY_VIT_FEATURE_ROUTE_MARGIN_SELECTOR_V7_90PCT_STRONG_SEED320.md` | Fifteen completed full-CIFAR TinyViT seeds at 90% sparsity; V7 projection matches the best evaluated candidate on `15/15`, averages `+3.25` points over magnitude, and leaves zero evaluated-oracle gap. Fresh seed 320 selected SynFlow and beat magnitude by `+2.92` points. | The V7 guardrail itself is still projection-validated on seed 315. It needs a fresh seed that actually triggers `magnitude_live_repair_tiny_feature_guardrail`. |
+
+## Strong TinyViT V7 branch-search addendum
+
+| Claim | Status | Evidence | Scope | Public boundary |
+|---|---|---|---|---|
+| Fresh V7 magnitude-vs-live-repair guardrail branches were not found in the first scanned seed batch. | `negative-diagnostic` | `results/04_criticality_pruning/find_tiny_v7_magnitude_live_guardrail_seed.json`; `experiments/04_criticality_pruning/find_tiny_v7_magnitude_live_guardrail_seed.py` | Dense-only scanner over seeds `321-326`; it found SynFlow feature, SynFlow masked-recovery-prior, and magnitude feature branches, but no `magnitude_live_repair_tiny_feature_guardrail` branch. | This is branch-discovery evidence only, not after-FT validation. It keeps the V7 guardrail claim projection-bounded until the exact branch is prospectively tested. |

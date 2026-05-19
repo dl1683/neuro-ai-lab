@@ -942,6 +942,17 @@ Interpretation:
 
 Seed 320 is not the exact V7 magnitude-vs-live-repair guardrail branch. It is a no-regression test. The new guardrail leaves the SynFlow feature branch untouched, and SynFlow is again the best evaluated candidate. The missing prospective test remains a fresh seed where V7 actually invokes `magnitude_live_repair_tiny_feature_guardrail`.
 
+V7 guardrail branch scan:
+
+- Scanner artifact: `results/04_criticality_pruning/find_tiny_v7_magnitude_live_guardrail_seed.json`
+- Seeds scanned: `321-326`
+- Found `magnitude_live_repair_tiny_feature_guardrail`: `false`
+- Observed branches: SynFlow feature, SynFlow masked-recovery-prior, and magnitude feature.
+
+Interpretation:
+
+The exact V7 guardrail branch is not frequent in the first fresh scan. That matters for claim discipline: V7 has a clean boundary projection and a SynFlow no-regression seed, but not yet a prospective full-run validation of the new guardrail itself.
+
 ## Mechanism hierarchy
 
 The current evidence supports a hierarchy:
