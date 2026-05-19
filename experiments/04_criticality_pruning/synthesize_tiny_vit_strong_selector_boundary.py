@@ -17,6 +17,7 @@ SOURCES = [
     ("v4_strong_seed306", "cifar10_tiny_vit_feature_route_margin_selector_v4_90pct_strong_seed306.json"),
     ("v5_strong_seed308", "cifar10_tiny_vit_feature_route_margin_selector_v5_90pct_strong.json"),
     ("v5_strong_seed310", "cifar10_tiny_vit_feature_route_margin_selector_v5_90pct_strong_seed310.json"),
+    ("v5_strong_seed311", "cifar10_tiny_vit_feature_route_margin_selector_v5_90pct_strong_seed311.json"),
 ]
 
 CANDIDATES = [

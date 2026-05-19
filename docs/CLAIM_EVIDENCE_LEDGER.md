@@ -143,7 +143,7 @@ Unsafe claim:
 
 | Claim | Status | Evidence | Scope | Public boundary |
 |---|---|---|---|---|
-| A V5 SynFlow masked-recovery prior fixes the completed strong TinyViT boundary projection. | `supported-projection` | `results/04_criticality_pruning/tiny_vit_strong_selector_boundary_synthesis.json`; `experiments/04_criticality_pruning/TINY_VIT_STRONG_SELECTOR_BOUNDARY_SYNTHESIS.md` | Ten completed full-CIFAR TinyViT seeds at 90% sparsity; V5 projection matches the best evaluated candidate on `10/10`, averages `+3.95` points over magnitude, and leaves zero mean gap to the evaluated oracle. | This is partly projection and partly prospective validation: seed 310 validates the previously open SynFlow masked-recovery-prior branch, but the full boundary set is still small and TinyViT-specific. |
+| A V5 SynFlow masked-recovery prior fixes the completed strong TinyViT boundary projection. | `supported-projection` | `results/04_criticality_pruning/tiny_vit_strong_selector_boundary_synthesis.json`; `experiments/04_criticality_pruning/TINY_VIT_STRONG_SELECTOR_BOUNDARY_SYNTHESIS.md` | Eleven completed full-CIFAR TinyViT seeds at 90% sparsity; V5 projection matches the best evaluated candidate on `11/11`, averages `+4.15` points over magnitude, and leaves zero mean gap to the evaluated oracle. | This is partly projection and partly prospective validation: seed 310 validates the previously open SynFlow masked-recovery-prior branch and seed 311 adds an unselected fresh V5 follow-up, but the full boundary set is still small and TinyViT-specific. |
 
 ## Strong TinyViT V5 prospective seed addendum
 
@@ -156,3 +156,9 @@ Unsafe claim:
 | Claim | Status | Evidence | Scope | Public boundary |
 |---|---|---|---|---|
 | A fresh V5 prospective seed validates the SynFlow masked-recovery-prior branch. | `promising` | `results/04_criticality_pruning/cifar10_tiny_vit_feature_route_margin_selector_v5_90pct_strong_seed310.json`; `experiments/04_criticality_pruning/CIFAR10_TINY_VIT_FEATURE_ROUTE_MARGIN_SELECTOR_V5_90PCT_STRONG_SEED310.md`; `results/04_criticality_pruning/find_tiny_vit_v5_synflow_prior_seed.json` | One fresh full-CIFAR TinyViT seed at 90% sparsity; a dense-only scanner found seed 310 because V5 selected SynFlow through the masked-recovery-prior branch, then full masked fine-tuning showed selected SynFlow beat magnitude by `+9.30` points and matched the best evaluated candidate. | This validates the previously open V5 branch on one fresh seed. It is still a small TinyViT result, not robust transformer or LLM pruning transfer. |
+
+## Strong TinyViT V5 unselected follow-up addendum
+
+| Claim | Status | Evidence | Scope | Public boundary |
+|---|---|---|---|---|
+| A fresh unselected V5 seed supports the fixed strong TinyViT selector. | `promising` | `results/04_criticality_pruning/cifar10_tiny_vit_feature_route_margin_selector_v5_90pct_strong_seed311.json`; `experiments/04_criticality_pruning/CIFAR10_TINY_VIT_FEATURE_ROUTE_MARGIN_SELECTOR_V5_90PCT_STRONG_SEED311.md` | One fresh full-CIFAR TinyViT seed at 90% sparsity; without branch scanning, V5 selected SynFlow by `feature_argmax`, beat magnitude by `+6.12` points, and matched the best evaluated candidate. | This reduces cherry-pick risk for V5 but is still a small-N TinyViT result. The next transfer target should be a stronger transformer-style benchmark or more unselected seeds. |
