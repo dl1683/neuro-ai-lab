@@ -764,8 +764,8 @@ Six-seed strong-selector boundary projection:
 
 | Selector | Seeds | Positive vs magnitude | Matches best candidate | Mean delta vs magnitude | Mean gap to best |
 |---:|---:|---:|---:|---:|
-| V3 | `7` | `5/7` | `5/7` | `+3.50` pts | `0.07` pts |
-| V4 | `7` | `5/7` | `7/7` | `+3.57` pts | `0.00` pts |
+| V3 | `8` | `6/8` | `5/8` | `+3.14` pts | `0.28` pts |
+| V4 | `8` | `6/8` | `7/8` | `+3.20` pts | `0.21` pts |
 
 Primary artifact:
 
@@ -773,7 +773,7 @@ Primary artifact:
 
 Interpretation:
 
-This synthesis projects the same V3 and V4 rules over all completed strong TinyViT seeds. V3 is not perfect, but it is no longer a loose story. It chooses the best evaluated candidate in five of seven seeds and is nearly oracle-level on mean gap. V4 adds masked pre-finetune accuracy as a prospective trainability term, which fixes the two small V3 guardrail misses in this completed seed set and matches the best evaluated candidate on all seven seeds. This is not a prospective seven-seed validation yet; it is the precise next testable policy.
+This synthesis projects the same V3 and V4 rules over all completed strong TinyViT seeds. V4 fixed the two small V3 guardrail misses, but seed 306 falsifies the perfect-projection story. On that seed, V4 selected attention+MLP repair from pre-finetune diagnostics; the selected repair beat magnitude, but SynFlow recovered better despite lower centered CLS alignment. This is scientifically useful because it isolates the missing term: the selector needs a SynFlow recovery prior or a better trainability metric, not just feature alignment plus row liveness.
 
 V4 strong-selector test:
 
@@ -791,6 +791,24 @@ Primary artifact:
 Interpretation:
 
 V4 adds masked pre-finetune accuracy as a prospective trainability diagnostic for the ambiguous liveness-vs-magnitude branch. The first fresh V4 seed does not hit that ambiguous branch; it is another feature-dominant seed. That still matters: before fine-tuning, SynFlow already preserves both residual-stream alignment and masked behavior better than the liveness repairs, and after fine-tuning it beats magnitude by `+6.87` points. This further supports the idea that transformer sparse viability is functional ensemble preservation, not row-level survival alone.
+
+V4 seed-306 non-SynFlow branch:
+
+| Method | Before FT | After FT | Delta vs magnitude | Centered CLS cosine | MLP-down dead | Attn-out dead |
+|---|---:|---:|---:|---:|---:|---:|
+| magnitude | `10.17%` | `10.99%` | baseline | `0.0205` | `86.0` | `3.0` |
+| global SynFlow | `10.40%` | `13.29%` | `+2.30` pts | `-0.0064` | `113.0` | `70.0` |
+| minimal liveness repair | `10.86%` | `11.58%` | `+0.59` pts | `0.0239` | `0.0` | `1.0` |
+| attention+MLP/readout repair | `10.97%` | `11.58%` | `+0.59` pts | `0.0248` | `0.0` | `1.0` |
+| V4 feature-route policy | `10.97%` | `11.58%` | `+0.59` pts | `0.0248` | `0.0` | `1.0` |
+
+Primary artifact:
+
+- `experiments/04_criticality_pruning/CIFAR10_TINY_VIT_FEATURE_ROUTE_MARGIN_SELECTOR_V4_90PCT_STRONG_SEED306.md`
+
+Interpretation:
+
+Seed 306 is the most useful V4 failure so far. The selector correctly avoids magnitude and chooses a live repair mask that improves recovery. But it misses the best candidate: SynFlow has worse centered CLS alignment and much higher row death, yet it recovers better after fine-tuning. This shows that residual-stream alignment measured before fine-tuning is not sufficient. Some SynFlow masks may preserve a trainable sparse basin that is not captured by row liveness or centered CLS cosine.
 
 ## Mechanism hierarchy
 

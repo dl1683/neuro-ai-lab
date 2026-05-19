@@ -132,3 +132,9 @@ Unsafe claim:
 | Claim | Status | Evidence | Scope | Public boundary |
 |---|---|---|---|---|
 | V4's masked-before trainability term fixes the completed strong TinyViT boundary projection. | `supported-projection` | `results/04_criticality_pruning/tiny_vit_strong_selector_boundary_synthesis.json`; `experiments/04_criticality_pruning/TINY_VIT_STRONG_SELECTOR_BOUNDARY_SYNTHESIS.md` | Seven completed full-CIFAR TinyViT seeds at 90% sparsity; V4 projection matches the best evaluated candidate on `7/7`, has mean delta `+3.57` points vs magnitude, and leaves zero mean gap to the evaluated oracle. | This is a post-hoc projection using pre-finetune diagnostics and already evaluated candidates. It defines a strong prospective validation target but is not itself a fresh seven-seed prospective run. |
+
+## Strong TinyViT V4 seed-306 correction addendum
+
+| Claim | Status | Evidence | Scope | Public boundary |
+|---|---|---|---|---|
+| Fresh seed 306 falsifies the perfect V4 boundary projection while preserving the weaker claim that V4 beats magnitude. | `mixed` | `results/04_criticality_pruning/cifar10_tiny_vit_feature_route_margin_selector_v4_90pct_strong_seed306.json`; `experiments/04_criticality_pruning/CIFAR10_TINY_VIT_FEATURE_ROUTE_MARGIN_SELECTOR_V4_90PCT_STRONG_SEED306.md` | One fresh full-CIFAR TinyViT seed at 90% sparsity; V4 selected attention+MLP repair, which beats magnitude by `+0.59` points, but global SynFlow beats magnitude by `+2.30` points. | V4 is not solved. The next selector needs a SynFlow recovery-prior or stronger trainability diagnostic for low-alignment high-route-death masks. |

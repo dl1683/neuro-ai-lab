@@ -14,6 +14,7 @@ SOURCES = [
     ("v3_strong_seed301", "cifar10_tiny_vit_feature_route_margin_selector_v3_90pct_strong.json"),
     ("v3_strong_seed302_303", "cifar10_tiny_vit_feature_route_margin_selector_v3_90pct_strong_replicate.json"),
     ("v4_strong_seed304", "cifar10_tiny_vit_feature_route_margin_selector_v4_90pct_strong.json"),
+    ("v4_strong_seed306", "cifar10_tiny_vit_feature_route_margin_selector_v4_90pct_strong_seed306.json"),
 ]
 
 CANDIDATES = [
@@ -215,7 +216,7 @@ def write_report(result: dict) -> None:
             "",
             "This is not a new training run; it is a rule projection over all completed strong TinyViT candidate evaluations. The result is useful because the selector is applied before seeing fine-tune recovery, while the scorecard compares that choice against the evaluated recovery.",
             "",
-            "The boundary is now concrete. When SynFlow's centered CLS/residual-stream feature margin is large, V3 chooses SynFlow and the choice wins. When the margin is small and route death is high, V3 routes to a trainability or liveness guardrail. V4 adds masked pre-finetune accuracy to that ambiguous branch. On the completed strong TinyViT seeds, that prospective diagnostic removes the two V3 guardrail misses and matches the best evaluated candidate on every seed. This is still a projection over completed candidate evaluations, but it defines the next prospective validation target precisely.",
+            "The boundary is now concrete. When SynFlow's centered CLS/residual-stream feature margin is large, the selector chooses SynFlow and the choice wins. When feature alignment favors liveness repair, the rule can beat magnitude but can still miss SynFlow. Seed 306 is the important correction: V4 selects attention+MLP repair from pre-finetune feature alignment and masked behavior; that selected repair beats magnitude but trails SynFlow. The next selector therefore needs a SynFlow recovery-prior term, not only feature alignment and row liveness.",
         ]
     )
     md.write_text("\n".join(lines) + "\n", encoding="utf-8")
