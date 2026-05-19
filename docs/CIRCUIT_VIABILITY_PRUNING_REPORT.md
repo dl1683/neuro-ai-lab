@@ -764,9 +764,9 @@ Six-seed strong-selector boundary projection:
 
 | Selector | Seeds | Positive vs magnitude | Matches best candidate | Mean delta vs magnitude | Mean gap to best |
 |---:|---:|---:|---:|---:|
-| V3 | `8` | `6/8` | `5/8` | `+3.14` pts | `0.28` pts |
-| V4 | `8` | `6/8` | `7/8` | `+3.20` pts | `0.21` pts |
-| V5 | `8` | `6/8` | `8/8` | `+3.41` pts | `0.00` pts |
+| V3 | `9` | `7/9` | `6/9` | `+3.12` pts | `0.24` pts |
+| V4 | `9` | `7/9` | `8/9` | `+3.17` pts | `0.19` pts |
+| V5 | `9` | `7/9` | `9/9` | `+3.36` pts | `0.00` pts |
 
 Primary artifact:
 
@@ -774,7 +774,7 @@ Primary artifact:
 
 Interpretation:
 
-This synthesis projects the same V3, V4, and V5 rules over all completed strong TinyViT seeds. V4 fixed the two small V3 guardrail misses, but seed 306 falsifies the perfect-projection story. On that seed, V4 selected attention+MLP repair from pre-finetune diagnostics; the selected repair beat magnitude, but SynFlow recovered better despite lower centered CLS alignment. V5 adds a simple SynFlow masked-recovery prior: if SynFlow's masked-before accuracy is at least magnitude and close to the selected repair, prefer SynFlow. In projection, this fixes seed 306 without breaking the earlier magnitude/all-route guardrail cases. This is not a solved transformer pruning method; it is the next prospective selector to validate.
+This synthesis projects the same V3, V4, and V5 rules over all completed strong TinyViT seeds. V4 fixed the two small V3 guardrail misses, but seed 306 falsifies the perfect-projection story. On that seed, V4 selected attention+MLP repair from pre-finetune diagnostics; the selected repair beat magnitude, but SynFlow recovered better despite lower centered CLS alignment. V5 adds a simple SynFlow masked-recovery prior: if SynFlow's masked-before accuracy is at least magnitude and close to the selected repair, prefer SynFlow. In projection, this fixes seed 306 without breaking the earlier magnitude/all-route guardrail cases. A fresh V5 seed also validates the feature/SynFlow branch prospectively. This is not a solved transformer pruning method; the ambiguous SynFlow-prior branch still needs fresh validation.
 
 V4 strong-selector test:
 
@@ -810,6 +810,23 @@ Primary artifact:
 Interpretation:
 
 Seed 306 is the most useful V4 failure so far. The selector correctly avoids magnitude and chooses a live repair mask that improves recovery. But it misses the best candidate: SynFlow has worse centered CLS alignment and much higher row death, yet it recovers better after fine-tuning. This shows that residual-stream alignment measured before fine-tuning is not sufficient. Some SynFlow masks may preserve a trainable sparse basin that is not captured by row liveness or centered CLS cosine.
+
+V5 fresh feature/SynFlow branch:
+
+| Method | Before FT | After FT | Delta vs magnitude | Centered CLS cosine | MLP-down dead | Attn-out dead |
+|---|---:|---:|---:|---:|---:|---:|
+| magnitude | `6.03%` | `7.25%` | baseline | `0.0142` | `55.0` | `4.0` |
+| global SynFlow | `7.23%` | `10.18%` | `+2.93` pts | `0.0281` | `105.0` | `91.0` |
+| all-route liveness floor | `6.03%` | `7.46%` | `+0.21` pts | `0.0187` | `0.0` | `0.0` |
+| V5 feature-route policy | `7.23%` | `10.18%` | `+2.93` pts | `0.0281` | `105.0` | `91.0` |
+
+Primary artifact:
+
+- `experiments/04_criticality_pruning/CIFAR10_TINY_VIT_FEATURE_ROUTE_MARGIN_SELECTOR_V5_90PCT_STRONG.md`
+
+Interpretation:
+
+Seed 308 validates the feature/SynFlow branch prospectively. V5 selected SynFlow before fine-tuning, and SynFlow was the best evaluated candidate. The important negative control is again liveness: all-route liveness eliminated measured dead rows but barely moved recovery. This strengthens the claim that transformer sparse viability sometimes depends on preserving a trainable residual-stream basin rather than maximizing row survival. It still does not validate the ambiguous SynFlow-prior branch on a fresh seed.
 
 ## Mechanism hierarchy
 

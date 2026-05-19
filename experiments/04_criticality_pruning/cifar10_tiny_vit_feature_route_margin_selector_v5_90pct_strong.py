@@ -7,7 +7,7 @@ import numpy as np
 import cifar10_tiny_vit_feature_route_margin_selector_v4_90pct_strong as v4
 
 
-v4.base.SEEDS = [307]
+v4.base.SEEDS = [308]
 ORIGINAL_CHOOSE_MARGIN_POLICY_V4 = v4.choose_margin_policy_v4
 
 
@@ -80,6 +80,16 @@ def write_report(result):
 
 
 v4.write_report = write_report
+
+ORIGINAL_EVAL_METHOD = v4.base.tinyvit.eval_method
+
+
+def eval_method_with_progress(model, dense_state, train_loader, test_loader, masks):
+    print("  eval candidate: start masked before/after", flush=True)
+    return ORIGINAL_EVAL_METHOD(model, dense_state, train_loader, test_loader, masks)
+
+
+v4.base.tinyvit.eval_method = eval_method_with_progress
 
 
 if __name__ == "__main__":

@@ -1057,6 +1057,23 @@
       "paired_seed_count": 1
     },
     {
+      "source": "cifar10_tiny_vit_feature_route_margin_selector_v5_90pct_strong.json",
+      "label": "tinyvit feature-route margin selector v5 strong 90",
+      "sparsity": 0.9,
+      "method": "feature_route_margin_policy",
+      "magnitude_after": 0.0725,
+      "global_synflow_after": 0.1018,
+      "method_after": 0.1018,
+      "method_minus_magnitude_after": 0.029300000000000007,
+      "method_minus_global_synflow_after": 0.0,
+      "dead_metric": "dead_outputs_mean",
+      "method_dead_units": 1709.0,
+      "global_synflow_dead_units": 1709.0,
+      "after_wins_vs_magnitude": 1,
+      "before_wins_vs_magnitude": null,
+      "paired_seed_count": 1
+    },
+    {
       "source": "tinyimagenet_resnet20_ecology_selector_99pct.json",
       "label": "tinyimagenet ecology selector external proxy 99",
       "sparsity": 0.99,
@@ -1213,7 +1230,7 @@
       "paired_seed_count": 6
     }
   ],
-  "positive_vs_magnitude_cases": 54,
+  "positive_vs_magnitude_cases": 55,
   "best_vs_magnitude": {
     "source": "cifar10_tiny_vit_feature_route_margin_selector_v3_90pct_strong_replicate.json",
     "label": "tinyvit feature-route margin selector v3 strong replicate 90",
