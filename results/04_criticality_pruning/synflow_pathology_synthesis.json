@@ -1,0 +1,77 @@
+{
+  "experiment": "04_synflow_pathology_synthesis",
+  "claim": "Global SynFlow can catastrophically starve dense classifier bridges in CNNs at severe global sparsity; layerwise SynFlow partially repairs allocation but remains far below magnitude after masked fine-tuning in the tested CNNs.",
+  "items": [
+    {
+      "dataset_model": "Fashion-MNIST CNN",
+      "sparsity": 0.98,
+      "global_synflow_before": 0.10075,
+      "global_synflow_after": 0.10275000000000001,
+      "magnitude_before": 0.459125,
+      "magnitude_after": 0.8086249999999999,
+      "adaptive_before": 0.47262499999999996,
+      "adaptive_after": 0.79525,
+      "global_synflow_fc1_keep_rate": 0.0,
+      "global_synflow_dead_fc1_hidden": 128.0,
+      "fc1_hidden_units": 128,
+      "layerwise_synflow_after": 0.5021249999999999,
+      "layerwise_synflow_fc1_keep_rate": 0.01999960094690323,
+      "layerwise_synflow_dead_fc1_hidden": 37.0,
+      "global_synflow_after_delta_vs_magnitude": -0.7058749999999999,
+      "layerwise_synflow_after_delta_vs_magnitude": -0.3065
+    },
+    {
+      "dataset_model": "CIFAR-10 CNN",
+      "sparsity": 0.98,
+      "global_synflow_before": 0.0976,
+      "global_synflow_after": 0.0976,
+      "magnitude_before": 0.14365,
+      "magnitude_after": 0.44079999999999997,
+      "adaptive_before": null,
+      "adaptive_after": null,
+      "global_synflow_fc1_keep_rate": 0.0,
+      "global_synflow_dead_fc1_hidden": 192.0,
+      "fc1_hidden_units": 192,
+      "layerwise_synflow_after": 0.23754999999999998,
+      "layerwise_synflow_fc1_keep_rate": 0.0199991874396801,
+      "layerwise_synflow_dead_fc1_hidden": 84.25,
+      "global_synflow_after_delta_vs_magnitude": -0.34319999999999995,
+      "layerwise_synflow_after_delta_vs_magnitude": -0.20325
+    },
+    {
+      "dataset_model": "CIFAR-10 CNN",
+      "sparsity": 0.99,
+      "global_synflow_before": 0.0976,
+      "global_synflow_after": 0.0976,
+      "magnitude_before": 0.1196,
+      "magnitude_after": 0.33240000000000003,
+      "adaptive_before": null,
+      "adaptive_after": null,
+      "global_synflow_fc1_keep_rate": 0.0,
+      "global_synflow_dead_fc1_hidden": 192.0,
+      "fc1_hidden_units": 192,
+      "layerwise_synflow_after": 0.17579999999999998,
+      "layerwise_synflow_fc1_keep_rate": 0.00999959371984005,
+      "layerwise_synflow_dead_fc1_hidden": 89.25,
+      "global_synflow_after_delta_vs_magnitude": -0.2348,
+      "layerwise_synflow_after_delta_vs_magnitude": -0.15660000000000004
+    }
+  ],
+  "aggregate": {
+    "cases": 3,
+    "global_synflow_zero_fc1_cases": 3,
+    "global_synflow_after_delta_mean": -0.4279583333333332,
+    "global_synflow_after_delta_min": -0.7058749999999999,
+    "global_synflow_after_delta_max": -0.2348,
+    "layerwise_synflow_after_delta_mean": -0.22211666666666666,
+    "layerwise_synflow_after_delta_min": -0.3065,
+    "layerwise_synflow_after_delta_max": -0.15660000000000004
+  },
+  "source_files": [
+    "fashion_mnist_cnn_synflow_comparison.json",
+    "synflow_finetune_98pct_comparison.json",
+    "synflow_cnn_mask_forensics_98pct.json",
+    "synflow_cnn_layerwise_rescue_98pct.json",
+    "cifar10_cnn_synflow_pathology.json"
+  ]
+}

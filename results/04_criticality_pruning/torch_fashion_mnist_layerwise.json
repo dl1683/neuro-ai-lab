@@ -1,0 +1,329 @@
+{
+  "experiment": "04_torch_fashion_mnist_layerwise",
+  "setup": "Check whether Fashion-MNIST path-flow failure is caused by global pruning allocation by comparing global vs layerwise masks.",
+  "summary": {
+    "0.9": {
+      "magnitude_global": {
+        "accuracy_mean": 0.8031666666666666,
+        "accuracy_std": 0.02150000000000002,
+        "retention_mean": 0.9484769325945926
+      },
+      "path_flow_global": {
+        "accuracy_mean": 0.5768333333333333,
+        "accuracy_std": 0.05449999999999999,
+        "retention_mean": 0.680813556137742
+      },
+      "magnitude_layerwise": {
+        "accuracy_mean": 0.4665,
+        "accuracy_std": 0.06983333333333333,
+        "retention_mean": 0.5503399466669477
+      },
+      "gradient_layerwise": {
+        "accuracy_mean": 0.3453333333333333,
+        "accuracy_std": 0.09700000000000002,
+        "retention_mean": 0.4069546262927328
+      },
+      "path_flow_layerwise": {
+        "accuracy_mean": 0.4385,
+        "accuracy_std": 0.00883333333333336,
+        "retention_mean": 0.5180350538562141
+      }
+    },
+    "0.95": {
+      "magnitude_global": {
+        "accuracy_mean": 0.6859999999999999,
+        "accuracy_std": 0.033999999999999975,
+        "retention_mean": 0.8099595747058784
+      },
+      "path_flow_global": {
+        "accuracy_mean": 0.48333333333333334,
+        "accuracy_std": 0.016666666666666663,
+        "retention_mean": 0.5707424045818743
+      },
+      "magnitude_layerwise": {
+        "accuracy_mean": 0.4063333333333333,
+        "accuracy_std": 0.08166666666666667,
+        "retention_mean": 0.47915653605809433
+      },
+      "gradient_layerwise": {
+        "accuracy_mean": 0.201,
+        "accuracy_std": 0.08466666666666668,
+        "retention_mean": 0.23659097535807133
+      },
+      "path_flow_layerwise": {
+        "accuracy_mean": 0.35716666666666663,
+        "accuracy_std": 0.16316666666666665,
+        "retention_mean": 0.4234726659194108
+      }
+    },
+    "0.98": {
+      "magnitude_global": {
+        "accuracy_mean": 0.5353333333333333,
+        "accuracy_std": 0.05733333333333335,
+        "retention_mean": 0.6317667879523664
+      },
+      "path_flow_global": {
+        "accuracy_mean": 0.347,
+        "accuracy_std": 0.11866666666666667,
+        "retention_mean": 0.4110293979732944
+      },
+      "magnitude_layerwise": {
+        "accuracy_mean": 0.25133333333333335,
+        "accuracy_std": 0.027666666666666673,
+        "retention_mean": 0.29660050232834134
+      },
+      "gradient_layerwise": {
+        "accuracy_mean": 0.1565,
+        "accuracy_std": 0.05783333333333333,
+        "retention_mean": 0.18429037324920994
+      },
+      "path_flow_layerwise": {
+        "accuracy_mean": 0.19466666666666665,
+        "accuracy_std": 0.046333333333333324,
+        "retention_mean": 0.2303894540500397
+      }
+    }
+  },
+  "rows": [
+    {
+      "seed": 31,
+      "sparsity": 0.9,
+      "method": "magnitude_global",
+      "dense_accuracy": 0.8396666666666667,
+      "accuracy": 0.7816666666666666,
+      "retention": 0.9309249702262802
+    },
+    {
+      "seed": 31,
+      "sparsity": 0.9,
+      "method": "path_flow_global",
+      "dense_accuracy": 0.8396666666666667,
+      "accuracy": 0.5223333333333333,
+      "retention": 0.6220722508932116
+    },
+    {
+      "seed": 31,
+      "sparsity": 0.9,
+      "method": "magnitude_layerwise",
+      "dense_accuracy": 0.8396666666666667,
+      "accuracy": 0.39666666666666667,
+      "retention": 0.4724096863834855
+    },
+    {
+      "seed": 31,
+      "sparsity": 0.9,
+      "method": "gradient_layerwise",
+      "dense_accuracy": 0.8396666666666667,
+      "accuracy": 0.24833333333333332,
+      "retention": 0.29575228265184594
+    },
+    {
+      "seed": 31,
+      "sparsity": 0.9,
+      "method": "path_flow_layerwise",
+      "dense_accuracy": 0.8396666666666667,
+      "accuracy": 0.44733333333333336,
+      "retention": 0.5327510917030568
+    },
+    {
+      "seed": 31,
+      "sparsity": 0.95,
+      "method": "magnitude_global",
+      "dense_accuracy": 0.8396666666666667,
+      "accuracy": 0.652,
+      "retention": 0.776498610559746
+    },
+    {
+      "seed": 31,
+      "sparsity": 0.95,
+      "method": "path_flow_global",
+      "dense_accuracy": 0.8396666666666667,
+      "accuracy": 0.4666666666666667,
+      "retention": 0.55577610162763
+    },
+    {
+      "seed": 31,
+      "sparsity": 0.95,
+      "method": "magnitude_layerwise",
+      "dense_accuracy": 0.8396666666666667,
+      "accuracy": 0.32466666666666666,
+      "retention": 0.3866613735609369
+    },
+    {
+      "seed": 31,
+      "sparsity": 0.95,
+      "method": "gradient_layerwise",
+      "dense_accuracy": 0.8396666666666667,
+      "accuracy": 0.11633333333333333,
+      "retention": 0.13854704247717348
+    },
+    {
+      "seed": 31,
+      "sparsity": 0.95,
+      "method": "path_flow_layerwise",
+      "dense_accuracy": 0.8396666666666667,
+      "accuracy": 0.5203333333333333,
+      "retention": 0.6196903533148075
+    },
+    {
+      "seed": 31,
+      "sparsity": 0.98,
+      "method": "magnitude_global",
+      "dense_accuracy": 0.8396666666666667,
+      "accuracy": 0.478,
+      "retention": 0.5692735212385868
+    },
+    {
+      "seed": 31,
+      "sparsity": 0.98,
+      "method": "path_flow_global",
+      "dense_accuracy": 0.8396666666666667,
+      "accuracy": 0.4656666666666667,
+      "retention": 0.5545851528384279
+    },
+    {
+      "seed": 31,
+      "sparsity": 0.98,
+      "method": "magnitude_layerwise",
+      "dense_accuracy": 0.8396666666666667,
+      "accuracy": 0.22366666666666668,
+      "retention": 0.2663755458515284
+    },
+    {
+      "seed": 31,
+      "sparsity": 0.98,
+      "method": "gradient_layerwise",
+      "dense_accuracy": 0.8396666666666667,
+      "accuracy": 0.09866666666666667,
+      "retention": 0.11750694720127035
+    },
+    {
+      "seed": 31,
+      "sparsity": 0.98,
+      "method": "path_flow_layerwise",
+      "dense_accuracy": 0.8396666666666667,
+      "accuracy": 0.241,
+      "retention": 0.2870186581976975
+    },
+    {
+      "seed": 32,
+      "sparsity": 0.9,
+      "method": "magnitude_global",
+      "dense_accuracy": 0.8536666666666667,
+      "accuracy": 0.8246666666666667,
+      "retention": 0.9660288949629051
+    },
+    {
+      "seed": 32,
+      "sparsity": 0.9,
+      "method": "path_flow_global",
+      "dense_accuracy": 0.8536666666666667,
+      "accuracy": 0.6313333333333333,
+      "retention": 0.7395548613822724
+    },
+    {
+      "seed": 32,
+      "sparsity": 0.9,
+      "method": "magnitude_layerwise",
+      "dense_accuracy": 0.8536666666666667,
+      "accuracy": 0.5363333333333333,
+      "retention": 0.62827020695041
+    },
+    {
+      "seed": 32,
+      "sparsity": 0.9,
+      "method": "gradient_layerwise",
+      "dense_accuracy": 0.8536666666666667,
+      "accuracy": 0.44233333333333336,
+      "retention": 0.5181569699336197
+    },
+    {
+      "seed": 32,
+      "sparsity": 0.9,
+      "method": "path_flow_layerwise",
+      "dense_accuracy": 0.8536666666666667,
+      "accuracy": 0.42966666666666664,
+      "retention": 0.5033190160093713
+    },
+    {
+      "seed": 32,
+      "sparsity": 0.95,
+      "method": "magnitude_global",
+      "dense_accuracy": 0.8536666666666667,
+      "accuracy": 0.72,
+      "retention": 0.8434205388520108
+    },
+    {
+      "seed": 32,
+      "sparsity": 0.95,
+      "method": "path_flow_global",
+      "dense_accuracy": 0.8536666666666667,
+      "accuracy": 0.5,
+      "retention": 0.5857087075361187
+    },
+    {
+      "seed": 32,
+      "sparsity": 0.95,
+      "method": "magnitude_layerwise",
+      "dense_accuracy": 0.8536666666666667,
+      "accuracy": 0.488,
+      "retention": 0.5716516985552518
+    },
+    {
+      "seed": 32,
+      "sparsity": 0.95,
+      "method": "gradient_layerwise",
+      "dense_accuracy": 0.8536666666666667,
+      "accuracy": 0.2856666666666667,
+      "retention": 0.3346349082389692
+    },
+    {
+      "seed": 32,
+      "sparsity": 0.95,
+      "method": "path_flow_layerwise",
+      "dense_accuracy": 0.8536666666666667,
+      "accuracy": 0.194,
+      "retention": 0.22725497852401405
+    },
+    {
+      "seed": 32,
+      "sparsity": 0.98,
+      "method": "magnitude_global",
+      "dense_accuracy": 0.8536666666666667,
+      "accuracy": 0.5926666666666667,
+      "retention": 0.694260054666146
+    },
+    {
+      "seed": 32,
+      "sparsity": 0.98,
+      "method": "path_flow_global",
+      "dense_accuracy": 0.8536666666666667,
+      "accuracy": 0.22833333333333333,
+      "retention": 0.26747364310816085
+    },
+    {
+      "seed": 32,
+      "sparsity": 0.98,
+      "method": "magnitude_layerwise",
+      "dense_accuracy": 0.8536666666666667,
+      "accuracy": 0.279,
+      "retention": 0.32682545880515423
+    },
+    {
+      "seed": 32,
+      "sparsity": 0.98,
+      "method": "gradient_layerwise",
+      "dense_accuracy": 0.8536666666666667,
+      "accuracy": 0.21433333333333332,
+      "retention": 0.2510737992971495
+    },
+    {
+      "seed": 32,
+      "sparsity": 0.98,
+      "method": "path_flow_layerwise",
+      "dense_accuracy": 0.8536666666666667,
+      "accuracy": 0.14833333333333334,
+      "retention": 0.1737602499023819
+    }
+  ]
+}

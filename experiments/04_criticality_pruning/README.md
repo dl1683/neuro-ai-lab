@@ -1,114 +1,92 @@
-# Experiment 04: Criticality-Preserving Pruning
+﻿# Criticality Pruning Experiment Log
 
-## Biological Parallel
+This folder contains the active real-experiment thread for severe-sparsity pruning.
 
-Despite the brain having ~86 billion neurons and ~100 trillion synapses, the **effective computational degree** is only ~2-3 (eLife 2023). A "sparse backbone" of critical connections carries almost all the information flow. This backbone is maintained at a specific dynamical regime: the **critical point** where neural avalanches follow power-law distributions with branching ratio sigma = 1.
+## Strongest finding
 
-Key biological facts:
-- Cortical networks have effective degree ~2-3 despite anatomical degree ~10,000
-- Beggs & Plenz (2003): neuronal avalanches follow power-law with exponent -3/2 (signature of criticality)
-- At criticality (sigma = 1): maximum dynamic range, maximum information transmission, maximum sensitivity
-- Departure from criticality (sigma != 1): degraded computation, regardless of network size
-- The brain actively maintains criticality through homeostatic plasticity
+Global SynFlow can catastrophically starve dense classifier bridges in CNNs at severe global sparsity.
 
-The implication: **what matters is not how many connections you have, but whether the surviving connections maintain critical dynamics.**
+The clearest evidence is aggregated in:
 
-## AI Parallel: Lottery Tickets
+- `SYNFLOW_PATHOLOGY_SYNTHESIS.md`
+- `results/04_criticality_pruning/synflow_pathology_synthesis.json`
 
-- Frankle & Carlin (2019): ~5% of weights form a "winning ticket" that achieves full accuracy
-- Standard pruning: remove smallest-magnitude weights → works but is ad hoc
-- No principled reason why magnitude should be the right criterion
-- What if the right criterion is: **preserve criticality**?
+Cross-dataset synthesis:
 
-## Hypothesis
+- Severe-sparsity CNN cases synthesized: `3`.
+- Global SynFlow zero-`fc1` allocation cases: `3/3`.
+- Mean global SynFlow after-fine-tuning delta vs magnitude: `-42.80` points.
+- Mean layerwise SynFlow after-fine-tuning delta vs magnitude: `-22.21` points.
 
-Pruning a neural network while maintaining critical avalanche dynamics (branching ratio sigma ≈ 1) will:
-1. Achieve higher accuracy at the same sparsity level compared to magnitude pruning
-2. Produce a network whose remaining connections form a "sparse backbone" with effective degree ~3
-3. The resulting network will be more robust to further perturbation
+Mechanism: global SynFlow allocates zero weights to the first dense classifier bridge (`fc1`) in the tested CNNs, so masked fine-tuning cannot recover. Layerwise SynFlow restores a nominal per-layer budget but still trails magnitude, implying the dense-bridge ranking is also poor.
 
-## Protocol
+## Secondary finding
 
-### Defining "Criticality" in a Neural Network
+Low-alpha dense-tail path correction can improve one-shot severe pruning, but it is not a robust fine-tuning initializer.
 
-We adapt the branching ratio concept to artificial networks:
+Best synthesis:
 
-**Activation avalanches:**
-1. Feed input through the network
-2. Define "active" neurons as those with activation > threshold (e.g., > 0 for ReLU)
-3. For each layer transition: count how many neurons in layer L+1 are activated per active neuron in layer L
-4. Branching ratio sigma = mean(activated_L+1 / activated_L) across layers and samples
-5. At sigma = 1: each active neuron activates exactly 1 in the next layer (critical)
-6. sigma > 1: expanding (supercritical); sigma < 1: dying (subcritical)
+- `LOW_ALPHA_TRANSFER_SYNTHESIS.md`
+- `CIFAR10_CNN_LOW_ALPHA_GPU_REPLICATE.md`
+- `CNN_98PCT_ADAPTIVE_ALPHA_FT_SWEEP.md`
 
-**Alternative: Jacobian spectral radius**
-1. Compute the Jacobian of each layer's output w.r.t. input
-2. Spectral radius rho(J) = largest eigenvalue magnitude
-3. At criticality: rho(J) = 1 for each layer
-4. This is equivalent to: gradients neither explode nor vanish = critical propagation
+Current rule encoded in `shared/adaptive_path_pruning.py`:
 
-### Pruning Methods to Compare
+- `balanced` / `one_shot`: use tiny `alpha=0.03` near the severe sparsity cliff.
+- `recovery`: use `alpha=0.0` unless a domain-specific sweep proves otherwise.
 
-**1. Magnitude Pruning (baseline)**
-- Remove weights with smallest absolute value
-- Standard iterative: prune 20% → retrain → repeat
+## Negative result
 
-**2. Criticality-Preserving Pruning (ours)**
-- At each pruning step, candidate each weight for removal
-- For each candidate: estimate the change in branching ratio (delta_sigma)
-- Remove the weight that changes sigma the LEAST (keeps sigma closest to 1)
-- Retrain briefly after each pruning step
-- Approximation for speed: use the Jacobian spectral radius as proxy (cheaper than full avalanche analysis)
+A simple structural bridge-floor repair is not enough.
 
-**3. Random Pruning (lower bound)**
-- Remove random weights
+- `CIFAR10_CNN_BRIDGE_FLOOR.md`
+- `results/04_criticality_pruning/cifar10_cnn_bridge_floor.json`
 
-**4. SNIP / GraSP (structured baselines)**
-- SNIP: prune at initialization based on connection sensitivity
-- GraSP: prune based on gradient signal preservation
+The repair eliminated dead `fc1` hidden units but produced near-zero accuracy deltas, so useful bridge quality matters more than mere bridge liveness.
 
-### Experimental Setup
-- Architectures: MLP (784-300-100-10), ResNet-18, small ViT
-- Datasets: MNIST, CIFAR-10, CIFAR-100
-- Sparsity levels: 50%, 70%, 90%, 95%, 99%
-- Pruning schedule: iterative (10 rounds of pruning + retraining)
+## Reusable code
 
-### Measurements
-1. **Accuracy vs sparsity** curves for all methods
-2. **Branching ratio** of pruned networks (does our method actually maintain sigma ≈ 1?)
-3. **Effective degree** of the pruned network (is it close to ~3?)
-4. **Robustness**: accuracy under input perturbation (noise, adversarial) at each sparsity level
-5. **Avalanche size distribution**: does the pruned network show power-law avalanches?
-6. **Jacobian spectral radius** per layer before/after pruning
+- `shared/adaptive_path_pruning.py`: tiny dense-tail path correction and mask utilities.
+- `shared/pruning_diagnostics.py`: layer keep-rate and dense-bridge collapse diagnostics.
 
-### Analysis
-1. At what sparsity does each method break? Criticality pruning should survive to higher sparsity.
-2. What is the effective degree of the surviving backbone? Prediction: ~3 regardless of original architecture.
-3. Does maintaining sigma = 1 correlate with maintaining accuracy? (Plot sigma vs accuracy across pruning steps)
-4. Does the surviving network exhibit lottery-ticket-like properties? (Re-initialize remaining weights to original values and retrain from scratch)
+## Reproduction commands
 
-### Success Criteria
-- Criticality pruning maintains >90% accuracy at 95% sparsity where magnitude pruning drops below 85%
-- The effective degree of the surviving backbone converges to ~3 (±1)
-- Branching ratio of criticality-pruned networks stays within [0.9, 1.1] at all sparsity levels
-- The accuracy-sparsity Pareto frontier of criticality pruning dominates magnitude pruning
+Run the strongest pathology synthesis:
 
-## Expected Output
-- Figure 1: Accuracy vs sparsity (all methods, all architectures)
-- Figure 2: Branching ratio vs sparsity (criticality method should be flat at 1.0)
-- Figure 3: Effective degree distribution of surviving backbone
-- Figure 4: Avalanche size distributions (log-log) at different sparsity levels
-- Table 1: Summary metrics at 90% and 95% sparsity across architectures
+```powershell
+python experiments\04_criticality_pruning\synthesize_synflow_pathology.py
+```
 
-## Key References
-- Frankle & Carlin (2019): The Lottery Ticket Hypothesis, ICLR
-- Beggs & Plenz (2003): Neuronal avalanches in neocortical circuits, J Neuroscience
-- Priesemann et al. (2014): Spike avalanches in vivo, Frontiers in Systems Neuroscience
-- Lee, Ajanthan, Torr (2019): SNIP: Single-shot network pruning
-- Wang, Zhang, Grosse (2020): GraSP: Picking the gradient signal
+Re-run the CIFAR SynFlow pathology experiment:
 
-## Estimated Time
-- Setup: 4 hours (implement branching ratio computation + pruning loop)
-- Training: 6-8 hours (multiple architectures × methods × sparsity levels)
-- Analysis: 3 hours
-- Total: ~2 days
+```powershell
+python experiments\04_criticality_pruning\cifar10_cnn_synflow_pathology.py
+```
+
+Re-run the six-seed low-alpha CIFAR replicate:
+
+```powershell
+python experiments\04_criticality_pruning\cifar10_cnn_low_alpha_gpu_replicate.py
+```
+
+Re-run the Fashion-MNIST CNN SynFlow mechanism checks:
+
+```powershell
+python experiments\04_criticality_pruning\synflow_cnn_mask_forensics_98pct.py
+python experiments\04_criticality_pruning\synflow_cnn_layerwise_rescue_98pct.py
+```
+
+## Current claim boundary
+
+Supported:
+
+- Global SynFlow can fail structurally at severe sparsity by allocating zero weights to dense classifier bridges.
+- This failure replicated on Fashion-MNIST CNN and CIFAR-10 CNN.
+- Layerwise SynFlow is not sufficient in the tested CNNs.
+- Tiny path correction can help one-shot pruning at `95-98%` on CIFAR, but the effect is modest and not a recovery win.
+
+Not supported:
+
+- Adaptive path correction is a universal replacement for magnitude pruning.
+- Low-alpha path correction is the best fine-tuning initializer.
+- Merely preventing dead hidden units is enough to improve severe pruning.

@@ -1,0 +1,35 @@
+{
+  "claim": "Label-free activation/path-flow pruning is a robust high-sparsity alternative to magnitude pruning on trained sklearn-digits MLPs. The result is about preserving active input-hidden-output paths, not about validating the original branching-ratio criticality metric.",
+  "best_label_free_method": "path_flow",
+  "high_sparsity_levels": [
+    0.9,
+    0.95
+  ],
+  "method_discoveries": {
+    "activation_flow": {
+      "mean_accuracy_gain_vs_magnitude_high_sparsity": 0.1650238473767886,
+      "wins_vs_magnitude_high_sparsity": 10,
+      "mean_accuracy_gain_vs_gradient_high_sparsity": -0.0017488076311605427,
+      "wins_vs_gradient_high_sparsity": 5
+    },
+    "path_flow": {
+      "mean_accuracy_gain_vs_magnitude_high_sparsity": 0.17440381558028617,
+      "wins_vs_magnitude_high_sparsity": 10,
+      "mean_accuracy_gain_vs_gradient_high_sparsity": 0.007631160572337059,
+      "wins_vs_gradient_high_sparsity": 6
+    },
+    "path_coverage": {
+      "mean_accuracy_gain_vs_magnitude_high_sparsity": 0.1538950715421304,
+      "wins_vs_magnitude_high_sparsity": 10,
+      "mean_accuracy_gain_vs_gradient_high_sparsity": -0.012877583465818743,
+      "wins_vs_gradient_high_sparsity": 3
+    },
+    "gradient_saliency": {
+      "mean_accuracy_gain_vs_magnitude_high_sparsity": 0.16677265500794913,
+      "wins_vs_magnitude_high_sparsity": 10,
+      "mean_accuracy_gain_vs_gradient_high_sparsity": 0.0,
+      "wins_vs_gradient_high_sparsity": 0
+    }
+  },
+  "mechanism_status": "branching-ratio distance is tracked as a diagnostic, but it is not the causal win signal in the current benchmark."
+}

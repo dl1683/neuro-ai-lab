@@ -1,0 +1,21 @@
+{
+  "all_ok": true,
+  "checks": [
+    {
+      "name": "overall_vs_synflow_mean_delta",
+      "ok": true
+    },
+    {
+      "name": "severe_98_vs_synflow_mean_delta",
+      "ok": true
+    },
+    {
+      "name": "severe_98_synflow_all_wins",
+      "ok": true
+    },
+    {
+      "name": "source_artifacts_exist",
+      "ok": true
+    }
+  ]
+}

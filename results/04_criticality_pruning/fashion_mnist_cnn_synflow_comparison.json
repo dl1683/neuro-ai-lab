@@ -1,0 +1,243 @@
+{
+  "experiment": "04_fashion_mnist_cnn_synflow_comparison",
+  "setup": "Fashion-MNIST CNN comparison against SynFlow. Adaptive dense-hybrid uses magnitude conv layers and path-corrected dense layers at 95/98% sparsity.",
+  "summary": {
+    "0.9": {
+      "magnitude": {
+        "accuracy_mean": 0.744375,
+        "accuracy_std": 0.016625,
+        "retention_mean": 0.8791483418840266
+      },
+      "synflow": {
+        "accuracy_mean": 0.7649999999999999,
+        "accuracy_std": 0.026749999999999996,
+        "retention_mean": 0.9037751842593299
+      },
+      "adaptive_dense_hybrid": {
+        "accuracy_mean": 0.744375,
+        "accuracy_std": 0.016625,
+        "retention_mean": 0.8791483418840266
+      }
+    },
+    "0.95": {
+      "magnitude": {
+        "accuracy_mean": 0.61225,
+        "accuracy_std": 0.006749999999999978,
+        "retention_mean": 0.7231436206038397
+      },
+      "synflow": {
+        "accuracy_mean": 0.64375,
+        "accuracy_std": 0.01100000000000001,
+        "retention_mean": 0.7604595138713766
+      },
+      "adaptive_dense_hybrid": {
+        "accuracy_mean": 0.633875,
+        "accuracy_std": 0.03237499999999999,
+        "retention_mean": 0.7485304858461002
+      }
+    },
+    "0.98": {
+      "magnitude": {
+        "accuracy_mean": 0.435125,
+        "accuracy_std": 0.03837499999999999,
+        "retention_mean": 0.5142004203669386
+      },
+      "synflow": {
+        "accuracy_mean": 0.10075,
+        "accuracy_std": 0.0014999999999999944,
+        "retention_mean": 0.11899594142905924
+      },
+      "adaptive_dense_hybrid": {
+        "accuracy_mean": 0.494625,
+        "accuracy_std": 0.060874999999999985,
+        "retention_mean": 0.5838755341349324
+      }
+    }
+  },
+  "paired_deltas": [
+    {
+      "seed": 51,
+      "sparsity": 0.9,
+      "adaptive_minus_synflow": 0.022750000000000048,
+      "adaptive_minus_magnitude": 0.0
+    },
+    {
+      "seed": 51,
+      "sparsity": 0.95,
+      "adaptive_minus_synflow": 0.033499999999999974,
+      "adaptive_minus_magnitude": 0.047250000000000014
+    },
+    {
+      "seed": 51,
+      "sparsity": 0.98,
+      "adaptive_minus_synflow": 0.45325,
+      "adaptive_minus_magnitude": 0.15875
+    },
+    {
+      "seed": 52,
+      "sparsity": 0.9,
+      "adaptive_minus_synflow": -0.06399999999999995,
+      "adaptive_minus_magnitude": 0.0
+    },
+    {
+      "seed": 52,
+      "sparsity": 0.95,
+      "adaptive_minus_synflow": -0.05325000000000002,
+      "adaptive_minus_magnitude": -0.0040000000000000036
+    },
+    {
+      "seed": 52,
+      "sparsity": 0.98,
+      "adaptive_minus_synflow": 0.3345,
+      "adaptive_minus_magnitude": -0.03974999999999995
+    }
+  ],
+  "mean_adaptive_minus_synflow": 0.12112500000000002,
+  "mean_adaptive_minus_magnitude": 0.027041666666666676,
+  "rows": [
+    {
+      "seed": 51,
+      "sparsity": 0.9,
+      "method": "magnitude",
+      "dense_accuracy": 0.851,
+      "accuracy": 0.761,
+      "retention": 0.8942420681551116
+    },
+    {
+      "seed": 51,
+      "sparsity": 0.9,
+      "method": "synflow",
+      "dense_accuracy": 0.851,
+      "accuracy": 0.73825,
+      "retention": 0.867508813160987
+    },
+    {
+      "seed": 51,
+      "sparsity": 0.9,
+      "method": "adaptive_dense_hybrid",
+      "dense_accuracy": 0.851,
+      "accuracy": 0.761,
+      "retention": 0.8942420681551116
+    },
+    {
+      "seed": 51,
+      "sparsity": 0.95,
+      "method": "magnitude",
+      "dense_accuracy": 0.851,
+      "accuracy": 0.619,
+      "retention": 0.72737955346651
+    },
+    {
+      "seed": 51,
+      "sparsity": 0.95,
+      "method": "synflow",
+      "dense_accuracy": 0.851,
+      "accuracy": 0.63275,
+      "retention": 0.7435370152761458
+    },
+    {
+      "seed": 51,
+      "sparsity": 0.95,
+      "method": "adaptive_dense_hybrid",
+      "dense_accuracy": 0.851,
+      "accuracy": 0.66625,
+      "retention": 0.7829024676850764
+    },
+    {
+      "seed": 51,
+      "sparsity": 0.98,
+      "method": "magnitude",
+      "dense_accuracy": 0.851,
+      "accuracy": 0.39675,
+      "retention": 0.46621621621621623
+    },
+    {
+      "seed": 51,
+      "sparsity": 0.98,
+      "method": "synflow",
+      "dense_accuracy": 0.851,
+      "accuracy": 0.10225,
+      "retention": 0.12015276145710928
+    },
+    {
+      "seed": 51,
+      "sparsity": 0.98,
+      "method": "adaptive_dense_hybrid",
+      "dense_accuracy": 0.851,
+      "accuracy": 0.5555,
+      "retention": 0.6527614571092832
+    },
+    {
+      "seed": 52,
+      "sparsity": 0.9,
+      "method": "magnitude",
+      "dense_accuracy": 0.84225,
+      "accuracy": 0.72775,
+      "retention": 0.8640546156129415
+    },
+    {
+      "seed": 52,
+      "sparsity": 0.9,
+      "method": "synflow",
+      "dense_accuracy": 0.84225,
+      "accuracy": 0.79175,
+      "retention": 0.9400415553576728
+    },
+    {
+      "seed": 52,
+      "sparsity": 0.9,
+      "method": "adaptive_dense_hybrid",
+      "dense_accuracy": 0.84225,
+      "accuracy": 0.72775,
+      "retention": 0.8640546156129415
+    },
+    {
+      "seed": 52,
+      "sparsity": 0.95,
+      "method": "magnitude",
+      "dense_accuracy": 0.84225,
+      "accuracy": 0.6055,
+      "retention": 0.7189076877411695
+    },
+    {
+      "seed": 52,
+      "sparsity": 0.95,
+      "method": "synflow",
+      "dense_accuracy": 0.84225,
+      "accuracy": 0.65475,
+      "retention": 0.7773820124666073
+    },
+    {
+      "seed": 52,
+      "sparsity": 0.95,
+      "method": "adaptive_dense_hybrid",
+      "dense_accuracy": 0.84225,
+      "accuracy": 0.6015,
+      "retention": 0.7141585040071238
+    },
+    {
+      "seed": 52,
+      "sparsity": 0.98,
+      "method": "magnitude",
+      "dense_accuracy": 0.84225,
+      "accuracy": 0.4735,
+      "retention": 0.5621846245176609
+    },
+    {
+      "seed": 52,
+      "sparsity": 0.98,
+      "method": "synflow",
+      "dense_accuracy": 0.84225,
+      "accuracy": 0.09925,
+      "retention": 0.1178391214010092
+    },
+    {
+      "seed": 52,
+      "sparsity": 0.98,
+      "method": "adaptive_dense_hybrid",
+      "dense_accuracy": 0.84225,
+      "accuracy": 0.43375,
+      "retention": 0.5149896111605817
+    }
+  ]
+}

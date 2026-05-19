@@ -1,0 +1,196 @@
+{
+  "experiment": "05_ddm_depth",
+  "pilot_type": "real sklearn-digits residual-depth early-exit benchmark",
+  "task_setup": "classify sklearn digits 0-4 using a 10-step additive residual linear classifier trained with intermediate losses",
+  "win_metric": "intermediate residual states should support early exit with >=95% of final accuracy at <60% compute",
+  "final_accuracy": 0.990506329113924,
+  "layer_accuracy": [
+    0.9873417721518988,
+    0.990506329113924,
+    0.9936708860759493,
+    0.990506329113924,
+    0.990506329113924,
+    0.990506329113924,
+    0.990506329113924,
+    0.990506329113924,
+    0.990506329113924,
+    0.990506329113924
+  ],
+  "mean_correct_class_evidence": 10.61144922762494,
+  "mean_drift_rate": 0.7743313998811879,
+  "mean_linearity_r2": 0.9333606746635053,
+  "diffusion_variance_cv_across_depth": 0.5937031899109143,
+  "accuracy_depth_r2": 0.01809332135420605,
+  "target_retained_accuracy": 0.9409810126582278,
+  "best_early_exit": {
+    "margin_threshold": 0.25,
+    "accuracy": 0.990506329113924,
+    "compute_fraction": 0.10379746835443038,
+    "mean_exit_layer": 0.0379746835443038,
+    "meets_target": true
+  },
+  "early_exit_sweep": [
+    {
+      "margin_threshold": 0.25,
+      "accuracy": 0.990506329113924,
+      "compute_fraction": 0.10379746835443038,
+      "mean_exit_layer": 0.0379746835443038,
+      "meets_target": true
+    },
+    {
+      "margin_threshold": 0.375,
+      "accuracy": 0.990506329113924,
+      "compute_fraction": 0.10601265822784811,
+      "mean_exit_layer": 0.060126582278481014,
+      "meets_target": true
+    },
+    {
+      "margin_threshold": 0.5,
+      "accuracy": 0.990506329113924,
+      "compute_fraction": 0.10822784810126582,
+      "mean_exit_layer": 0.08227848101265822,
+      "meets_target": true
+    },
+    {
+      "margin_threshold": 0.625,
+      "accuracy": 0.990506329113924,
+      "compute_fraction": 0.1110759493670886,
+      "mean_exit_layer": 0.11075949367088607,
+      "meets_target": true
+    },
+    {
+      "margin_threshold": 0.75,
+      "accuracy": 0.990506329113924,
+      "compute_fraction": 0.11455696202531644,
+      "mean_exit_layer": 0.14556962025316456,
+      "meets_target": true
+    },
+    {
+      "margin_threshold": 0.875,
+      "accuracy": 0.990506329113924,
+      "compute_fraction": 0.11835443037974684,
+      "mean_exit_layer": 0.18354430379746836,
+      "meets_target": true
+    },
+    {
+      "margin_threshold": 1.0,
+      "accuracy": 0.990506329113924,
+      "compute_fraction": 0.12120253164556963,
+      "mean_exit_layer": 0.2120253164556962,
+      "meets_target": true
+    },
+    {
+      "margin_threshold": 1.125,
+      "accuracy": 0.990506329113924,
+      "compute_fraction": 0.1259493670886076,
+      "mean_exit_layer": 0.25949367088607594,
+      "meets_target": true
+    },
+    {
+      "margin_threshold": 1.25,
+      "accuracy": 0.990506329113924,
+      "compute_fraction": 0.1322784810126582,
+      "mean_exit_layer": 0.3227848101265823,
+      "meets_target": true
+    },
+    {
+      "margin_threshold": 1.375,
+      "accuracy": 0.990506329113924,
+      "compute_fraction": 0.13544303797468354,
+      "mean_exit_layer": 0.35443037974683544,
+      "meets_target": true
+    },
+    {
+      "margin_threshold": 1.5,
+      "accuracy": 0.990506329113924,
+      "compute_fraction": 0.13987341772151898,
+      "mean_exit_layer": 0.3987341772151899,
+      "meets_target": true
+    },
+    {
+      "margin_threshold": 1.625,
+      "accuracy": 0.990506329113924,
+      "compute_fraction": 0.14462025316455696,
+      "mean_exit_layer": 0.4462025316455696,
+      "meets_target": true
+    },
+    {
+      "margin_threshold": 1.75,
+      "accuracy": 0.990506329113924,
+      "compute_fraction": 0.15063291139240506,
+      "mean_exit_layer": 0.5063291139240507,
+      "meets_target": true
+    },
+    {
+      "margin_threshold": 1.875,
+      "accuracy": 0.990506329113924,
+      "compute_fraction": 0.15379746835443037,
+      "mean_exit_layer": 0.5379746835443038,
+      "meets_target": true
+    },
+    {
+      "margin_threshold": 2.0,
+      "accuracy": 0.990506329113924,
+      "compute_fraction": 0.1598101265822785,
+      "mean_exit_layer": 0.5981012658227848,
+      "meets_target": true
+    },
+    {
+      "margin_threshold": 2.125,
+      "accuracy": 0.990506329113924,
+      "compute_fraction": 0.1642405063291139,
+      "mean_exit_layer": 0.6424050632911392,
+      "meets_target": true
+    },
+    {
+      "margin_threshold": 2.25,
+      "accuracy": 0.990506329113924,
+      "compute_fraction": 0.1721518987341772,
+      "mean_exit_layer": 0.7215189873417721,
+      "meets_target": true
+    },
+    {
+      "margin_threshold": 2.375,
+      "accuracy": 0.990506329113924,
+      "compute_fraction": 0.17626582278481012,
+      "mean_exit_layer": 0.7626582278481012,
+      "meets_target": true
+    },
+    {
+      "margin_threshold": 2.5,
+      "accuracy": 0.990506329113924,
+      "compute_fraction": 0.1838607594936709,
+      "mean_exit_layer": 0.8386075949367089,
+      "meets_target": true
+    },
+    {
+      "margin_threshold": 2.625,
+      "accuracy": 0.990506329113924,
+      "compute_fraction": 0.1892405063291139,
+      "mean_exit_layer": 0.8924050632911392,
+      "meets_target": true
+    },
+    {
+      "margin_threshold": 2.75,
+      "accuracy": 0.990506329113924,
+      "compute_fraction": 0.19841772151898734,
+      "mean_exit_layer": 0.9841772151898734,
+      "meets_target": true
+    },
+    {
+      "margin_threshold": 2.875,
+      "accuracy": 0.990506329113924,
+      "compute_fraction": 0.2098101265822785,
+      "mean_exit_layer": 1.0981012658227849,
+      "meets_target": true
+    },
+    {
+      "margin_threshold": 3.0,
+      "accuracy": 0.990506329113924,
+      "compute_fraction": 0.2189873417721519,
+      "mean_exit_layer": 1.1898734177215189,
+      "meets_target": true
+    }
+  ],
+  "notable_win": true
+}

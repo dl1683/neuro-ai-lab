@@ -1,0 +1,465 @@
+{
+  "experiment": "04_torch_fashion_mnist_cnn_dense_hybrid",
+  "setup": "Fashion-MNIST CNN hybrid pruning: conv layers use magnitude; dense layers use corrected no-balance path-flow blend. alpha=0 is pure magnitude everywhere.",
+  "alpha_scores": {
+    "0.0": 0.5994166666666666,
+    "0.05": 0.6044166666666667,
+    "0.1": 0.611,
+    "0.2": 0.6119583333333334,
+    "0.35": 0.5639583333333333,
+    "0.5": 0.5065416666666667,
+    "0.75": 0.4704999999999999
+  },
+  "best_alpha": "0.2",
+  "summary": {
+    "0.9": {
+      "0.0": {
+        "accuracy_mean": 0.746375,
+        "accuracy_std": 0.01387499999999997,
+        "retention_mean": 0.8814058455627664
+      },
+      "0.05": {
+        "accuracy_mean": 0.75,
+        "accuracy_std": 0.017750000000000044,
+        "retention_mean": 0.8856680770806236
+      },
+      "0.1": {
+        "accuracy_mean": 0.729625,
+        "accuracy_std": 0.028874999999999984,
+        "retention_mean": 0.8615507655314576
+      },
+      "0.2": {
+        "accuracy_mean": 0.714375,
+        "accuracy_std": 0.03837499999999999,
+        "retention_mean": 0.8434940439292851
+      },
+      "0.35": {
+        "accuracy_mean": 0.6933750000000001,
+        "accuracy_std": 0.022125000000000006,
+        "retention_mean": 0.8187722381228799
+      },
+      "0.5": {
+        "accuracy_mean": 0.674875,
+        "accuracy_std": 0.037124999999999964,
+        "retention_mean": 0.7968503970641166
+      },
+      "0.75": {
+        "accuracy_mean": 0.657,
+        "accuracy_std": 0.04049999999999998,
+        "retention_mean": 0.7757234339179118
+      }
+    },
+    "0.95": {
+      "0.0": {
+        "accuracy_mean": 0.608125,
+        "accuracy_std": 0.014874999999999972,
+        "retention_mean": 0.7181268427616684
+      },
+      "0.05": {
+        "accuracy_mean": 0.59875,
+        "accuracy_std": 0.0007500000000000284,
+        "retention_mean": 0.7071238617406698
+      },
+      "0.1": {
+        "accuracy_mean": 0.628125,
+        "accuracy_std": 0.02337499999999998,
+        "retention_mean": 0.7417054749161253
+      },
+      "0.2": {
+        "accuracy_mean": 0.62975,
+        "accuracy_std": 0.022249999999999992,
+        "retention_mean": 0.7436301019921157
+      },
+      "0.35": {
+        "accuracy_mean": 0.5923750000000001,
+        "accuracy_std": 0.024125000000000008,
+        "retention_mean": 0.6994808384168414
+      },
+      "0.5": {
+        "accuracy_mean": 0.55425,
+        "accuracy_std": 0.012249999999999983,
+        "retention_mean": 0.6546325425466935
+      },
+      "0.75": {
+        "accuracy_mean": 0.5391250000000001,
+        "accuracy_std": 0.01787500000000003,
+        "retention_mean": 0.6367972814190347
+      }
+    },
+    "0.98": {
+      "0.0": {
+        "accuracy_mean": 0.44375,
+        "accuracy_std": 0.02425000000000002,
+        "retention_mean": 0.5241899258279575
+      },
+      "0.05": {
+        "accuracy_mean": 0.4645,
+        "accuracy_std": 0.02325000000000002,
+        "retention_mean": 0.5486909249498739
+      },
+      "0.1": {
+        "accuracy_mean": 0.47525,
+        "accuracy_std": 0.00824999999999998,
+        "retention_mean": 0.5613135182071369
+      },
+      "0.2": {
+        "accuracy_mean": 0.49175,
+        "accuracy_std": 0.0595,
+        "retention_mean": 0.5804693915995653
+      },
+      "0.35": {
+        "accuracy_mean": 0.406125,
+        "accuracy_std": 0.14287500000000003,
+        "retention_mean": 0.4789387209583202
+      },
+      "0.5": {
+        "accuracy_mean": 0.2905,
+        "accuracy_std": 0.16,
+        "retention_mean": 0.34230126940743
+      },
+      "0.75": {
+        "accuracy_mean": 0.21537499999999998,
+        "accuracy_std": 0.10687499999999998,
+        "retention_mean": 0.2538375077245291
+      }
+    }
+  },
+  "rows": [
+    {
+      "seed": 51,
+      "alpha": 0.0,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.85025,
+      "accuracy": 0.76025,
+      "retention": 0.8941487797706558
+    },
+    {
+      "seed": 51,
+      "alpha": 0.0,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.85025,
+      "accuracy": 0.623,
+      "retention": 0.7327256689209056
+    },
+    {
+      "seed": 51,
+      "alpha": 0.0,
+      "sparsity": 0.98,
+      "dense_accuracy": 0.85025,
+      "accuracy": 0.4195,
+      "retention": 0.49338429873566597
+    },
+    {
+      "seed": 51,
+      "alpha": 0.05,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.85025,
+      "accuracy": 0.76775,
+      "retention": 0.9029697147897678
+    },
+    {
+      "seed": 51,
+      "alpha": 0.05,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.85025,
+      "accuracy": 0.5995,
+      "retention": 0.7050867391943547
+    },
+    {
+      "seed": 51,
+      "alpha": 0.05,
+      "sparsity": 0.98,
+      "dense_accuracy": 0.85025,
+      "accuracy": 0.44125,
+      "retention": 0.5189650102910909
+    },
+    {
+      "seed": 51,
+      "alpha": 0.1,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.85025,
+      "accuracy": 0.7585,
+      "retention": 0.8920905615995296
+    },
+    {
+      "seed": 51,
+      "alpha": 0.1,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.85025,
+      "accuracy": 0.6515,
+      "retention": 0.7662452219935313
+    },
+    {
+      "seed": 51,
+      "alpha": 0.1,
+      "sparsity": 0.98,
+      "dense_accuracy": 0.85025,
+      "accuracy": 0.467,
+      "retention": 0.5492502205233756
+    },
+    {
+      "seed": 51,
+      "alpha": 0.2,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.85025,
+      "accuracy": 0.75275,
+      "retention": 0.8853278447515438
+    },
+    {
+      "seed": 51,
+      "alpha": 0.2,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.85025,
+      "accuracy": 0.652,
+      "retention": 0.7668332843281389
+    },
+    {
+      "seed": 51,
+      "alpha": 0.2,
+      "sparsity": 0.98,
+      "dense_accuracy": 0.85025,
+      "accuracy": 0.55125,
+      "retention": 0.648338723904734
+    },
+    {
+      "seed": 51,
+      "alpha": 0.35,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.85025,
+      "accuracy": 0.7155,
+      "retention": 0.8415172008232873
+    },
+    {
+      "seed": 51,
+      "alpha": 0.35,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.85025,
+      "accuracy": 0.6165,
+      "retention": 0.7250808585710087
+    },
+    {
+      "seed": 51,
+      "alpha": 0.35,
+      "sparsity": 0.98,
+      "dense_accuracy": 0.85025,
+      "accuracy": 0.549,
+      "retention": 0.6456924433990003
+    },
+    {
+      "seed": 51,
+      "alpha": 0.5,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.85025,
+      "accuracy": 0.712,
+      "retention": 0.837400764481035
+    },
+    {
+      "seed": 51,
+      "alpha": 0.5,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.85025,
+      "accuracy": 0.542,
+      "retention": 0.6374595707144958
+    },
+    {
+      "seed": 51,
+      "alpha": 0.5,
+      "sparsity": 0.98,
+      "dense_accuracy": 0.85025,
+      "accuracy": 0.4505,
+      "retention": 0.529844163481329
+    },
+    {
+      "seed": 51,
+      "alpha": 0.75,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.85025,
+      "accuracy": 0.6975,
+      "retention": 0.8203469567774184
+    },
+    {
+      "seed": 51,
+      "alpha": 0.75,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.85025,
+      "accuracy": 0.52125,
+      "retention": 0.6130549838282858
+    },
+    {
+      "seed": 51,
+      "alpha": 0.75,
+      "sparsity": 0.98,
+      "dense_accuracy": 0.85025,
+      "accuracy": 0.32225,
+      "retention": 0.37900617465451336
+    },
+    {
+      "seed": 52,
+      "alpha": 0.0,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.84325,
+      "accuracy": 0.7325,
+      "retention": 0.8686629113548769
+    },
+    {
+      "seed": 52,
+      "alpha": 0.0,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.84325,
+      "accuracy": 0.59325,
+      "retention": 0.7035280166024311
+    },
+    {
+      "seed": 52,
+      "alpha": 0.0,
+      "sparsity": 0.98,
+      "dense_accuracy": 0.84325,
+      "accuracy": 0.468,
+      "retention": 0.554995552920249
+    },
+    {
+      "seed": 52,
+      "alpha": 0.05,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.84325,
+      "accuracy": 0.73225,
+      "retention": 0.8683664393714793
+    },
+    {
+      "seed": 52,
+      "alpha": 0.05,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.84325,
+      "accuracy": 0.598,
+      "retention": 0.7091609842869848
+    },
+    {
+      "seed": 52,
+      "alpha": 0.05,
+      "sparsity": 0.98,
+      "dense_accuracy": 0.84325,
+      "accuracy": 0.48775,
+      "retention": 0.578416839608657
+    },
+    {
+      "seed": 52,
+      "alpha": 0.1,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.84325,
+      "accuracy": 0.70075,
+      "retention": 0.8310109694633856
+    },
+    {
+      "seed": 52,
+      "alpha": 0.1,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.84325,
+      "accuracy": 0.60475,
+      "retention": 0.7171657278387192
+    },
+    {
+      "seed": 52,
+      "alpha": 0.1,
+      "sparsity": 0.98,
+      "dense_accuracy": 0.84325,
+      "accuracy": 0.4835,
+      "retention": 0.5733768158908983
+    },
+    {
+      "seed": 52,
+      "alpha": 0.2,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.84325,
+      "accuracy": 0.676,
+      "retention": 0.8016602431070264
+    },
+    {
+      "seed": 52,
+      "alpha": 0.2,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.84325,
+      "accuracy": 0.6075,
+      "retention": 0.7204269196560925
+    },
+    {
+      "seed": 52,
+      "alpha": 0.2,
+      "sparsity": 0.98,
+      "dense_accuracy": 0.84325,
+      "accuracy": 0.43225,
+      "retention": 0.5126000592943967
+    },
+    {
+      "seed": 52,
+      "alpha": 0.35,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.84325,
+      "accuracy": 0.67125,
+      "retention": 0.7960272754224725
+    },
+    {
+      "seed": 52,
+      "alpha": 0.35,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.84325,
+      "accuracy": 0.56825,
+      "retention": 0.6738808182626742
+    },
+    {
+      "seed": 52,
+      "alpha": 0.35,
+      "sparsity": 0.98,
+      "dense_accuracy": 0.84325,
+      "accuracy": 0.26325,
+      "retention": 0.31218499851764003
+    },
+    {
+      "seed": 52,
+      "alpha": 0.5,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.84325,
+      "accuracy": 0.63775,
+      "retention": 0.7563000296471983
+    },
+    {
+      "seed": 52,
+      "alpha": 0.5,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.84325,
+      "accuracy": 0.5665,
+      "retention": 0.6718055143788911
+    },
+    {
+      "seed": 52,
+      "alpha": 0.5,
+      "sparsity": 0.98,
+      "dense_accuracy": 0.84325,
+      "accuracy": 0.1305,
+      "retention": 0.15475837533353098
+    },
+    {
+      "seed": 52,
+      "alpha": 0.75,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.84325,
+      "accuracy": 0.6165,
+      "retention": 0.731099911058405
+    },
+    {
+      "seed": 52,
+      "alpha": 0.75,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.84325,
+      "accuracy": 0.557,
+      "retention": 0.6605395790097836
+    },
+    {
+      "seed": 52,
+      "alpha": 0.75,
+      "sparsity": 0.98,
+      "dense_accuracy": 0.84325,
+      "accuracy": 0.1085,
+      "retention": 0.1286688407945449
+    }
+  ]
+}

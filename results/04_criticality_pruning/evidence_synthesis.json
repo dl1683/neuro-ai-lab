@@ -1,0 +1,191 @@
+{
+  "experiment": "04_path_flow_evidence_synthesis",
+  "claim_v3": "Path-aware pruning is not universally better than magnitude. It is strongest as a label-free severe-sparsity path-preservation correction. On sklearn digits MLPs, full path-flow dominates magnitude and slightly beats gradient saliency. On Fashion-MNIST MLPs, naive path-flow fails, but a no-balance weak path/magnitude blend improves severe-sparsity masks and keeps a small edge after fine-tuning.",
+  "core_sklearn_digits_paired_stats": {
+    "path_flow_vs_magnitude": {
+      "n": 10,
+      "wins": 10,
+      "losses": 0,
+      "ties": 0,
+      "mean_delta": 0.17440381558028617,
+      "median_delta": 0.14864864864864868,
+      "bootstrap_95_ci_mean_delta": [
+        0.13386327503974566,
+        0.22019077901430845
+      ]
+    },
+    "path_flow_vs_gradient_saliency": {
+      "n": 10,
+      "wins": 6,
+      "losses": 4,
+      "ties": 0,
+      "mean_delta": 0.007631160572337059,
+      "median_delta": 0.009538950715421324,
+      "bootstrap_95_ci_mean_delta": [
+        -0.01669316375198727,
+        0.03339030206677265
+      ]
+    },
+    "activation_flow_vs_magnitude": {
+      "n": 10,
+      "wins": 10,
+      "losses": 0,
+      "ties": 0,
+      "mean_delta": 0.1650238473767886,
+      "median_delta": 0.14546899841017497,
+      "bootstrap_95_ci_mean_delta": [
+        0.12877583465818762,
+        0.20492845786963437
+      ]
+    }
+  },
+  "extreme_sparsity_paired_stats": {
+    "path_flow_vs_magnitude_97_99": {
+      "n": 15,
+      "wins": 15,
+      "losses": 0,
+      "ties": 0,
+      "mean_delta": 0.20370959194488603,
+      "median_delta": 0.1955484896661367,
+      "bootstrap_95_ci_mean_delta": [
+        0.1639613142554319,
+        0.24705882352941178
+      ]
+    },
+    "path_flow_vs_gradient_97_99": {
+      "n": 15,
+      "wins": 8,
+      "losses": 7,
+      "ties": 0,
+      "mean_delta": 0.042183359830418654,
+      "median_delta": 0.022257551669316367,
+      "bootstrap_95_ci_mean_delta": [
+        0.005617382087970328,
+        0.08224695283518813
+      ]
+    }
+  },
+  "ablation_drops_vs_full": {
+    "no_input_activity": 0.07853736089030217,
+    "no_hidden_strength": 0.013036565977742609,
+    "no_hidden_balance": 0.004292527821939673,
+    "no_output_strength": 0.009379968203497846
+  },
+  "calibration_accuracy_drop_vs_full": {
+    "0.02": 0.044674085850556544,
+    "0.05": 0.02957074721780617,
+    "0.1": 0.015262321144674296,
+    "0.25": 0.007631160572337148
+  },
+  "sklearn_finetune_summary": {
+    "magnitude": {
+      "before_mean": 0.6146263910969794,
+      "after_mean": 0.7610492845786963,
+      "recovery_gain_mean": 0.14642289348171703,
+      "retention_after_mean": 0.7938668066411603
+    },
+    "gradient_saliency": {
+      "before_mean": 0.7813990461049285,
+      "after_mean": 0.8874403815580287,
+      "recovery_gain_mean": 0.10604133545310017,
+      "retention_after_mean": 0.9256957884930778
+    },
+    "path_flow": {
+      "before_mean": 0.7890302066772656,
+      "after_mean": 0.8903020667726551,
+      "recovery_gain_mean": 0.10127186009538951,
+      "retention_after_mean": 0.9286568607759218
+    }
+  },
+  "fashion_mnist_adaptive_rule": {
+    "rule": "use alpha=0 magnitude at 90% sparsity; use corrected no-balance path blend alpha=0.25 at 95% and 98% sparsity",
+    "rows": [
+      {
+        "seed": 31,
+        "sparsity": 0.9,
+        "chosen_alpha": 0.0,
+        "adaptive_accuracy": 0.7816666666666666,
+        "magnitude_accuracy": 0.7816666666666666,
+        "delta": 0.0
+      },
+      {
+        "seed": 31,
+        "sparsity": 0.95,
+        "chosen_alpha": 0.25,
+        "adaptive_accuracy": 0.7073333333333334,
+        "magnitude_accuracy": 0.652,
+        "delta": 0.055333333333333345
+      },
+      {
+        "seed": 31,
+        "sparsity": 0.98,
+        "chosen_alpha": 0.25,
+        "adaptive_accuracy": 0.5946666666666667,
+        "magnitude_accuracy": 0.478,
+        "delta": 0.1166666666666667
+      },
+      {
+        "seed": 32,
+        "sparsity": 0.9,
+        "chosen_alpha": 0.0,
+        "adaptive_accuracy": 0.8246666666666667,
+        "magnitude_accuracy": 0.8246666666666667,
+        "delta": 0.0
+      },
+      {
+        "seed": 32,
+        "sparsity": 0.95,
+        "chosen_alpha": 0.25,
+        "adaptive_accuracy": 0.7193333333333334,
+        "magnitude_accuracy": 0.72,
+        "delta": -0.0006666666666665932
+      },
+      {
+        "seed": 32,
+        "sparsity": 0.98,
+        "chosen_alpha": 0.25,
+        "adaptive_accuracy": 0.6163333333333333,
+        "magnitude_accuracy": 0.5926666666666667,
+        "delta": 0.023666666666666614
+      }
+    ],
+    "paired_delta_vs_magnitude": {
+      "n": 6,
+      "wins": 3,
+      "losses": 1,
+      "ties": 2,
+      "mean_delta": 0.03250000000000001,
+      "median_delta": 0.011833333333333307,
+      "bootstrap_95_ci_mean_delta": [
+        0.003722222222222238,
+        0.07050000000000001
+      ]
+    }
+  },
+  "fashion_mnist_corrected_blend_finetune": {
+    "0.95": {
+      "magnitude": {
+        "before_mean": 0.6859999999999999,
+        "after_mean": 0.831,
+        "retention_after_mean": 0.9815403712728209
+      },
+      "corrected_path_blend": {
+        "before_mean": 0.7133333333333334,
+        "after_mean": 0.834,
+        "retention_after_mean": 0.9850969414953188
+      }
+    },
+    "0.98": {
+      "magnitude": {
+        "before_mean": 0.5353333333333333,
+        "after_mean": 0.7965,
+        "retention_after_mean": 0.940765140031427
+      },
+      "corrected_path_blend": {
+        "before_mean": 0.6054999999999999,
+        "after_mean": 0.8033333333333333,
+        "retention_after_mean": 0.9488316750524983
+      }
+    }
+  }
+}

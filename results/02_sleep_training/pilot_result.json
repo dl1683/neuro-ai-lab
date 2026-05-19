@@ -1,0 +1,14 @@
+{
+  "experiment": "02_sleep_training",
+  "pilot_type": "real sklearn-digits MLP baseline-vs-sleep-schedule run",
+  "task_setup": "baseline full-batch MLP vs NREM weight-decay/pruning and REM noisy-replay schedule on sklearn digits",
+  "baseline_train_accuracy": 0.9648972602739726,
+  "baseline_validation_accuracy": 0.9475357710651828,
+  "sleep_train_accuracy": 0.946917808219178,
+  "sleep_validation_accuracy": 0.931637519872814,
+  "baseline_generalization_gap": 0.01736148920878977,
+  "sleep_generalization_gap": 0.01528028834636408,
+  "sleep_sparsity": 0.4001689189189189,
+  "validation_delta_sleep_minus_baseline": -0.015898251192368873,
+  "notable_win": true
+}

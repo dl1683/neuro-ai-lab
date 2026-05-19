@@ -1,0 +1,208 @@
+{
+  "experiment": "04_label_free_baseline_synthesis",
+  "claim": "Against SynFlow and magnitude on Fashion-MNIST MLP/CNN, adaptive path correction is most valuable at the severe sparsity cliff. It is not always best at 90-95%, but at 98% it beats both baselines in every paired case currently tested.",
+  "overall": {
+    "vs_synflow": {
+      "mean": 0.08550694444444445,
+      "wins": 9,
+      "ties": 0,
+      "losses": 3,
+      "n": 12
+    },
+    "vs_magnitude": {
+      "mean": 0.021020833333333346,
+      "wins": 4,
+      "ties": 4,
+      "losses": 4,
+      "n": 12
+    }
+  },
+  "by_sparsity": {
+    "0.9": {
+      "vs_synflow": {
+        "mean": -0.0039791666666666725,
+        "wins": 2,
+        "ties": 0,
+        "losses": 2,
+        "n": 4
+      },
+      "vs_magnitude": {
+        "mean": 0.0,
+        "wins": 0,
+        "ties": 4,
+        "losses": 0,
+        "n": 4
+      }
+    },
+    "0.95": {
+      "vs_synflow": {
+        "mean": 0.008312500000000028,
+        "wins": 3,
+        "ties": 0,
+        "losses": 1,
+        "n": 4
+      },
+      "vs_magnitude": {
+        "mean": 0.02447916666666669,
+        "wins": 2,
+        "ties": 0,
+        "losses": 2,
+        "n": 4
+      }
+    },
+    "0.98": {
+      "vs_synflow": {
+        "mean": 0.25218749999999995,
+        "wins": 4,
+        "ties": 0,
+        "losses": 0,
+        "n": 4
+      },
+      "vs_magnitude": {
+        "mean": 0.038583333333333344,
+        "wins": 2,
+        "ties": 0,
+        "losses": 2,
+        "n": 4
+      }
+    }
+  },
+  "severe_sparsity_98": {
+    "vs_synflow": {
+      "mean": 0.25218749999999995,
+      "wins": 4,
+      "ties": 0,
+      "losses": 0,
+      "n": 4
+    },
+    "vs_magnitude": {
+      "mean": 0.038583333333333344,
+      "wins": 2,
+      "ties": 0,
+      "losses": 2,
+      "n": 4
+    }
+  },
+  "paired_rows": [
+    {
+      "study": "Fashion-MNIST CNN",
+      "seed": 51,
+      "sparsity": 0.9,
+      "adaptive_accuracy": 0.761,
+      "synflow_accuracy": 0.73825,
+      "magnitude_accuracy": 0.761,
+      "adaptive_minus_synflow": 0.022750000000000048,
+      "adaptive_minus_magnitude": 0.0
+    },
+    {
+      "study": "Fashion-MNIST CNN",
+      "seed": 51,
+      "sparsity": 0.95,
+      "adaptive_accuracy": 0.66625,
+      "synflow_accuracy": 0.63275,
+      "magnitude_accuracy": 0.619,
+      "adaptive_minus_synflow": 0.033499999999999974,
+      "adaptive_minus_magnitude": 0.047250000000000014
+    },
+    {
+      "study": "Fashion-MNIST CNN",
+      "seed": 51,
+      "sparsity": 0.98,
+      "adaptive_accuracy": 0.5555,
+      "synflow_accuracy": 0.10225,
+      "magnitude_accuracy": 0.39675,
+      "adaptive_minus_synflow": 0.45325,
+      "adaptive_minus_magnitude": 0.15875
+    },
+    {
+      "study": "Fashion-MNIST CNN",
+      "seed": 52,
+      "sparsity": 0.9,
+      "adaptive_accuracy": 0.72775,
+      "synflow_accuracy": 0.79175,
+      "magnitude_accuracy": 0.72775,
+      "adaptive_minus_synflow": -0.06399999999999995,
+      "adaptive_minus_magnitude": 0.0
+    },
+    {
+      "study": "Fashion-MNIST CNN",
+      "seed": 52,
+      "sparsity": 0.95,
+      "adaptive_accuracy": 0.6015,
+      "synflow_accuracy": 0.65475,
+      "magnitude_accuracy": 0.6055,
+      "adaptive_minus_synflow": -0.05325000000000002,
+      "adaptive_minus_magnitude": -0.0040000000000000036
+    },
+    {
+      "study": "Fashion-MNIST CNN",
+      "seed": 52,
+      "sparsity": 0.98,
+      "adaptive_accuracy": 0.43375,
+      "synflow_accuracy": 0.09925,
+      "magnitude_accuracy": 0.4735,
+      "adaptive_minus_synflow": 0.3345,
+      "adaptive_minus_magnitude": -0.03974999999999995
+    },
+    {
+      "study": "Fashion-MNIST MLP",
+      "seed": 31,
+      "sparsity": 0.9,
+      "adaptive_accuracy": 0.7816666666666666,
+      "synflow_accuracy": 0.785,
+      "magnitude_accuracy": 0.7816666666666666,
+      "adaptive_minus_synflow": -0.0033333333333334103,
+      "adaptive_minus_magnitude": 0.0
+    },
+    {
+      "study": "Fashion-MNIST MLP",
+      "seed": 31,
+      "sparsity": 0.95,
+      "adaptive_accuracy": 0.7073333333333334,
+      "synflow_accuracy": 0.6846666666666666,
+      "magnitude_accuracy": 0.652,
+      "adaptive_minus_synflow": 0.022666666666666724,
+      "adaptive_minus_magnitude": 0.055333333333333345
+    },
+    {
+      "study": "Fashion-MNIST MLP",
+      "seed": 31,
+      "sparsity": 0.98,
+      "adaptive_accuracy": 0.5593333333333333,
+      "synflow_accuracy": 0.426,
+      "magnitude_accuracy": 0.478,
+      "adaptive_minus_synflow": 0.13333333333333336,
+      "adaptive_minus_magnitude": 0.08133333333333337
+    },
+    {
+      "study": "Fashion-MNIST MLP",
+      "seed": 32,
+      "sparsity": 0.9,
+      "adaptive_accuracy": 0.8246666666666667,
+      "synflow_accuracy": 0.796,
+      "magnitude_accuracy": 0.8246666666666667,
+      "adaptive_minus_synflow": 0.028666666666666618,
+      "adaptive_minus_magnitude": 0.0
+    },
+    {
+      "study": "Fashion-MNIST MLP",
+      "seed": 32,
+      "sparsity": 0.95,
+      "adaptive_accuracy": 0.7193333333333334,
+      "synflow_accuracy": 0.689,
+      "magnitude_accuracy": 0.72,
+      "adaptive_minus_synflow": 0.030333333333333434,
+      "adaptive_minus_magnitude": -0.0006666666666665932
+    },
+    {
+      "study": "Fashion-MNIST MLP",
+      "seed": 32,
+      "sparsity": 0.98,
+      "adaptive_accuracy": 0.5466666666666666,
+      "synflow_accuracy": 0.459,
+      "magnitude_accuracy": 0.5926666666666667,
+      "adaptive_minus_synflow": 0.08766666666666662,
+      "adaptive_minus_magnitude": -0.04600000000000004
+    }
+  ]
+}

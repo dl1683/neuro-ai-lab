@@ -1,0 +1,104 @@
+{
+  "experiment": "04_torch_fashion_mnist_corrected_blend_finetune",
+  "setup": "Masked fine-tuning after pruning Fashion-MNIST MLPs with magnitude vs corrected no-balance path blend at 95% and 98% sparsity.",
+  "summary": {
+    "0.95": {
+      "magnitude": {
+        "before_mean": 0.6859999999999999,
+        "after_mean": 0.831,
+        "retention_after_mean": 0.9815403712728209
+      },
+      "corrected_path_blend": {
+        "before_mean": 0.7133333333333334,
+        "after_mean": 0.834,
+        "retention_after_mean": 0.9850969414953188
+      }
+    },
+    "0.98": {
+      "magnitude": {
+        "before_mean": 0.5353333333333333,
+        "after_mean": 0.7965,
+        "retention_after_mean": 0.940765140031427
+      },
+      "corrected_path_blend": {
+        "before_mean": 0.6054999999999999,
+        "after_mean": 0.8033333333333333,
+        "retention_after_mean": 0.9488316750524983
+      }
+    }
+  },
+  "rows": [
+    {
+      "seed": 31,
+      "sparsity": 0.95,
+      "method": "magnitude",
+      "dense_accuracy": 0.8396666666666667,
+      "before_finetune": 0.652,
+      "after_finetune": 0.8286666666666667,
+      "retention_after": 0.9868995633187773
+    },
+    {
+      "seed": 31,
+      "sparsity": 0.95,
+      "method": "corrected_path_blend",
+      "dense_accuracy": 0.8396666666666667,
+      "before_finetune": 0.7073333333333334,
+      "after_finetune": 0.833,
+      "retention_after": 0.9920603414053195
+    },
+    {
+      "seed": 31,
+      "sparsity": 0.98,
+      "method": "magnitude",
+      "dense_accuracy": 0.8396666666666667,
+      "before_finetune": 0.478,
+      "after_finetune": 0.7916666666666666,
+      "retention_after": 0.9428344581183009
+    },
+    {
+      "seed": 31,
+      "sparsity": 0.98,
+      "method": "corrected_path_blend",
+      "dense_accuracy": 0.8396666666666667,
+      "before_finetune": 0.5946666666666667,
+      "after_finetune": 0.798,
+      "retention_after": 0.9503771337832474
+    },
+    {
+      "seed": 32,
+      "sparsity": 0.95,
+      "method": "magnitude",
+      "dense_accuracy": 0.8536666666666667,
+      "before_finetune": 0.72,
+      "after_finetune": 0.8333333333333334,
+      "retention_after": 0.9761811792268645
+    },
+    {
+      "seed": 32,
+      "sparsity": 0.95,
+      "method": "corrected_path_blend",
+      "dense_accuracy": 0.8536666666666667,
+      "before_finetune": 0.7193333333333334,
+      "after_finetune": 0.835,
+      "retention_after": 0.9781335415853182
+    },
+    {
+      "seed": 32,
+      "sparsity": 0.98,
+      "method": "magnitude",
+      "dense_accuracy": 0.8536666666666667,
+      "before_finetune": 0.5926666666666667,
+      "after_finetune": 0.8013333333333333,
+      "retention_after": 0.9386958219445529
+    },
+    {
+      "seed": 32,
+      "sparsity": 0.98,
+      "method": "corrected_path_blend",
+      "dense_accuracy": 0.8536666666666667,
+      "before_finetune": 0.6163333333333333,
+      "after_finetune": 0.8086666666666666,
+      "retention_after": 0.9472862163217493
+    }
+  ]
+}

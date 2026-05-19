@@ -1,0 +1,1673 @@
+{
+  "pilot_suite": "neuro-ai-lab",
+  "definition_of_win": "Each experiment exposes a fast metric for quality, efficiency, retention, sparsity, or compute savings.",
+  "experiments_run": 5,
+  "notable_wins": 4,
+  "win_rate": 0.8,
+  "results": {
+    "01_grokking_prediction": {
+      "experiment": "01_grokking_prediction",
+      "pilot_type": "real modular-addition training run",
+      "task_setup": "MLP with learned token embeddings trained on 45% of all a+b mod 19 pairs and evaluated on held-out pairs",
+      "win_metric": "representation velocity should give an early warning before held-out modular-addition generalization",
+      "final_train_accuracy": 1.0,
+      "final_validation_accuracy": 0.0,
+      "best_validation_accuracy": 0.05527638190954774,
+      "grokking_epoch_80pct_validation": null,
+      "velocity_early_warning_epoch": null,
+      "velocity_early_warning_lead_epochs": null,
+      "rho_validation_linear_r2": 0.06304323179311122,
+      "history": [
+        {
+          "epoch": 0,
+          "train_accuracy": 0.04938271604938271,
+          "validation_accuracy": 0.05527638190954774,
+          "rho": 0.9995321646102926,
+          "rho_std": 8.325660212489454e-05
+        },
+        {
+          "epoch": 20,
+          "train_accuracy": 0.13580246913580246,
+          "validation_accuracy": 0.010050251256281407,
+          "rho": 0.9996241600255911,
+          "rho_std": 5.998896275678865e-05
+        },
+        {
+          "epoch": 40,
+          "train_accuracy": 0.21604938271604937,
+          "validation_accuracy": 0.0,
+          "rho": 0.9990613997233685,
+          "rho_std": 0.00017316871897007978
+        },
+        {
+          "epoch": 60,
+          "train_accuracy": 0.25308641975308643,
+          "validation_accuracy": 0.0,
+          "rho": 0.9976851664152679,
+          "rho_std": 0.0004523127688861967
+        },
+        {
+          "epoch": 80,
+          "train_accuracy": 0.2839506172839506,
+          "validation_accuracy": 0.0,
+          "rho": 0.9956542599976953,
+          "rho_std": 0.0008247301129579228
+        },
+        {
+          "epoch": 100,
+          "train_accuracy": 0.345679012345679,
+          "validation_accuracy": 0.0,
+          "rho": 0.9933649011524365,
+          "rho_std": 0.0012180007055459818
+        },
+        {
+          "epoch": 120,
+          "train_accuracy": 0.41975308641975306,
+          "validation_accuracy": 0.0,
+          "rho": 0.9910352319327327,
+          "rho_std": 0.0016183832096498799
+        },
+        {
+          "epoch": 140,
+          "train_accuracy": 0.4382716049382716,
+          "validation_accuracy": 0.0,
+          "rho": 0.9887142316187388,
+          "rho_std": 0.0020251023270910756
+        },
+        {
+          "epoch": 160,
+          "train_accuracy": 0.49382716049382713,
+          "validation_accuracy": 0.0,
+          "rho": 0.986334389825123,
+          "rho_std": 0.002450236751349766
+        },
+        {
+          "epoch": 180,
+          "train_accuracy": 0.5308641975308642,
+          "validation_accuracy": 0.0,
+          "rho": 0.9837835193651205,
+          "rho_std": 0.0029141281535905944
+        },
+        {
+          "epoch": 200,
+          "train_accuracy": 0.5617283950617284,
+          "validation_accuracy": 0.0,
+          "rho": 0.9809514691844506,
+          "rho_std": 0.003439266626059578
+        },
+        {
+          "epoch": 220,
+          "train_accuracy": 0.5925925925925926,
+          "validation_accuracy": 0.0,
+          "rho": 0.97774570681587,
+          "rho_std": 0.004047237759038008
+        },
+        {
+          "epoch": 240,
+          "train_accuracy": 0.6666666666666666,
+          "validation_accuracy": 0.0,
+          "rho": 0.9740954061869709,
+          "rho_std": 0.004755563613058207
+        },
+        {
+          "epoch": 260,
+          "train_accuracy": 0.7098765432098766,
+          "validation_accuracy": 0.0,
+          "rho": 0.9699544052712309,
+          "rho_std": 0.00557429173163305
+        },
+        {
+          "epoch": 280,
+          "train_accuracy": 0.7716049382716049,
+          "validation_accuracy": 0.0,
+          "rho": 0.9653047940130587,
+          "rho_std": 0.006503676099699449
+        },
+        {
+          "epoch": 300,
+          "train_accuracy": 0.808641975308642,
+          "validation_accuracy": 0.0,
+          "rho": 0.9601595381221013,
+          "rho_std": 0.007533903813104559
+        },
+        {
+          "epoch": 320,
+          "train_accuracy": 0.8333333333333334,
+          "validation_accuracy": 0.0,
+          "rho": 0.9545625259158966,
+          "rho_std": 0.008646924087525034
+        },
+        {
+          "epoch": 340,
+          "train_accuracy": 0.9135802469135802,
+          "validation_accuracy": 0.0,
+          "rho": 0.9485856584680108,
+          "rho_std": 0.009819588442262077
+        },
+        {
+          "epoch": 360,
+          "train_accuracy": 0.9444444444444444,
+          "validation_accuracy": 0.0,
+          "rho": 0.9423234270348742,
+          "rho_std": 0.011026887674143334
+        },
+        {
+          "epoch": 380,
+          "train_accuracy": 0.9876543209876543,
+          "validation_accuracy": 0.0,
+          "rho": 0.9358853731645675,
+          "rho_std": 0.012244390597621741
+        },
+        {
+          "epoch": 400,
+          "train_accuracy": 0.9876543209876543,
+          "validation_accuracy": 0.0,
+          "rho": 0.9293868024982154,
+          "rho_std": 0.013449758665198406
+        },
+        {
+          "epoch": 420,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.9229388414717805,
+          "rho_std": 0.014623686408279863
+        },
+        {
+          "epoch": 440,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.9166396742614361,
+          "rho_std": 0.01575054566089233
+        },
+        {
+          "epoch": 460,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.9105686098509665,
+          "rho_std": 0.01681875382221657
+        },
+        {
+          "epoch": 480,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.9047836261365784,
+          "rho_std": 0.017820783148595518
+        },
+        {
+          "epoch": 500,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.8993219829880719,
+          "rho_std": 0.01875279986015152
+        },
+        {
+          "epoch": 520,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.8942029003931479,
+          "rho_std": 0.019614033306783463
+        },
+        {
+          "epoch": 540,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.8894312122068935,
+          "rho_std": 0.02040602886319516
+        },
+        {
+          "epoch": 560,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.8850011389997211,
+          "rho_std": 0.021131921853162063
+        },
+        {
+          "epoch": 580,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.8808996575921594,
+          "rho_std": 0.021795817926996842
+        },
+        {
+          "epoch": 600,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.8771092380052982,
+          "rho_std": 0.022402312798416018
+        },
+        {
+          "epoch": 620,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.8736099162076023,
+          "rho_std": 0.02295614808292787
+        },
+        {
+          "epoch": 640,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.8703807764827918,
+          "rho_std": 0.02346198185305851
+        },
+        {
+          "epoch": 660,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.8674009570505479,
+          "rho_std": 0.023924247304818517
+        },
+        {
+          "epoch": 680,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.864650294561568,
+          "rho_std": 0.02434707473482665
+        },
+        {
+          "epoch": 700,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.8621097076524636,
+          "rho_std": 0.02473425662482068
+        },
+        {
+          "epoch": 720,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.8597613990612395,
+          "rho_std": 0.025089240644595084
+        },
+        {
+          "epoch": 740,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.857588935959584,
+          "rho_std": 0.025415139759848396
+        },
+        {
+          "epoch": 760,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.8555772515505707,
+          "rho_std": 0.025714752057761903
+        },
+        {
+          "epoch": 780,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.8537125980839381,
+          "rho_std": 0.02599058541897044
+        },
+        {
+          "epoch": 800,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.8519824718854463,
+          "rho_std": 0.026244883934145754
+        },
+        {
+          "epoch": 820,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.850375524139486,
+          "rho_std": 0.026479654169297272
+        },
+        {
+          "epoch": 840,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.8488814663574549,
+          "rho_std": 0.026696690184686657
+        },
+        {
+          "epoch": 860,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.8474909761576418,
+          "rho_std": 0.02689759673141014
+        },
+        {
+          "epoch": 880,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.8461956067446101,
+          "rho_std": 0.027083810377735988
+        },
+        {
+          "epoch": 900,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.8449877019862092,
+          "rho_std": 0.027256618518072373
+        },
+        {
+          "epoch": 920,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.84386031801232,
+          "rho_std": 0.027417176334954215
+        },
+        {
+          "epoch": 940,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.8428071516369707,
+          "rho_std": 0.027566521848384252
+        },
+        {
+          "epoch": 960,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.841822475519948,
+          "rho_std": 0.027705589217031416
+        },
+        {
+          "epoch": 980,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.8409010797564318,
+          "rho_std": 0.027835220465205642
+        },
+        {
+          "epoch": 1000,
+          "train_accuracy": 1.0,
+          "validation_accuracy": 0.0,
+          "rho": 0.8400382194594131,
+          "rho_std": 0.027956175806656266
+        }
+      ],
+      "notable_win": false
+    },
+    "02_sleep_training": {
+      "experiment": "02_sleep_training",
+      "pilot_type": "real sklearn-digits MLP baseline-vs-sleep-schedule run",
+      "task_setup": "baseline full-batch MLP vs NREM weight-decay/pruning and REM noisy-replay schedule on sklearn digits",
+      "baseline_train_accuracy": 0.9648972602739726,
+      "baseline_validation_accuracy": 0.9475357710651828,
+      "sleep_train_accuracy": 0.946917808219178,
+      "sleep_validation_accuracy": 0.931637519872814,
+      "baseline_generalization_gap": 0.01736148920878977,
+      "sleep_generalization_gap": 0.01528028834636408,
+      "sleep_sparsity": 0.4001689189189189,
+      "validation_delta_sleep_minus_baseline": -0.015898251192368873,
+      "notable_win": true
+    },
+    "03_reconsolidation": {
+      "experiment": "03_reconsolidation",
+      "pilot_type": "real split-sklearn-digits continual-learning benchmark",
+      "task_setup": "sequential 10-way classifier trained on digit pairs 0/1, 2/3, 4/5, 6/7, 8/9 without replay",
+      "win_metric": "reconsolidation should beat EWC or reduce first-task forgetting without replay",
+      "methods": {
+        "naive": {
+          "final_average_accuracy": 0.6929915514592934,
+          "final_min_accuracy": 0.44047619047619047,
+          "first_task_forgetting": 0.5555555555555556,
+          "mean_labilized_rate": 0.0
+        },
+        "ewc": {
+          "final_average_accuracy": 0.6929915514592934,
+          "final_min_accuracy": 0.44047619047619047,
+          "first_task_forgetting": 0.5555555555555556,
+          "mean_labilized_rate": 0.0
+        },
+        "reconsolidation": {
+          "final_average_accuracy": 0.7244399641577061,
+          "final_min_accuracy": 0.4444444444444444,
+          "first_task_forgetting": 0.5357142857142858,
+          "mean_labilized_rate": 0.430324074074074
+        }
+      },
+      "reconsolidation_vs_ewc_accuracy_delta": 0.0314484126984127,
+      "forgetting_reduction_vs_ewc": 0.01984126984126977,
+      "notable_win": true
+    },
+    "04_criticality_pruning": {
+      "experiment": "04_criticality_pruning",
+      "pilot_type": "real multi-seed pruning benchmark on trained sklearn-digits MLPs",
+      "task_setup": "train dense MLPs on sklearn digits, prune W1/W2 without retraining across sparsity levels and compare random, magnitude, gradient saliency, and activation-flow scores",
+      "dense_accuracy_mean": 0.958664546899841,
+      "dense_accuracy_std": 0.004496704490852458,
+      "methods": [
+        "random",
+        "magnitude",
+        "gradient_saliency",
+        "activation_flow"
+      ],
+      "sparsities": [
+        0.5,
+        0.8,
+        0.9,
+        0.95
+      ],
+      "summary": {
+        "0.5": {
+          "random": {
+            "accuracy_mean": 0.7310015898251192,
+            "accuracy_std": 0.060190367489231025,
+            "accuracy_retention_mean": 0.7624420102028315,
+            "branching_ratio_mean": 1.8078236989313694,
+            "distance_from_criticality_mean": 0.8078236989313696,
+            "hidden_coverage_mean": 1.0
+          },
+          "magnitude": {
+            "accuracy_mean": 0.9494435612082672,
+            "accuracy_std": 0.005897372652143545,
+            "accuracy_retention_mean": 0.9903811853056912,
+            "branching_ratio_mean": 1.7688990635873587,
+            "distance_from_criticality_mean": 0.7688990635873588,
+            "hidden_coverage_mean": 1.0
+          },
+          "gradient_saliency": {
+            "accuracy_mean": 0.9567567567567566,
+            "accuracy_std": 0.005263257665261331,
+            "accuracy_retention_mean": 0.9980143140678,
+            "branching_ratio_mean": 1.7532755867419862,
+            "distance_from_criticality_mean": 0.7532755867419862,
+            "hidden_coverage_mean": 1.0
+          },
+          "activation_flow": {
+            "accuracy_mean": 0.9551669316375199,
+            "accuracy_std": 0.006066386018549746,
+            "accuracy_retention_mean": 0.9963459980657265,
+            "branching_ratio_mean": 1.7599508306111489,
+            "distance_from_criticality_mean": 0.759950830611149,
+            "hidden_coverage_mean": 1.0
+          }
+        },
+        "0.8": {
+          "random": {
+            "accuracy_mean": 0.2960254372019078,
+            "accuracy_std": 0.057860898377982035,
+            "accuracy_retention_mean": 0.3086555293387606,
+            "branching_ratio_mean": 1.844116446538233,
+            "distance_from_criticality_mean": 0.8441164465382329,
+            "hidden_coverage_mean": 0.88125
+          },
+          "magnitude": {
+            "accuracy_mean": 0.8864864864864865,
+            "accuracy_std": 0.01953868552716976,
+            "accuracy_retention_mean": 0.9246863584520891,
+            "branching_ratio_mean": 1.793738070448144,
+            "distance_from_criticality_mean": 0.7937380704481443,
+            "hidden_coverage_mean": 0.940625
+          },
+          "gradient_saliency": {
+            "accuracy_mean": 0.9287758346581876,
+            "accuracy_std": 0.015295406640134412,
+            "accuracy_retention_mean": 0.9688447109835543,
+            "branching_ratio_mean": 1.762378342499583,
+            "distance_from_criticality_mean": 0.7623783424995828,
+            "hidden_coverage_mean": 0.9921875
+          },
+          "activation_flow": {
+            "accuracy_mean": 0.924006359300477,
+            "accuracy_std": 0.003945842176785626,
+            "accuracy_retention_mean": 0.963876275330222,
+            "branching_ratio_mean": 1.7927363952308373,
+            "distance_from_criticality_mean": 0.7927363952308373,
+            "hidden_coverage_mean": 0.9359375
+          }
+        },
+        "0.9": {
+          "random": {
+            "accuracy_mean": 0.2012718600953895,
+            "accuracy_std": 0.050451341100918805,
+            "accuracy_retention_mean": 0.2097640225317771,
+            "branching_ratio_mean": 1.8981469324596194,
+            "distance_from_criticality_mean": 0.8981469324596194,
+            "hidden_coverage_mean": 0.6453125
+          },
+          "magnitude": {
+            "accuracy_mean": 0.7255961844197139,
+            "accuracy_std": 0.047125377249084326,
+            "accuracy_retention_mean": 0.7567605941879766,
+            "branching_ratio_mean": 1.8059725681233925,
+            "distance_from_criticality_mean": 0.8059725681233925,
+            "hidden_coverage_mean": 0.7734375
+          },
+          "gradient_saliency": {
+            "accuracy_mean": 0.8572337042925279,
+            "accuracy_std": 0.02974970210674994,
+            "accuracy_retention_mean": 0.8941602393550225,
+            "branching_ratio_mean": 1.7810105978722466,
+            "distance_from_criticality_mean": 0.7810105978722464,
+            "hidden_coverage_mean": 0.8984375
+          },
+          "activation_flow": {
+            "accuracy_mean": 0.857551669316375,
+            "accuracy_std": 0.01575772552415117,
+            "accuracy_retention_mean": 0.8945402901650713,
+            "branching_ratio_mean": 1.841588223673422,
+            "distance_from_criticality_mean": 0.8415882236734218,
+            "hidden_coverage_mean": 0.746875
+          }
+        },
+        "0.95": {
+          "random": {
+            "accuracy_mean": 0.15707472178060417,
+            "accuracy_std": 0.03301940854880043,
+            "accuracy_retention_mean": 0.16379117640127722,
+            "branching_ratio_mean": 2.031080584651817,
+            "distance_from_criticality_mean": 1.0310805846518167,
+            "hidden_coverage_mean": 0.38125
+          },
+          "magnitude": {
+            "accuracy_mean": 0.5077901430842606,
+            "accuracy_std": 0.06541584625283284,
+            "accuracy_retention_mean": 0.5296443058109916,
+            "branching_ratio_mean": 1.8854109245204806,
+            "distance_from_criticality_mean": 0.8854109245204805,
+            "hidden_coverage_mean": 0.5328125
+          },
+          "gradient_saliency": {
+            "accuracy_mean": 0.7077901430842607,
+            "accuracy_std": 0.03453106014687012,
+            "accuracy_retention_mean": 0.7383496455243898,
+            "branching_ratio_mean": 1.9067208548498233,
+            "distance_from_criticality_mean": 0.9067208548498231,
+            "hidden_coverage_mean": 0.6671875
+          },
+          "activation_flow": {
+            "accuracy_mean": 0.69697933227345,
+            "accuracy_std": 0.033538904895629294,
+            "accuracy_retention_mean": 0.7270352912448532,
+            "branching_ratio_mean": 2.054426213545502,
+            "distance_from_criticality_mean": 1.054426213545502,
+            "hidden_coverage_mean": 0.496875
+          }
+        }
+      },
+      "rows": [
+        {
+          "seed": 23,
+          "sparsity": 0.5,
+          "method": "random",
+          "dense_accuracy": 0.958664546899841,
+          "accuracy": 0.6343402225755167,
+          "accuracy_retention": 0.6616915422885572,
+          "branching_ratio": 1.8078763801256457,
+          "distance_from_criticality": 0.8078763801256457,
+          "hidden_coverage": 1.0
+        },
+        {
+          "seed": 23,
+          "sparsity": 0.5,
+          "method": "magnitude",
+          "dense_accuracy": 0.958664546899841,
+          "accuracy": 0.9459459459459459,
+          "accuracy_retention": 0.9867330016583747,
+          "branching_ratio": 1.7773994158468271,
+          "distance_from_criticality": 0.7773994158468271,
+          "hidden_coverage": 1.0
+        },
+        {
+          "seed": 23,
+          "sparsity": 0.5,
+          "method": "gradient_saliency",
+          "dense_accuracy": 0.958664546899841,
+          "accuracy": 0.9602543720190779,
+          "accuracy_retention": 1.0016583747927033,
+          "branching_ratio": 1.760889119748159,
+          "distance_from_criticality": 0.7608891197481591,
+          "hidden_coverage": 1.0
+        },
+        {
+          "seed": 23,
+          "sparsity": 0.5,
+          "method": "activation_flow",
+          "dense_accuracy": 0.958664546899841,
+          "accuracy": 0.9554848966613673,
+          "accuracy_retention": 0.9966832504145937,
+          "branching_ratio": 1.7664401606807771,
+          "distance_from_criticality": 0.7664401606807771,
+          "hidden_coverage": 1.0
+        },
+        {
+          "seed": 23,
+          "sparsity": 0.8,
+          "method": "random",
+          "dense_accuracy": 0.958664546899841,
+          "accuracy": 0.29252782193958665,
+          "accuracy_retention": 0.30514096185737977,
+          "branching_ratio": 1.8319038985663367,
+          "distance_from_criticality": 0.8319038985663367,
+          "hidden_coverage": 0.8671875
+        },
+        {
+          "seed": 23,
+          "sparsity": 0.8,
+          "method": "magnitude",
+          "dense_accuracy": 0.958664546899841,
+          "accuracy": 0.8553259141494436,
+          "accuracy_retention": 0.8922056384742952,
+          "branching_ratio": 1.8043358303158612,
+          "distance_from_criticality": 0.8043358303158612,
+          "hidden_coverage": 0.9296875
+        },
+        {
+          "seed": 23,
+          "sparsity": 0.8,
+          "method": "gradient_saliency",
+          "dense_accuracy": 0.958664546899841,
+          "accuracy": 0.9443561208267091,
+          "accuracy_retention": 0.9850746268656716,
+          "branching_ratio": 1.7581552686384672,
+          "distance_from_criticality": 0.7581552686384672,
+          "hidden_coverage": 0.984375
+        },
+        {
+          "seed": 23,
+          "sparsity": 0.8,
+          "method": "activation_flow",
+          "dense_accuracy": 0.958664546899841,
+          "accuracy": 0.9300476947535771,
+          "accuracy_retention": 0.9701492537313432,
+          "branching_ratio": 1.8048385829174693,
+          "distance_from_criticality": 0.8048385829174693,
+          "hidden_coverage": 0.9296875
+        },
+        {
+          "seed": 23,
+          "sparsity": 0.9,
+          "method": "random",
+          "dense_accuracy": 0.958664546899841,
+          "accuracy": 0.17329093799682035,
+          "accuracy_retention": 0.18076285240464346,
+          "branching_ratio": 1.948218998671549,
+          "distance_from_criticality": 0.948218998671549,
+          "hidden_coverage": 0.5703125
+        },
+        {
+          "seed": 23,
+          "sparsity": 0.9,
+          "method": "magnitude",
+          "dense_accuracy": 0.958664546899841,
+          "accuracy": 0.7344992050874404,
+          "accuracy_retention": 0.7661691542288557,
+          "branching_ratio": 1.8021523735020004,
+          "distance_from_criticality": 0.8021523735020004,
+          "hidden_coverage": 0.8046875
+        },
+        {
+          "seed": 23,
+          "sparsity": 0.9,
+          "method": "gradient_saliency",
+          "dense_accuracy": 0.958664546899841,
+          "accuracy": 0.9062003179650239,
+          "accuracy_retention": 0.945273631840796,
+          "branching_ratio": 1.7997475460007104,
+          "distance_from_criticality": 0.7997475460007104,
+          "hidden_coverage": 0.875
+        },
+        {
+          "seed": 23,
+          "sparsity": 0.9,
+          "method": "activation_flow",
+          "dense_accuracy": 0.958664546899841,
+          "accuracy": 0.8728139904610492,
+          "accuracy_retention": 0.9104477611940298,
+          "branching_ratio": 1.9424553836852887,
+          "distance_from_criticality": 0.9424553836852887,
+          "hidden_coverage": 0.734375
+        },
+        {
+          "seed": 23,
+          "sparsity": 0.95,
+          "method": "random",
+          "dense_accuracy": 0.958664546899841,
+          "accuracy": 0.16534181240063592,
+          "accuracy_retention": 0.1724709784411277,
+          "branching_ratio": 2.0392657450122926,
+          "distance_from_criticality": 1.0392657450122926,
+          "hidden_coverage": 0.3046875
+        },
+        {
+          "seed": 23,
+          "sparsity": 0.95,
+          "method": "magnitude",
+          "dense_accuracy": 0.958664546899841,
+          "accuracy": 0.56120826709062,
+          "accuracy_retention": 0.5854063018242123,
+          "branching_ratio": 1.8913774211711227,
+          "distance_from_criticality": 0.8913774211711227,
+          "hidden_coverage": 0.5546875
+        },
+        {
+          "seed": 23,
+          "sparsity": 0.95,
+          "method": "gradient_saliency",
+          "dense_accuracy": 0.958664546899841,
+          "accuracy": 0.753577106518283,
+          "accuracy_retention": 0.7860696517412935,
+          "branching_ratio": 1.9927739709768664,
+          "distance_from_criticality": 0.9927739709768664,
+          "hidden_coverage": 0.6640625
+        },
+        {
+          "seed": 23,
+          "sparsity": 0.95,
+          "method": "activation_flow",
+          "dense_accuracy": 0.958664546899841,
+          "accuracy": 0.7567567567567568,
+          "accuracy_retention": 0.7893864013266999,
+          "branching_ratio": 2.1994711649532657,
+          "distance_from_criticality": 1.1994711649532657,
+          "hidden_coverage": 0.4921875
+        },
+        {
+          "seed": 24,
+          "sparsity": 0.5,
+          "method": "random",
+          "dense_accuracy": 0.9618441971383148,
+          "accuracy": 0.7647058823529411,
+          "accuracy_retention": 0.7950413223140496,
+          "branching_ratio": 1.82770477180036,
+          "distance_from_criticality": 0.8277047718003601,
+          "hidden_coverage": 1.0
+        },
+        {
+          "seed": 24,
+          "sparsity": 0.5,
+          "method": "magnitude",
+          "dense_accuracy": 0.9618441971383148,
+          "accuracy": 0.9554848966613673,
+          "accuracy_retention": 0.9933884297520661,
+          "branching_ratio": 1.8012437262539371,
+          "distance_from_criticality": 0.8012437262539371,
+          "hidden_coverage": 1.0
+        },
+        {
+          "seed": 24,
+          "sparsity": 0.5,
+          "method": "gradient_saliency",
+          "dense_accuracy": 0.9618441971383148,
+          "accuracy": 0.9523052464228935,
+          "accuracy_retention": 0.9900826446280991,
+          "branching_ratio": 1.7766822396785307,
+          "distance_from_criticality": 0.7766822396785307,
+          "hidden_coverage": 1.0
+        },
+        {
+          "seed": 24,
+          "sparsity": 0.5,
+          "method": "activation_flow",
+          "dense_accuracy": 0.9618441971383148,
+          "accuracy": 0.9554848966613673,
+          "accuracy_retention": 0.9933884297520661,
+          "branching_ratio": 1.7899638888893157,
+          "distance_from_criticality": 0.7899638888893157,
+          "hidden_coverage": 1.0
+        },
+        {
+          "seed": 24,
+          "sparsity": 0.8,
+          "method": "random",
+          "dense_accuracy": 0.9618441971383148,
+          "accuracy": 0.2368839427662957,
+          "accuracy_retention": 0.2462809917355372,
+          "branching_ratio": 1.8875503810344727,
+          "distance_from_criticality": 0.8875503810344727,
+          "hidden_coverage": 0.8984375
+        },
+        {
+          "seed": 24,
+          "sparsity": 0.8,
+          "method": "magnitude",
+          "dense_accuracy": 0.9618441971383148,
+          "accuracy": 0.8871224165341812,
+          "accuracy_retention": 0.9223140495867768,
+          "branching_ratio": 1.8177678406270565,
+          "distance_from_criticality": 0.8177678406270565,
+          "hidden_coverage": 0.953125
+        },
+        {
+          "seed": 24,
+          "sparsity": 0.8,
+          "method": "gradient_saliency",
+          "dense_accuracy": 0.9618441971383148,
+          "accuracy": 0.9268680445151033,
+          "accuracy_retention": 0.9636363636363635,
+          "branching_ratio": 1.7807363791585962,
+          "distance_from_criticality": 0.7807363791585962,
+          "hidden_coverage": 1.0
+        },
+        {
+          "seed": 24,
+          "sparsity": 0.8,
+          "method": "activation_flow",
+          "dense_accuracy": 0.9618441971383148,
+          "accuracy": 0.9220985691573926,
+          "accuracy_retention": 0.9586776859504131,
+          "branching_ratio": 1.8204383378573952,
+          "distance_from_criticality": 0.8204383378573952,
+          "hidden_coverage": 0.9453125
+        },
+        {
+          "seed": 24,
+          "sparsity": 0.9,
+          "method": "random",
+          "dense_accuracy": 0.9618441971383148,
+          "accuracy": 0.19236883942766295,
+          "accuracy_retention": 0.19999999999999998,
+          "branching_ratio": 1.958300220226004,
+          "distance_from_criticality": 0.958300220226004,
+          "hidden_coverage": 0.6875
+        },
+        {
+          "seed": 24,
+          "sparsity": 0.9,
+          "method": "magnitude",
+          "dense_accuracy": 0.9618441971383148,
+          "accuracy": 0.7599364069952306,
+          "accuracy_retention": 0.7900826446280992,
+          "branching_ratio": 1.8520788665429917,
+          "distance_from_criticality": 0.8520788665429917,
+          "hidden_coverage": 0.75
+        },
+        {
+          "seed": 24,
+          "sparsity": 0.9,
+          "method": "gradient_saliency",
+          "dense_accuracy": 0.9618441971383148,
+          "accuracy": 0.8314785373608903,
+          "accuracy_retention": 0.8644628099173554,
+          "branching_ratio": 1.8487142352675832,
+          "distance_from_criticality": 0.8487142352675832,
+          "hidden_coverage": 0.8828125
+        },
+        {
+          "seed": 24,
+          "sparsity": 0.9,
+          "method": "activation_flow",
+          "dense_accuracy": 0.9618441971383148,
+          "accuracy": 0.8410174880763116,
+          "accuracy_retention": 0.8743801652892562,
+          "branching_ratio": 1.8995155109632844,
+          "distance_from_criticality": 0.8995155109632844,
+          "hidden_coverage": 0.7734375
+        },
+        {
+          "seed": 24,
+          "sparsity": 0.95,
+          "method": "random",
+          "dense_accuracy": 0.9618441971383148,
+          "accuracy": 0.21462639109697934,
+          "accuracy_retention": 0.2231404958677686,
+          "branching_ratio": 2.12879475808,
+          "distance_from_criticality": 1.1287947580800002,
+          "hidden_coverage": 0.4140625
+        },
+        {
+          "seed": 24,
+          "sparsity": 0.95,
+          "method": "magnitude",
+          "dense_accuracy": 0.9618441971383148,
+          "accuracy": 0.46740858505564387,
+          "accuracy_retention": 0.4859504132231405,
+          "branching_ratio": 2.0037172589990795,
+          "distance_from_criticality": 1.0037172589990795,
+          "hidden_coverage": 0.53125
+        },
+        {
+          "seed": 24,
+          "sparsity": 0.95,
+          "method": "gradient_saliency",
+          "dense_accuracy": 0.9618441971383148,
+          "accuracy": 0.7344992050874404,
+          "accuracy_retention": 0.7636363636363636,
+          "branching_ratio": 2.109316829565508,
+          "distance_from_criticality": 1.109316829565508,
+          "hidden_coverage": 0.6875
+        },
+        {
+          "seed": 24,
+          "sparsity": 0.95,
+          "method": "activation_flow",
+          "dense_accuracy": 0.9618441971383148,
+          "accuracy": 0.6693163751987281,
+          "accuracy_retention": 0.6958677685950413,
+          "branching_ratio": 2.076388425471959,
+          "distance_from_criticality": 1.0763884254719591,
+          "hidden_coverage": 0.515625
+        },
+        {
+          "seed": 25,
+          "sparsity": 0.5,
+          "method": "random",
+          "dense_accuracy": 0.9554848966613673,
+          "accuracy": 0.794912559618442,
+          "accuracy_retention": 0.831946755407654,
+          "branching_ratio": 1.7804923109360309,
+          "distance_from_criticality": 0.7804923109360309,
+          "hidden_coverage": 1.0
+        },
+        {
+          "seed": 25,
+          "sparsity": 0.5,
+          "method": "magnitude",
+          "dense_accuracy": 0.9554848966613673,
+          "accuracy": 0.9523052464228935,
+          "accuracy_retention": 0.9966722129783694,
+          "branching_ratio": 1.7356620915156535,
+          "distance_from_criticality": 0.7356620915156535,
+          "hidden_coverage": 1.0
+        },
+        {
+          "seed": 25,
+          "sparsity": 0.5,
+          "method": "gradient_saliency",
+          "dense_accuracy": 0.9554848966613673,
+          "accuracy": 0.9554848966613673,
+          "accuracy_retention": 1.0,
+          "branching_ratio": 1.722300720199402,
+          "distance_from_criticality": 0.7223007201994021,
+          "hidden_coverage": 1.0
+        },
+        {
+          "seed": 25,
+          "sparsity": 0.5,
+          "method": "activation_flow",
+          "dense_accuracy": 0.9554848966613673,
+          "accuracy": 0.9538950715421304,
+          "accuracy_retention": 0.9983361064891847,
+          "branching_ratio": 1.7282111892084333,
+          "distance_from_criticality": 0.7282111892084333,
+          "hidden_coverage": 1.0
+        },
+        {
+          "seed": 25,
+          "sparsity": 0.8,
+          "method": "random",
+          "dense_accuracy": 0.9554848966613673,
+          "accuracy": 0.3354531001589825,
+          "accuracy_retention": 0.3510815307820299,
+          "branching_ratio": 1.826750081430834,
+          "distance_from_criticality": 0.826750081430834,
+          "hidden_coverage": 0.8984375
+        },
+        {
+          "seed": 25,
+          "sparsity": 0.8,
+          "method": "magnitude",
+          "dense_accuracy": 0.9554848966613673,
+          "accuracy": 0.8934817170111288,
+          "accuracy_retention": 0.9351081530782029,
+          "branching_ratio": 1.7724961708611489,
+          "distance_from_criticality": 0.7724961708611489,
+          "hidden_coverage": 0.9296875
+        },
+        {
+          "seed": 25,
+          "sparsity": 0.8,
+          "method": "gradient_saliency",
+          "dense_accuracy": 0.9554848966613673,
+          "accuracy": 0.9475357710651828,
+          "accuracy_retention": 0.9916805324459235,
+          "branching_ratio": 1.7486765507871722,
+          "distance_from_criticality": 0.7486765507871722,
+          "hidden_coverage": 0.9765625
+        },
+        {
+          "seed": 25,
+          "sparsity": 0.8,
+          "method": "activation_flow",
+          "dense_accuracy": 0.9554848966613673,
+          "accuracy": 0.9268680445151033,
+          "accuracy_retention": 0.9700499168053244,
+          "branching_ratio": 1.7616282884186034,
+          "distance_from_criticality": 0.7616282884186034,
+          "hidden_coverage": 0.9140625
+        },
+        {
+          "seed": 25,
+          "sparsity": 0.9,
+          "method": "random",
+          "dense_accuracy": 0.9554848966613673,
+          "accuracy": 0.16375198728139906,
+          "accuracy_retention": 0.17138103161397672,
+          "branching_ratio": 1.84696552504997,
+          "distance_from_criticality": 0.8469655250499699,
+          "hidden_coverage": 0.7109375
+        },
+        {
+          "seed": 25,
+          "sparsity": 0.9,
+          "method": "magnitude",
+          "dense_accuracy": 0.9554848966613673,
+          "accuracy": 0.6359300476947536,
+          "accuracy_retention": 0.6655574043261231,
+          "branching_ratio": 1.7783955814250532,
+          "distance_from_criticality": 0.7783955814250532,
+          "hidden_coverage": 0.734375
+        },
+        {
+          "seed": 25,
+          "sparsity": 0.9,
+          "method": "gradient_saliency",
+          "dense_accuracy": 0.9554848966613673,
+          "accuracy": 0.834658187599364,
+          "accuracy_retention": 0.8735440931780366,
+          "branching_ratio": 1.6779229300119605,
+          "distance_from_criticality": 0.6779229300119605,
+          "hidden_coverage": 0.875
+        },
+        {
+          "seed": 25,
+          "sparsity": 0.9,
+          "method": "activation_flow",
+          "dense_accuracy": 0.9554848966613673,
+          "accuracy": 0.875993640699523,
+          "accuracy_retention": 0.9168053244592346,
+          "branching_ratio": 1.7068924297189356,
+          "distance_from_criticality": 0.7068924297189356,
+          "hidden_coverage": 0.734375
+        },
+        {
+          "seed": 25,
+          "sparsity": 0.95,
+          "method": "random",
+          "dense_accuracy": 0.9554848966613673,
+          "accuracy": 0.15421303656597773,
+          "accuracy_retention": 0.16139767054908485,
+          "branching_ratio": 1.934589545308263,
+          "distance_from_criticality": 0.9345895453082631,
+          "hidden_coverage": 0.421875
+        },
+        {
+          "seed": 25,
+          "sparsity": 0.95,
+          "method": "magnitude",
+          "dense_accuracy": 0.9554848966613673,
+          "accuracy": 0.397456279809221,
+          "accuracy_retention": 0.415973377703827,
+          "branching_ratio": 1.8073035273645064,
+          "distance_from_criticality": 0.8073035273645064,
+          "hidden_coverage": 0.5
+        },
+        {
+          "seed": 25,
+          "sparsity": 0.95,
+          "method": "gradient_saliency",
+          "dense_accuracy": 0.9554848966613673,
+          "accuracy": 0.6724960254372019,
+          "accuracy_retention": 0.7038269550748751,
+          "branching_ratio": 1.6494459252611813,
+          "distance_from_criticality": 0.6494459252611813,
+          "hidden_coverage": 0.640625
+        },
+        {
+          "seed": 25,
+          "sparsity": 0.95,
+          "method": "activation_flow",
+          "dense_accuracy": 0.9554848966613673,
+          "accuracy": 0.6613672496025437,
+          "accuracy_retention": 0.692179700499168,
+          "branching_ratio": 1.916377063358634,
+          "distance_from_criticality": 0.9163770633586339,
+          "hidden_coverage": 0.4765625
+        },
+        {
+          "seed": 26,
+          "sparsity": 0.5,
+          "method": "random",
+          "dense_accuracy": 0.9523052464228935,
+          "accuracy": 0.6883942766295708,
+          "accuracy_retention": 0.7228714524207012,
+          "branching_ratio": 1.8155492304914609,
+          "distance_from_criticality": 0.8155492304914609,
+          "hidden_coverage": 1.0
+        },
+        {
+          "seed": 26,
+          "sparsity": 0.5,
+          "method": "magnitude",
+          "dense_accuracy": 0.9523052464228935,
+          "accuracy": 0.9395866454689984,
+          "accuracy_retention": 0.9866444073455759,
+          "branching_ratio": 1.752797100029803,
+          "distance_from_criticality": 0.752797100029803,
+          "hidden_coverage": 1.0
+        },
+        {
+          "seed": 26,
+          "sparsity": 0.5,
+          "method": "gradient_saliency",
+          "dense_accuracy": 0.9523052464228935,
+          "accuracy": 0.9507154213036566,
+          "accuracy_retention": 0.998330550918197,
+          "branching_ratio": 1.7421870728796123,
+          "distance_from_criticality": 0.7421870728796123,
+          "hidden_coverage": 1.0
+        },
+        {
+          "seed": 26,
+          "sparsity": 0.5,
+          "method": "activation_flow",
+          "dense_accuracy": 0.9523052464228935,
+          "accuracy": 0.9459459459459459,
+          "accuracy_retention": 0.993322203672788,
+          "branching_ratio": 1.7508779844605105,
+          "distance_from_criticality": 0.7508779844605105,
+          "hidden_coverage": 1.0
+        },
+        {
+          "seed": 26,
+          "sparsity": 0.8,
+          "method": "random",
+          "dense_accuracy": 0.9523052464228935,
+          "accuracy": 0.23211446740858505,
+          "accuracy_retention": 0.24373956594323873,
+          "branching_ratio": 1.8488880735552355,
+          "distance_from_criticality": 0.8488880735552355,
+          "hidden_coverage": 0.890625
+        },
+        {
+          "seed": 26,
+          "sparsity": 0.8,
+          "method": "magnitude",
+          "dense_accuracy": 0.9523052464228935,
+          "accuracy": 0.8807631160572337,
+          "accuracy_retention": 0.9248747913188647,
+          "branching_ratio": 1.7783684847358252,
+          "distance_from_criticality": 0.7783684847358252,
+          "hidden_coverage": 0.9453125
+        },
+        {
+          "seed": 26,
+          "sparsity": 0.8,
+          "method": "gradient_saliency",
+          "dense_accuracy": 0.9523052464228935,
+          "accuracy": 0.9077901430842608,
+          "accuracy_retention": 0.9532554257095158,
+          "branching_ratio": 1.7493304409375199,
+          "distance_from_criticality": 0.7493304409375199,
+          "hidden_coverage": 1.0
+        },
+        {
+          "seed": 26,
+          "sparsity": 0.8,
+          "method": "activation_flow",
+          "dense_accuracy": 0.9523052464228935,
+          "accuracy": 0.9220985691573926,
+          "accuracy_retention": 0.9682804674457428,
+          "branching_ratio": 1.778231376498086,
+          "distance_from_criticality": 0.7782313764980859,
+          "hidden_coverage": 0.9453125
+        },
+        {
+          "seed": 26,
+          "sparsity": 0.9,
+          "method": "random",
+          "dense_accuracy": 0.9523052464228935,
+          "accuracy": 0.17647058823529413,
+          "accuracy_retention": 0.18530884808013356,
+          "branching_ratio": 1.8527772937860205,
+          "distance_from_criticality": 0.8527772937860205,
+          "hidden_coverage": 0.6484375
+        },
+        {
+          "seed": 26,
+          "sparsity": 0.9,
+          "method": "magnitude",
+          "dense_accuracy": 0.9523052464228935,
+          "accuracy": 0.7297297297297297,
+          "accuracy_retention": 0.7662771285475792,
+          "branching_ratio": 1.7763377692042612,
+          "distance_from_criticality": 0.7763377692042612,
+          "hidden_coverage": 0.78125
+        },
+        {
+          "seed": 26,
+          "sparsity": 0.9,
+          "method": "gradient_saliency",
+          "dense_accuracy": 0.9523052464228935,
+          "accuracy": 0.8362480127186009,
+          "accuracy_retention": 0.8781302170283806,
+          "branching_ratio": 1.7674855989359557,
+          "distance_from_criticality": 0.7674855989359557,
+          "hidden_coverage": 0.921875
+        },
+        {
+          "seed": 26,
+          "sparsity": 0.9,
+          "method": "activation_flow",
+          "dense_accuracy": 0.9523052464228935,
+          "accuracy": 0.8378378378378378,
+          "accuracy_retention": 0.8797996661101837,
+          "branching_ratio": 1.8000856202066424,
+          "distance_from_criticality": 0.8000856202066424,
+          "hidden_coverage": 0.71875
+        },
+        {
+          "seed": 26,
+          "sparsity": 0.95,
+          "method": "random",
+          "dense_accuracy": 0.9523052464228935,
+          "accuracy": 0.1192368839427663,
+          "accuracy_retention": 0.12520868113522537,
+          "branching_ratio": 2.028736683963749,
+          "distance_from_criticality": 1.028736683963749,
+          "hidden_coverage": 0.34375
+        },
+        {
+          "seed": 26,
+          "sparsity": 0.95,
+          "method": "magnitude",
+          "dense_accuracy": 0.9523052464228935,
+          "accuracy": 0.5548489666136724,
+          "accuracy_retention": 0.5826377295492486,
+          "branching_ratio": 1.7994343689892618,
+          "distance_from_criticality": 0.7994343689892618,
+          "hidden_coverage": 0.5078125
+        },
+        {
+          "seed": 26,
+          "sparsity": 0.95,
+          "method": "gradient_saliency",
+          "dense_accuracy": 0.9523052464228935,
+          "accuracy": 0.7138314785373608,
+          "accuracy_retention": 0.7495826377295491,
+          "branching_ratio": 1.8392766001719918,
+          "distance_from_criticality": 0.8392766001719918,
+          "hidden_coverage": 0.6328125
+        },
+        {
+          "seed": 26,
+          "sparsity": 0.95,
+          "method": "activation_flow",
+          "dense_accuracy": 0.9523052464228935,
+          "accuracy": 0.6963434022257552,
+          "accuracy_retention": 0.7312186978297162,
+          "branching_ratio": 1.9869776559491965,
+          "distance_from_criticality": 0.9869776559491965,
+          "hidden_coverage": 0.4765625
+        },
+        {
+          "seed": 27,
+          "sparsity": 0.5,
+          "method": "random",
+          "dense_accuracy": 0.9650238473767886,
+          "accuracy": 0.7726550079491256,
+          "accuracy_retention": 0.800658978583196,
+          "branching_ratio": 1.8074958013033504,
+          "distance_from_criticality": 0.8074958013033504,
+          "hidden_coverage": 1.0
+        },
+        {
+          "seed": 27,
+          "sparsity": 0.5,
+          "method": "magnitude",
+          "dense_accuracy": 0.9650238473767886,
+          "accuracy": 0.9538950715421304,
+          "accuracy_retention": 0.9884678747940692,
+          "branching_ratio": 1.777392984290573,
+          "distance_from_criticality": 0.7773929842905729,
+          "hidden_coverage": 1.0
+        },
+        {
+          "seed": 27,
+          "sparsity": 0.5,
+          "method": "gradient_saliency",
+          "dense_accuracy": 0.9650238473767886,
+          "accuracy": 0.9650238473767886,
+          "accuracy_retention": 1.0,
+          "branching_ratio": 1.7643187812042274,
+          "distance_from_criticality": 0.7643187812042274,
+          "hidden_coverage": 1.0
+        },
+        {
+          "seed": 27,
+          "sparsity": 0.5,
+          "method": "activation_flow",
+          "dense_accuracy": 0.9650238473767886,
+          "accuracy": 0.9650238473767886,
+          "accuracy_retention": 1.0,
+          "branching_ratio": 1.7642609298167082,
+          "distance_from_criticality": 0.7642609298167082,
+          "hidden_coverage": 1.0
+        },
+        {
+          "seed": 27,
+          "sparsity": 0.8,
+          "method": "random",
+          "dense_accuracy": 0.9650238473767886,
+          "accuracy": 0.383147853736089,
+          "accuracy_retention": 0.3970345963756178,
+          "branching_ratio": 1.8254897981042855,
+          "distance_from_criticality": 0.8254897981042855,
+          "hidden_coverage": 0.8515625
+        },
+        {
+          "seed": 27,
+          "sparsity": 0.8,
+          "method": "magnitude",
+          "dense_accuracy": 0.9650238473767886,
+          "accuracy": 0.9157392686804452,
+          "accuracy_retention": 0.9489291598023064,
+          "branching_ratio": 1.7957220257008293,
+          "distance_from_criticality": 0.7957220257008293,
+          "hidden_coverage": 0.9453125
+        },
+        {
+          "seed": 27,
+          "sparsity": 0.8,
+          "method": "gradient_saliency",
+          "dense_accuracy": 0.9650238473767886,
+          "accuracy": 0.9173290937996821,
+          "accuracy_retention": 0.9505766062602966,
+          "branching_ratio": 1.7749930729761585,
+          "distance_from_criticality": 0.7749930729761585,
+          "hidden_coverage": 1.0
+        },
+        {
+          "seed": 27,
+          "sparsity": 0.8,
+          "method": "activation_flow",
+          "dense_accuracy": 0.9650238473767886,
+          "accuracy": 0.918918918918919,
+          "accuracy_retention": 0.9522240527182867,
+          "branching_ratio": 1.7985453904626325,
+          "distance_from_criticality": 0.7985453904626325,
+          "hidden_coverage": 0.9453125
+        },
+        {
+          "seed": 27,
+          "sparsity": 0.9,
+          "method": "random",
+          "dense_accuracy": 0.9650238473767886,
+          "accuracy": 0.3004769475357711,
+          "accuracy_retention": 0.3113673805601318,
+          "branching_ratio": 1.8844726245645538,
+          "distance_from_criticality": 0.8844726245645538,
+          "hidden_coverage": 0.609375
+        },
+        {
+          "seed": 27,
+          "sparsity": 0.9,
+          "method": "magnitude",
+          "dense_accuracy": 0.9650238473767886,
+          "accuracy": 0.7678855325914149,
+          "accuracy_retention": 0.7957166392092256,
+          "branching_ratio": 1.820898249942656,
+          "distance_from_criticality": 0.820898249942656,
+          "hidden_coverage": 0.796875
+        },
+        {
+          "seed": 27,
+          "sparsity": 0.9,
+          "method": "gradient_saliency",
+          "dense_accuracy": 0.9650238473767886,
+          "accuracy": 0.8775834658187599,
+          "accuracy_retention": 0.9093904448105435,
+          "branching_ratio": 1.8111826791450218,
+          "distance_from_criticality": 0.8111826791450218,
+          "hidden_coverage": 0.9375
+        },
+        {
+          "seed": 27,
+          "sparsity": 0.9,
+          "method": "activation_flow",
+          "dense_accuracy": 0.9650238473767886,
+          "accuracy": 0.8600953895071543,
+          "accuracy_retention": 0.8912685337726524,
+          "branching_ratio": 1.8589921737929578,
+          "distance_from_criticality": 0.8589921737929578,
+          "hidden_coverage": 0.7734375
+        },
+        {
+          "seed": 27,
+          "sparsity": 0.95,
+          "method": "random",
+          "dense_accuracy": 0.9650238473767886,
+          "accuracy": 0.13195548489666137,
+          "accuracy_retention": 0.13673805601317957,
+          "branching_ratio": 2.0240161908947782,
+          "distance_from_criticality": 1.0240161908947782,
+          "hidden_coverage": 0.421875
+        },
+        {
+          "seed": 27,
+          "sparsity": 0.95,
+          "method": "magnitude",
+          "dense_accuracy": 0.9650238473767886,
+          "accuracy": 0.5580286168521462,
+          "accuracy_retention": 0.5782537067545304,
+          "branching_ratio": 1.9252220460784326,
+          "distance_from_criticality": 0.9252220460784326,
+          "hidden_coverage": 0.5703125
+        },
+        {
+          "seed": 27,
+          "sparsity": 0.95,
+          "method": "gradient_saliency",
+          "dense_accuracy": 0.9650238473767886,
+          "accuracy": 0.6645468998410174,
+          "accuracy_retention": 0.6886326194398681,
+          "branching_ratio": 1.942790948273568,
+          "distance_from_criticality": 0.9427909482735679,
+          "hidden_coverage": 0.7109375
+        },
+        {
+          "seed": 27,
+          "sparsity": 0.95,
+          "method": "activation_flow",
+          "dense_accuracy": 0.9650238473767886,
+          "accuracy": 0.7011128775834659,
+          "accuracy_retention": 0.7265238879736409,
+          "branching_ratio": 2.092916757994456,
+          "distance_from_criticality": 1.0929167579944559,
+          "hidden_coverage": 0.5234375
+        }
+      ],
+      "discovery": {
+        "claim": "Activation-flow pruning is a strong high-sparsity baseline on sklearn digits MLPs; the accuracy gain is real, but it is not yet evidence that branching-ratio criticality is the causal mechanism.",
+        "high_sparsity_levels": [
+          0.9,
+          0.95
+        ],
+        "mean_accuracy_gain_vs_magnitude": 0.16057233704292528,
+        "mean_accuracy_gain_vs_gradient_saliency": -0.005246422893481706,
+        "wins_vs_magnitude": 10,
+        "total_high_sparsity_cases": 10,
+        "mean_criticality_distance_delta_vs_magnitude": 0.10231547228752544
+      },
+      "notable_win": true
+    },
+    "05_ddm_depth": {
+      "experiment": "05_ddm_depth",
+      "pilot_type": "real sklearn-digits residual-depth early-exit benchmark",
+      "task_setup": "classify sklearn digits 0-4 using a 10-step additive residual linear classifier trained with intermediate losses",
+      "win_metric": "intermediate residual states should support early exit with >=95% of final accuracy at <60% compute",
+      "final_accuracy": 0.990506329113924,
+      "layer_accuracy": [
+        0.9873417721518988,
+        0.990506329113924,
+        0.9936708860759493,
+        0.990506329113924,
+        0.990506329113924,
+        0.990506329113924,
+        0.990506329113924,
+        0.990506329113924,
+        0.990506329113924,
+        0.990506329113924
+      ],
+      "mean_correct_class_evidence": 10.61144922762494,
+      "mean_drift_rate": 0.7743313998811879,
+      "mean_linearity_r2": 0.9333606746635053,
+      "diffusion_variance_cv_across_depth": 0.5937031899109143,
+      "accuracy_depth_r2": 0.01809332135420605,
+      "target_retained_accuracy": 0.9409810126582278,
+      "best_early_exit": {
+        "margin_threshold": 0.25,
+        "accuracy": 0.990506329113924,
+        "compute_fraction": 0.10379746835443038,
+        "mean_exit_layer": 0.0379746835443038,
+        "meets_target": true
+      },
+      "early_exit_sweep": [
+        {
+          "margin_threshold": 0.25,
+          "accuracy": 0.990506329113924,
+          "compute_fraction": 0.10379746835443038,
+          "mean_exit_layer": 0.0379746835443038,
+          "meets_target": true
+        },
+        {
+          "margin_threshold": 0.375,
+          "accuracy": 0.990506329113924,
+          "compute_fraction": 0.10601265822784811,
+          "mean_exit_layer": 0.060126582278481014,
+          "meets_target": true
+        },
+        {
+          "margin_threshold": 0.5,
+          "accuracy": 0.990506329113924,
+          "compute_fraction": 0.10822784810126582,
+          "mean_exit_layer": 0.08227848101265822,
+          "meets_target": true
+        },
+        {
+          "margin_threshold": 0.625,
+          "accuracy": 0.990506329113924,
+          "compute_fraction": 0.1110759493670886,
+          "mean_exit_layer": 0.11075949367088607,
+          "meets_target": true
+        },
+        {
+          "margin_threshold": 0.75,
+          "accuracy": 0.990506329113924,
+          "compute_fraction": 0.11455696202531644,
+          "mean_exit_layer": 0.14556962025316456,
+          "meets_target": true
+        },
+        {
+          "margin_threshold": 0.875,
+          "accuracy": 0.990506329113924,
+          "compute_fraction": 0.11835443037974684,
+          "mean_exit_layer": 0.18354430379746836,
+          "meets_target": true
+        },
+        {
+          "margin_threshold": 1.0,
+          "accuracy": 0.990506329113924,
+          "compute_fraction": 0.12120253164556963,
+          "mean_exit_layer": 0.2120253164556962,
+          "meets_target": true
+        },
+        {
+          "margin_threshold": 1.125,
+          "accuracy": 0.990506329113924,
+          "compute_fraction": 0.1259493670886076,
+          "mean_exit_layer": 0.25949367088607594,
+          "meets_target": true
+        },
+        {
+          "margin_threshold": 1.25,
+          "accuracy": 0.990506329113924,
+          "compute_fraction": 0.1322784810126582,
+          "mean_exit_layer": 0.3227848101265823,
+          "meets_target": true
+        },
+        {
+          "margin_threshold": 1.375,
+          "accuracy": 0.990506329113924,
+          "compute_fraction": 0.13544303797468354,
+          "mean_exit_layer": 0.35443037974683544,
+          "meets_target": true
+        },
+        {
+          "margin_threshold": 1.5,
+          "accuracy": 0.990506329113924,
+          "compute_fraction": 0.13987341772151898,
+          "mean_exit_layer": 0.3987341772151899,
+          "meets_target": true
+        },
+        {
+          "margin_threshold": 1.625,
+          "accuracy": 0.990506329113924,
+          "compute_fraction": 0.14462025316455696,
+          "mean_exit_layer": 0.4462025316455696,
+          "meets_target": true
+        },
+        {
+          "margin_threshold": 1.75,
+          "accuracy": 0.990506329113924,
+          "compute_fraction": 0.15063291139240506,
+          "mean_exit_layer": 0.5063291139240507,
+          "meets_target": true
+        },
+        {
+          "margin_threshold": 1.875,
+          "accuracy": 0.990506329113924,
+          "compute_fraction": 0.15379746835443037,
+          "mean_exit_layer": 0.5379746835443038,
+          "meets_target": true
+        },
+        {
+          "margin_threshold": 2.0,
+          "accuracy": 0.990506329113924,
+          "compute_fraction": 0.1598101265822785,
+          "mean_exit_layer": 0.5981012658227848,
+          "meets_target": true
+        },
+        {
+          "margin_threshold": 2.125,
+          "accuracy": 0.990506329113924,
+          "compute_fraction": 0.1642405063291139,
+          "mean_exit_layer": 0.6424050632911392,
+          "meets_target": true
+        },
+        {
+          "margin_threshold": 2.25,
+          "accuracy": 0.990506329113924,
+          "compute_fraction": 0.1721518987341772,
+          "mean_exit_layer": 0.7215189873417721,
+          "meets_target": true
+        },
+        {
+          "margin_threshold": 2.375,
+          "accuracy": 0.990506329113924,
+          "compute_fraction": 0.17626582278481012,
+          "mean_exit_layer": 0.7626582278481012,
+          "meets_target": true
+        },
+        {
+          "margin_threshold": 2.5,
+          "accuracy": 0.990506329113924,
+          "compute_fraction": 0.1838607594936709,
+          "mean_exit_layer": 0.8386075949367089,
+          "meets_target": true
+        },
+        {
+          "margin_threshold": 2.625,
+          "accuracy": 0.990506329113924,
+          "compute_fraction": 0.1892405063291139,
+          "mean_exit_layer": 0.8924050632911392,
+          "meets_target": true
+        },
+        {
+          "margin_threshold": 2.75,
+          "accuracy": 0.990506329113924,
+          "compute_fraction": 0.19841772151898734,
+          "mean_exit_layer": 0.9841772151898734,
+          "meets_target": true
+        },
+        {
+          "margin_threshold": 2.875,
+          "accuracy": 0.990506329113924,
+          "compute_fraction": 0.2098101265822785,
+          "mean_exit_layer": 1.0981012658227849,
+          "meets_target": true
+        },
+        {
+          "margin_threshold": 3.0,
+          "accuracy": 0.990506329113924,
+          "compute_fraction": 0.2189873417721519,
+          "mean_exit_layer": 1.1898734177215189,
+          "meets_target": true
+        }
+      ],
+      "notable_win": true
+    }
+  }
+}

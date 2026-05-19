@@ -1,0 +1,112 @@
+{
+  "experiment": "04_torch_fashion_mnist_cnn_dense_hybrid_finetune",
+  "setup": "Masked fine-tuning after pruning Fashion-MNIST CNNs. Conv layers are magnitude-pruned; dense layers are either magnitude or dense-hybrid path-flow alpha=0.20.",
+  "summary": {
+    "0.95": {
+      "magnitude": {
+        "before_mean": 0.624125,
+        "after_mean": 0.846875,
+        "retention_after_mean": 1.001205250042104
+      },
+      "dense_hybrid": {
+        "before_mean": 0.635375,
+        "after_mean": 0.85,
+        "retention_after_mean": 1.00490175781755
+      }
+    },
+    "0.98": {
+      "magnitude": {
+        "before_mean": 0.439125,
+        "after_mean": 0.807,
+        "retention_after_mean": 0.9540562789530804
+      },
+      "dense_hybrid": {
+        "before_mean": 0.495875,
+        "after_mean": 0.7955000000000001,
+        "retention_after_mean": 0.9404903915431324
+      }
+    }
+  },
+  "rows": [
+    {
+      "seed": 51,
+      "sparsity": 0.95,
+      "method": "magnitude",
+      "alpha": 0.0,
+      "dense_accuracy": 0.84975,
+      "before_finetune": 0.62325,
+      "after_finetune": 0.8465,
+      "retention_after": 0.9961753456899088
+    },
+    {
+      "seed": 51,
+      "sparsity": 0.95,
+      "method": "dense_hybrid",
+      "alpha": 0.2,
+      "dense_accuracy": 0.84975,
+      "before_finetune": 0.658,
+      "after_finetune": 0.84925,
+      "retention_after": 0.9994115916446012
+    },
+    {
+      "seed": 51,
+      "sparsity": 0.98,
+      "method": "magnitude",
+      "alpha": 0.0,
+      "dense_accuracy": 0.84975,
+      "before_finetune": 0.405,
+      "after_finetune": 0.808,
+      "retention_after": 0.950867902324213
+    },
+    {
+      "seed": 51,
+      "sparsity": 0.98,
+      "method": "dense_hybrid",
+      "alpha": 0.2,
+      "dense_accuracy": 0.84975,
+      "before_finetune": 0.553,
+      "after_finetune": 0.791,
+      "retention_after": 0.9308620182406591
+    },
+    {
+      "seed": 52,
+      "sparsity": 0.95,
+      "method": "magnitude",
+      "alpha": 0.0,
+      "dense_accuracy": 0.842,
+      "before_finetune": 0.625,
+      "after_finetune": 0.84725,
+      "retention_after": 1.0062351543942993
+    },
+    {
+      "seed": 52,
+      "sparsity": 0.95,
+      "method": "dense_hybrid",
+      "alpha": 0.2,
+      "dense_accuracy": 0.842,
+      "before_finetune": 0.61275,
+      "after_finetune": 0.85075,
+      "retention_after": 1.0103919239904988
+    },
+    {
+      "seed": 52,
+      "sparsity": 0.98,
+      "method": "magnitude",
+      "alpha": 0.0,
+      "dense_accuracy": 0.842,
+      "before_finetune": 0.47325,
+      "after_finetune": 0.806,
+      "retention_after": 0.9572446555819478
+    },
+    {
+      "seed": 52,
+      "sparsity": 0.98,
+      "method": "dense_hybrid",
+      "alpha": 0.2,
+      "dense_accuracy": 0.842,
+      "before_finetune": 0.43875,
+      "after_finetune": 0.8,
+      "retention_after": 0.9501187648456058
+    }
+  ]
+}

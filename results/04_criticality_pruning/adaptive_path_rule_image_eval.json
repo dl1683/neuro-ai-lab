@@ -1,0 +1,216 @@
+{
+  "experiment": "04_adaptive_path_rule_image_eval",
+  "rule": "Use magnitude at 90% sparsity; use a weak path correction at 95%; use a stronger path correction at 98%, with CNNs using dense-layer-only path correction.",
+  "by_study": {
+    "CIFAR-10 MLP": {
+      "mean_delta": 0.007499999999999993,
+      "wins": 4,
+      "ties": 2,
+      "losses": 0,
+      "n": 6
+    },
+    "Fashion-MNIST CNN dense-hybrid": {
+      "mean_delta": 0.02320833333333334,
+      "wins": 3,
+      "ties": 2,
+      "losses": 1,
+      "n": 6
+    },
+    "Fashion-MNIST MLP": {
+      "mean_delta": 0.020611111111111118,
+      "wins": 2,
+      "ties": 2,
+      "losses": 2,
+      "n": 6
+    }
+  },
+  "overall": {
+    "mean_delta": 0.017106481481481483,
+    "wins": 9,
+    "ties": 6,
+    "losses": 3,
+    "n": 18
+  },
+  "rows": [
+    {
+      "study": "Fashion-MNIST MLP",
+      "seed": 31,
+      "sparsity": 0.9,
+      "target_alpha": 0.0,
+      "chosen_alpha": 0.0,
+      "adaptive_accuracy": 0.7816666666666666,
+      "magnitude_accuracy": 0.7816666666666666,
+      "delta": 0.0
+    },
+    {
+      "study": "Fashion-MNIST MLP",
+      "seed": 31,
+      "sparsity": 0.95,
+      "target_alpha": 0.25,
+      "chosen_alpha": 0.25,
+      "adaptive_accuracy": 0.7073333333333334,
+      "magnitude_accuracy": 0.652,
+      "delta": 0.055333333333333345
+    },
+    {
+      "study": "Fashion-MNIST MLP",
+      "seed": 31,
+      "sparsity": 0.98,
+      "target_alpha": 0.5,
+      "chosen_alpha": 0.4,
+      "adaptive_accuracy": 0.573,
+      "magnitude_accuracy": 0.478,
+      "delta": 0.09499999999999997
+    },
+    {
+      "study": "Fashion-MNIST MLP",
+      "seed": 32,
+      "sparsity": 0.9,
+      "target_alpha": 0.0,
+      "chosen_alpha": 0.0,
+      "adaptive_accuracy": 0.8246666666666667,
+      "magnitude_accuracy": 0.8246666666666667,
+      "delta": 0.0
+    },
+    {
+      "study": "Fashion-MNIST MLP",
+      "seed": 32,
+      "sparsity": 0.95,
+      "target_alpha": 0.25,
+      "chosen_alpha": 0.25,
+      "adaptive_accuracy": 0.7193333333333334,
+      "magnitude_accuracy": 0.72,
+      "delta": -0.0006666666666665932
+    },
+    {
+      "study": "Fashion-MNIST MLP",
+      "seed": 32,
+      "sparsity": 0.98,
+      "target_alpha": 0.5,
+      "chosen_alpha": 0.4,
+      "adaptive_accuracy": 0.5666666666666667,
+      "magnitude_accuracy": 0.5926666666666667,
+      "delta": -0.026000000000000023
+    },
+    {
+      "study": "CIFAR-10 MLP",
+      "seed": 41,
+      "sparsity": 0.9,
+      "target_alpha": 0.0,
+      "chosen_alpha": 0.0,
+      "adaptive_accuracy": 0.4304,
+      "magnitude_accuracy": 0.4304,
+      "delta": 0.0
+    },
+    {
+      "study": "CIFAR-10 MLP",
+      "seed": 41,
+      "sparsity": 0.95,
+      "target_alpha": 0.25,
+      "chosen_alpha": 0.25,
+      "adaptive_accuracy": 0.389,
+      "magnitude_accuracy": 0.3886,
+      "delta": 0.00040000000000001146
+    },
+    {
+      "study": "CIFAR-10 MLP",
+      "seed": 41,
+      "sparsity": 0.98,
+      "target_alpha": 0.5,
+      "chosen_alpha": 0.5,
+      "adaptive_accuracy": 0.3072,
+      "magnitude_accuracy": 0.2938,
+      "delta": 0.013399999999999967
+    },
+    {
+      "study": "CIFAR-10 MLP",
+      "seed": 42,
+      "sparsity": 0.9,
+      "target_alpha": 0.0,
+      "chosen_alpha": 0.0,
+      "adaptive_accuracy": 0.3898,
+      "magnitude_accuracy": 0.3898,
+      "delta": 0.0
+    },
+    {
+      "study": "CIFAR-10 MLP",
+      "seed": 42,
+      "sparsity": 0.95,
+      "target_alpha": 0.25,
+      "chosen_alpha": 0.25,
+      "adaptive_accuracy": 0.3086,
+      "magnitude_accuracy": 0.3036,
+      "delta": 0.0050000000000000044
+    },
+    {
+      "study": "CIFAR-10 MLP",
+      "seed": 42,
+      "sparsity": 0.98,
+      "target_alpha": 0.5,
+      "chosen_alpha": 0.5,
+      "adaptive_accuracy": 0.2592,
+      "magnitude_accuracy": 0.233,
+      "delta": 0.026199999999999973
+    },
+    {
+      "study": "Fashion-MNIST CNN dense-hybrid",
+      "seed": 51,
+      "sparsity": 0.9,
+      "target_alpha": 0.0,
+      "chosen_alpha": 0.0,
+      "adaptive_accuracy": 0.76025,
+      "magnitude_accuracy": 0.76025,
+      "delta": 0.0
+    },
+    {
+      "study": "Fashion-MNIST CNN dense-hybrid",
+      "seed": 51,
+      "sparsity": 0.95,
+      "target_alpha": 0.2,
+      "chosen_alpha": 0.2,
+      "adaptive_accuracy": 0.652,
+      "magnitude_accuracy": 0.623,
+      "delta": 0.029000000000000026
+    },
+    {
+      "study": "Fashion-MNIST CNN dense-hybrid",
+      "seed": 51,
+      "sparsity": 0.98,
+      "target_alpha": 0.2,
+      "chosen_alpha": 0.2,
+      "adaptive_accuracy": 0.55125,
+      "magnitude_accuracy": 0.4195,
+      "delta": 0.13175000000000003
+    },
+    {
+      "study": "Fashion-MNIST CNN dense-hybrid",
+      "seed": 52,
+      "sparsity": 0.9,
+      "target_alpha": 0.0,
+      "chosen_alpha": 0.0,
+      "adaptive_accuracy": 0.7325,
+      "magnitude_accuracy": 0.7325,
+      "delta": 0.0
+    },
+    {
+      "study": "Fashion-MNIST CNN dense-hybrid",
+      "seed": 52,
+      "sparsity": 0.95,
+      "target_alpha": 0.2,
+      "chosen_alpha": 0.2,
+      "adaptive_accuracy": 0.6075,
+      "magnitude_accuracy": 0.59325,
+      "delta": 0.014249999999999985
+    },
+    {
+      "study": "Fashion-MNIST CNN dense-hybrid",
+      "seed": 52,
+      "sparsity": 0.98,
+      "target_alpha": 0.2,
+      "chosen_alpha": 0.2,
+      "adaptive_accuracy": 0.43225,
+      "magnitude_accuracy": 0.468,
+      "delta": -0.035750000000000004
+    }
+  ]
+}

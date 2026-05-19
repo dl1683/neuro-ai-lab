@@ -1,0 +1,328 @@
+{
+  "experiment": "04_path_flow_finetune",
+  "setup": "Compare masked post-prune fine-tuning for magnitude, gradient saliency, and label-free path-flow at 90% and 95% sparsity across five trained sklearn-digits MLP seeds.",
+  "summary": {
+    "magnitude": {
+      "before_mean": 0.6146263910969794,
+      "after_mean": 0.7610492845786963,
+      "recovery_gain_mean": 0.14642289348171703,
+      "retention_after_mean": 0.7938668066411603
+    },
+    "gradient_saliency": {
+      "before_mean": 0.7813990461049285,
+      "after_mean": 0.8874403815580287,
+      "recovery_gain_mean": 0.10604133545310017,
+      "retention_after_mean": 0.9256957884930778
+    },
+    "path_flow": {
+      "before_mean": 0.7890302066772656,
+      "after_mean": 0.8903020667726551,
+      "recovery_gain_mean": 0.10127186009538951,
+      "retention_after_mean": 0.9286568607759218
+    }
+  },
+  "path_flow_after_finetune_gain_vs_magnitude": 0.12925278219395886,
+  "path_flow_after_finetune_gain_vs_gradient_saliency": 0.002861685214626375,
+  "rows": [
+    {
+      "seed": 23,
+      "sparsity": 0.9,
+      "method": "magnitude",
+      "dense_accuracy": 0.958664546899841,
+      "accuracy_before_finetune": 0.724960254372019,
+      "accuracy_after_finetune": 0.8457869634340223,
+      "recovery_gain": 0.12082670906200321,
+      "retention_after_finetune": 0.8822553897180763
+    },
+    {
+      "seed": 23,
+      "sparsity": 0.9,
+      "method": "gradient_saliency",
+      "dense_accuracy": 0.958664546899841,
+      "accuracy_before_finetune": 0.9030206677265501,
+      "accuracy_after_finetune": 0.9364069952305246,
+      "recovery_gain": 0.03338632750397452,
+      "retention_after_finetune": 0.9767827529021559
+    },
+    {
+      "seed": 23,
+      "sparsity": 0.9,
+      "method": "path_flow",
+      "dense_accuracy": 0.958664546899841,
+      "accuracy_before_finetune": 0.8616852146263911,
+      "accuracy_after_finetune": 0.9062003179650239,
+      "recovery_gain": 0.04451510333863273,
+      "retention_after_finetune": 0.945273631840796
+    },
+    {
+      "seed": 23,
+      "sparsity": 0.95,
+      "method": "magnitude",
+      "dense_accuracy": 0.958664546899841,
+      "accuracy_before_finetune": 0.56120826709062,
+      "accuracy_after_finetune": 0.6963434022257552,
+      "recovery_gain": 0.1351351351351352,
+      "retention_after_finetune": 0.7263681592039801
+    },
+    {
+      "seed": 23,
+      "sparsity": 0.95,
+      "method": "gradient_saliency",
+      "dense_accuracy": 0.958664546899841,
+      "accuracy_before_finetune": 0.753577106518283,
+      "accuracy_after_finetune": 0.848966613672496,
+      "recovery_gain": 0.09538950715421302,
+      "retention_after_finetune": 0.8855721393034826
+    },
+    {
+      "seed": 23,
+      "sparsity": 0.95,
+      "method": "path_flow",
+      "dense_accuracy": 0.958664546899841,
+      "accuracy_before_finetune": 0.7217806041335453,
+      "accuracy_after_finetune": 0.8664546899841018,
+      "recovery_gain": 0.14467408585055652,
+      "retention_after_finetune": 0.9038142620232172
+    },
+    {
+      "seed": 24,
+      "sparsity": 0.9,
+      "method": "magnitude",
+      "dense_accuracy": 0.9618441971383148,
+      "accuracy_before_finetune": 0.7599364069952306,
+      "accuracy_after_finetune": 0.8950715421303657,
+      "recovery_gain": 0.1351351351351351,
+      "retention_after_finetune": 0.9305785123966942
+    },
+    {
+      "seed": 24,
+      "sparsity": 0.9,
+      "method": "gradient_saliency",
+      "dense_accuracy": 0.9618441971383148,
+      "accuracy_before_finetune": 0.8282988871224165,
+      "accuracy_after_finetune": 0.9332273449920508,
+      "recovery_gain": 0.10492845786963434,
+      "retention_after_finetune": 0.9702479338842974
+    },
+    {
+      "seed": 24,
+      "sparsity": 0.9,
+      "method": "path_flow",
+      "dense_accuracy": 0.9618441971383148,
+      "accuracy_before_finetune": 0.8553259141494436,
+      "accuracy_after_finetune": 0.9268680445151033,
+      "recovery_gain": 0.0715421303656597,
+      "retention_after_finetune": 0.9636363636363635
+    },
+    {
+      "seed": 24,
+      "sparsity": 0.95,
+      "method": "magnitude",
+      "dense_accuracy": 0.9618441971383148,
+      "accuracy_before_finetune": 0.46740858505564387,
+      "accuracy_after_finetune": 0.6804451510333863,
+      "recovery_gain": 0.21303656597774245,
+      "retention_after_finetune": 0.7074380165289256
+    },
+    {
+      "seed": 24,
+      "sparsity": 0.95,
+      "method": "gradient_saliency",
+      "dense_accuracy": 0.9618441971383148,
+      "accuracy_before_finetune": 0.7344992050874404,
+      "accuracy_after_finetune": 0.8791732909379968,
+      "recovery_gain": 0.1446740858505564,
+      "retention_after_finetune": 0.9140495867768594
+    },
+    {
+      "seed": 24,
+      "sparsity": 0.95,
+      "method": "path_flow",
+      "dense_accuracy": 0.9618441971383148,
+      "accuracy_before_finetune": 0.7265500794912559,
+      "accuracy_after_finetune": 0.8775834658187599,
+      "recovery_gain": 0.15103338632750396,
+      "retention_after_finetune": 0.912396694214876
+    },
+    {
+      "seed": 25,
+      "sparsity": 0.9,
+      "method": "magnitude",
+      "dense_accuracy": 0.9554848966613673,
+      "accuracy_before_finetune": 0.6311605723370429,
+      "accuracy_after_finetune": 0.8839427662957074,
+      "recovery_gain": 0.2527821939586645,
+      "retention_after_finetune": 0.9251247920133111
+    },
+    {
+      "seed": 25,
+      "sparsity": 0.9,
+      "method": "gradient_saliency",
+      "dense_accuracy": 0.9554848966613673,
+      "accuracy_before_finetune": 0.8314785373608903,
+      "accuracy_after_finetune": 0.9268680445151033,
+      "recovery_gain": 0.09538950715421302,
+      "retention_after_finetune": 0.9700499168053244
+    },
+    {
+      "seed": 25,
+      "sparsity": 0.9,
+      "method": "path_flow",
+      "dense_accuracy": 0.9554848966613673,
+      "accuracy_before_finetune": 0.8569157392686805,
+      "accuracy_after_finetune": 0.931637519872814,
+      "recovery_gain": 0.07472178060413348,
+      "retention_after_finetune": 0.9750415973377703
+    },
+    {
+      "seed": 25,
+      "sparsity": 0.95,
+      "method": "magnitude",
+      "dense_accuracy": 0.9554848966613673,
+      "accuracy_before_finetune": 0.397456279809221,
+      "accuracy_after_finetune": 0.6661367249602543,
+      "recovery_gain": 0.26868044515103334,
+      "retention_after_finetune": 0.6971713810316139
+    },
+    {
+      "seed": 25,
+      "sparsity": 0.95,
+      "method": "gradient_saliency",
+      "dense_accuracy": 0.9554848966613673,
+      "accuracy_before_finetune": 0.6724960254372019,
+      "accuracy_after_finetune": 0.8648648648648649,
+      "recovery_gain": 0.19236883942766303,
+      "retention_after_finetune": 0.9051580698835275
+    },
+    {
+      "seed": 25,
+      "sparsity": 0.95,
+      "method": "path_flow",
+      "dense_accuracy": 0.9554848966613673,
+      "accuracy_before_finetune": 0.7186009538950715,
+      "accuracy_after_finetune": 0.8648648648648649,
+      "recovery_gain": 0.1462639109697934,
+      "retention_after_finetune": 0.9051580698835275
+    },
+    {
+      "seed": 26,
+      "sparsity": 0.9,
+      "method": "magnitude",
+      "dense_accuracy": 0.9523052464228935,
+      "accuracy_before_finetune": 0.7233704292527822,
+      "accuracy_after_finetune": 0.8410174880763116,
+      "recovery_gain": 0.11764705882352944,
+      "retention_after_finetune": 0.8831385642737897
+    },
+    {
+      "seed": 26,
+      "sparsity": 0.9,
+      "method": "gradient_saliency",
+      "dense_accuracy": 0.9523052464228935,
+      "accuracy_before_finetune": 0.834658187599364,
+      "accuracy_after_finetune": 0.9157392686804452,
+      "recovery_gain": 0.08108108108108114,
+      "retention_after_finetune": 0.9616026711185309
+    },
+    {
+      "seed": 26,
+      "sparsity": 0.9,
+      "method": "path_flow",
+      "dense_accuracy": 0.9523052464228935,
+      "accuracy_before_finetune": 0.8505564387917329,
+      "accuracy_after_finetune": 0.9030206677265501,
+      "recovery_gain": 0.05246422893481717,
+      "retention_after_finetune": 0.9482470784641068
+    },
+    {
+      "seed": 26,
+      "sparsity": 0.95,
+      "method": "magnitude",
+      "dense_accuracy": 0.9523052464228935,
+      "accuracy_before_finetune": 0.5548489666136724,
+      "accuracy_after_finetune": 0.6263910969793323,
+      "recovery_gain": 0.07154213036565982,
+      "retention_after_finetune": 0.657762938230384
+    },
+    {
+      "seed": 26,
+      "sparsity": 0.95,
+      "method": "gradient_saliency",
+      "dense_accuracy": 0.9523052464228935,
+      "accuracy_before_finetune": 0.7138314785373608,
+      "accuracy_after_finetune": 0.8108108108108109,
+      "recovery_gain": 0.09697933227345001,
+      "retention_after_finetune": 0.8514190317195326
+    },
+    {
+      "seed": 26,
+      "sparsity": 0.95,
+      "method": "path_flow",
+      "dense_accuracy": 0.9523052464228935,
+      "accuracy_before_finetune": 0.6645468998410174,
+      "accuracy_after_finetune": 0.8251192368839427,
+      "recovery_gain": 0.16057233704292528,
+      "retention_after_finetune": 0.8664440734557596
+    },
+    {
+      "seed": 27,
+      "sparsity": 0.9,
+      "method": "magnitude",
+      "dense_accuracy": 0.9650238473767886,
+      "accuracy_before_finetune": 0.7678855325914149,
+      "accuracy_after_finetune": 0.8394276629570747,
+      "recovery_gain": 0.07154213036565982,
+      "retention_after_finetune": 0.8698517298187809
+    },
+    {
+      "seed": 27,
+      "sparsity": 0.9,
+      "method": "gradient_saliency",
+      "dense_accuracy": 0.9650238473767886,
+      "accuracy_before_finetune": 0.8775834658187599,
+      "accuracy_after_finetune": 0.9236883942766295,
+      "recovery_gain": 0.04610492845786962,
+      "retention_after_finetune": 0.957166392092257
+    },
+    {
+      "seed": 27,
+      "sparsity": 0.9,
+      "method": "path_flow",
+      "dense_accuracy": 0.9650238473767886,
+      "accuracy_before_finetune": 0.8807631160572337,
+      "accuracy_after_finetune": 0.9268680445151033,
+      "recovery_gain": 0.04610492845786962,
+      "retention_after_finetune": 0.9604612850082371
+    },
+    {
+      "seed": 27,
+      "sparsity": 0.95,
+      "method": "magnitude",
+      "dense_accuracy": 0.9650238473767886,
+      "accuracy_before_finetune": 0.5580286168521462,
+      "accuracy_after_finetune": 0.6359300476947536,
+      "recovery_gain": 0.07790143084260737,
+      "retention_after_finetune": 0.6589785831960461
+    },
+    {
+      "seed": 27,
+      "sparsity": 0.95,
+      "method": "gradient_saliency",
+      "dense_accuracy": 0.9650238473767886,
+      "accuracy_before_finetune": 0.6645468998410174,
+      "accuracy_after_finetune": 0.834658187599364,
+      "recovery_gain": 0.1701112877583466,
+      "retention_after_finetune": 0.8649093904448105
+    },
+    {
+      "seed": 27,
+      "sparsity": 0.95,
+      "method": "path_flow",
+      "dense_accuracy": 0.9650238473767886,
+      "accuracy_before_finetune": 0.753577106518283,
+      "accuracy_after_finetune": 0.8744038155802861,
+      "recovery_gain": 0.1208267090620031,
+      "retention_after_finetune": 0.9060955518945634
+    }
+  ]
+}

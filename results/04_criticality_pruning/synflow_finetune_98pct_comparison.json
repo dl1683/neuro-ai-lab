@@ -1,0 +1,178 @@
+{
+  "experiment": "04_98pct_synflow_finetune_comparison",
+  "setup": "At 98% sparsity, compare magnitude, SynFlow, and adaptive path before/after masked fine-tuning on Fashion-MNIST MLP and CNN.",
+  "summary": {
+    "Fashion-MNIST CNN": {
+      "magnitude": {
+        "before_mean": 0.459125,
+        "after_mean": 0.8086249999999999,
+        "retention_after_mean": 0.9549790461246772
+      },
+      "synflow": {
+        "before_mean": 0.10075,
+        "after_mean": 0.10275000000000001,
+        "retention_after_mean": 0.12133006439802557
+      },
+      "adaptive_path": {
+        "before_mean": 0.47262499999999996,
+        "after_mean": 0.79525,
+        "retention_after_mean": 0.9392014644830178
+      }
+    },
+    "Fashion-MNIST MLP": {
+      "magnitude": {
+        "before_mean": 0.5353333333333333,
+        "after_mean": 0.7966666666666666,
+        "retention_after_mean": 0.9409701419543371
+      },
+      "synflow": {
+        "before_mean": 0.4425,
+        "after_mean": 0.7775,
+        "retention_after_mean": 0.9183682342971239
+      },
+      "adaptive_path": {
+        "before_mean": 0.5529999999999999,
+        "after_mean": 0.7893333333333333,
+        "retention_after_mean": 0.932269069790405
+      }
+    }
+  },
+  "paired_deltas_after_finetune": [
+    {
+      "study": "Fashion-MNIST CNN",
+      "seed": 51,
+      "adaptive_minus_synflow_after": 0.68575,
+      "adaptive_minus_magnitude_after": -0.017750000000000044
+    },
+    {
+      "study": "Fashion-MNIST CNN",
+      "seed": 52,
+      "adaptive_minus_synflow_after": 0.6992499999999999,
+      "adaptive_minus_magnitude_after": -0.009000000000000008
+    },
+    {
+      "study": "Fashion-MNIST MLP",
+      "seed": 31,
+      "adaptive_minus_synflow_after": 0.0040000000000000036,
+      "adaptive_minus_magnitude_after": -0.011333333333333306
+    },
+    {
+      "study": "Fashion-MNIST MLP",
+      "seed": 32,
+      "adaptive_minus_synflow_after": 0.01966666666666672,
+      "adaptive_minus_magnitude_after": -0.0033333333333332993
+    }
+  ],
+  "mean_adaptive_minus_synflow_after": 0.35216666666666663,
+  "mean_adaptive_minus_magnitude_after": -0.010354166666666664,
+  "rows": [
+    {
+      "study": "Fashion-MNIST MLP",
+      "seed": 31,
+      "method": "magnitude",
+      "dense_accuracy": 0.8396666666666667,
+      "before_finetune": 0.478,
+      "after_finetune": 0.7926666666666666,
+      "retention_after": 0.9440254069075029
+    },
+    {
+      "study": "Fashion-MNIST MLP",
+      "seed": 31,
+      "method": "synflow",
+      "dense_accuracy": 0.8396666666666667,
+      "before_finetune": 0.426,
+      "after_finetune": 0.7773333333333333,
+      "retention_after": 0.9257641921397379
+    },
+    {
+      "study": "Fashion-MNIST MLP",
+      "seed": 31,
+      "method": "adaptive_path",
+      "dense_accuracy": 0.8396666666666667,
+      "before_finetune": 0.5593333333333333,
+      "after_finetune": 0.7813333333333333,
+      "retention_after": 0.9305279872965462
+    },
+    {
+      "study": "Fashion-MNIST MLP",
+      "seed": 32,
+      "method": "magnitude",
+      "dense_accuracy": 0.8536666666666667,
+      "before_finetune": 0.5926666666666667,
+      "after_finetune": 0.8006666666666666,
+      "retention_after": 0.9379148770011714
+    },
+    {
+      "study": "Fashion-MNIST MLP",
+      "seed": 32,
+      "method": "synflow",
+      "dense_accuracy": 0.8536666666666667,
+      "before_finetune": 0.459,
+      "after_finetune": 0.7776666666666666,
+      "retention_after": 0.9109722764545098
+    },
+    {
+      "study": "Fashion-MNIST MLP",
+      "seed": 32,
+      "method": "adaptive_path",
+      "dense_accuracy": 0.8536666666666667,
+      "before_finetune": 0.5466666666666666,
+      "after_finetune": 0.7973333333333333,
+      "retention_after": 0.934010152284264
+    },
+    {
+      "study": "Fashion-MNIST CNN",
+      "seed": 51,
+      "method": "magnitude",
+      "dense_accuracy": 0.84975,
+      "before_finetune": 0.4595,
+      "after_finetune": 0.8105,
+      "retention_after": 0.9538099441012062
+    },
+    {
+      "study": "Fashion-MNIST CNN",
+      "seed": 51,
+      "method": "synflow",
+      "dense_accuracy": 0.84975,
+      "before_finetune": 0.10225,
+      "after_finetune": 0.107,
+      "retention_after": 0.1259193880553104
+    },
+    {
+      "study": "Fashion-MNIST CNN",
+      "seed": 51,
+      "method": "adaptive_path",
+      "dense_accuracy": 0.84975,
+      "before_finetune": 0.5245,
+      "after_finetune": 0.79275,
+      "retention_after": 0.9329214474845542
+    },
+    {
+      "study": "Fashion-MNIST CNN",
+      "seed": 52,
+      "method": "magnitude",
+      "dense_accuracy": 0.84375,
+      "before_finetune": 0.45875,
+      "after_finetune": 0.80675,
+      "retention_after": 0.9561481481481481
+    },
+    {
+      "study": "Fashion-MNIST CNN",
+      "seed": 52,
+      "method": "synflow",
+      "dense_accuracy": 0.84375,
+      "before_finetune": 0.09925,
+      "after_finetune": 0.0985,
+      "retention_after": 0.11674074074074074
+    },
+    {
+      "study": "Fashion-MNIST CNN",
+      "seed": 52,
+      "method": "adaptive_path",
+      "dense_accuracy": 0.84375,
+      "before_finetune": 0.42075,
+      "after_finetune": 0.79775,
+      "retention_after": 0.9454814814814815
+    }
+  ]
+}

@@ -1,0 +1,366 @@
+{
+  "experiment": "04_synflow_cnn_mask_forensics_98pct",
+  "setup": "Fashion-MNIST CNN 98% global pruning mask forensics. Measures structural mask damage for magnitude, SynFlow, and adaptive dense-hybrid pruning.",
+  "sparsity": 0.98,
+  "summary": {
+    "magnitude": {
+      "accuracy_mean": 0.4675,
+      "retention_mean": 0.5530421971349901,
+      "damage_mean": {
+        "dead_classes": 0.0,
+        "dead_conv1_filters": 0.0,
+        "dead_conv2_filters": 0.0,
+        "dead_fc1_hidden": 36.0,
+        "live_fc1_hidden": 92.0,
+        "max_class_fanin": 56.0,
+        "min_class_fanin": 38.0
+      },
+      "layer_keep_rate_mean": {
+        "conv1": 0.8576388888888888,
+        "conv2": 0.3359375,
+        "fc1": 0.00994499362244898,
+        "fc2": 0.365234375
+      }
+    },
+    "synflow": {
+      "accuracy_mean": 0.10075,
+      "retention_mean": 0.11917188870336418,
+      "damage_mean": {
+        "dead_classes": 0.0,
+        "dead_conv1_filters": 0.0,
+        "dead_conv2_filters": 0.0,
+        "dead_fc1_hidden": 128.0,
+        "live_fc1_hidden": 0.0,
+        "max_class_fanin": 120.0,
+        "min_class_fanin": 112.0
+      },
+      "layer_keep_rate_mean": {
+        "conv1": 1.0,
+        "conv2": 0.6169704861111112,
+        "fc1": 0.0,
+        "fc2": 0.8968750000000001
+      }
+    },
+    "adaptive_dense_hybrid": {
+      "accuracy_mean": 0.47750000000000004,
+      "retention_mean": 0.564519570874696,
+      "damage_mean": {
+        "dead_classes": 0.0,
+        "dead_conv1_filters": 0.0,
+        "dead_conv2_filters": 0.0,
+        "dead_fc1_hidden": 39.0,
+        "live_fc1_hidden": 89.0,
+        "max_class_fanin": 43.0,
+        "min_class_fanin": 29.5
+      },
+      "layer_keep_rate_mean": {
+        "conv1": 0.9166666666666667,
+        "conv2": 0.5483940972222222,
+        "fc1": 0.005483199139030613,
+        "fc2": 0.293359375
+      }
+    }
+  },
+  "rows": [
+    {
+      "seed": 51,
+      "method": "magnitude",
+      "dense_accuracy": 0.84975,
+      "accuracy": 0.4645,
+      "retention": 0.5466313621653428,
+      "damage": {
+        "dead_classes": 0,
+        "min_class_fanin": 39,
+        "max_class_fanin": 55,
+        "dead_fc1_hidden": 31,
+        "live_fc1_hidden": 97,
+        "dead_conv2_filters": 0,
+        "dead_conv1_filters": 0
+      },
+      "layers": {
+        "conv1": {
+          "kept": 126,
+          "total": 144,
+          "keep_rate": 0.875,
+          "dead_output_units": 0,
+          "output_units": 16
+        },
+        "conv2": {
+          "kept": 1463,
+          "total": 4608,
+          "keep_rate": 0.3174913194444444,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "fc1": {
+          "kept": 2085,
+          "total": 200704,
+          "keep_rate": 0.010388432716836735,
+          "dead_output_units": 31,
+          "output_units": 128,
+          "dead_input_units": 1086,
+          "input_units": 1568
+        },
+        "fc2": {
+          "kept": 461,
+          "total": 1280,
+          "keep_rate": 0.36015625,
+          "dead_output_units": 0,
+          "output_units": 10,
+          "dead_input_units": 2,
+          "input_units": 128
+        }
+      }
+    },
+    {
+      "seed": 51,
+      "method": "synflow",
+      "dense_accuracy": 0.84975,
+      "accuracy": 0.10225,
+      "retention": 0.12032950867902323,
+      "damage": {
+        "dead_classes": 0,
+        "min_class_fanin": 113,
+        "max_class_fanin": 121,
+        "dead_fc1_hidden": 128,
+        "live_fc1_hidden": 0,
+        "dead_conv2_filters": 0,
+        "dead_conv1_filters": 0
+      },
+      "layers": {
+        "conv1": {
+          "kept": 144,
+          "total": 144,
+          "keep_rate": 1.0,
+          "dead_output_units": 0,
+          "output_units": 16
+        },
+        "conv2": {
+          "kept": 2844,
+          "total": 4608,
+          "keep_rate": 0.6171875,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "fc1": {
+          "kept": 0,
+          "total": 200704,
+          "keep_rate": 0.0,
+          "dead_output_units": 128,
+          "output_units": 128,
+          "dead_input_units": 1568,
+          "input_units": 1568
+        },
+        "fc2": {
+          "kept": 1147,
+          "total": 1280,
+          "keep_rate": 0.89609375,
+          "dead_output_units": 0,
+          "output_units": 10,
+          "dead_input_units": 0,
+          "input_units": 128
+        }
+      }
+    },
+    {
+      "seed": 51,
+      "method": "adaptive_dense_hybrid",
+      "dense_accuracy": 0.84975,
+      "accuracy": 0.532,
+      "retention": 0.62606649014416,
+      "damage": {
+        "dead_classes": 0,
+        "min_class_fanin": 30,
+        "max_class_fanin": 43,
+        "dead_fc1_hidden": 34,
+        "live_fc1_hidden": 94,
+        "dead_conv2_filters": 0,
+        "dead_conv1_filters": 0
+      },
+      "layers": {
+        "conv1": {
+          "kept": 131,
+          "total": 144,
+          "keep_rate": 0.9097222222222222,
+          "dead_output_units": 0,
+          "output_units": 16
+        },
+        "conv2": {
+          "kept": 2493,
+          "total": 4608,
+          "keep_rate": 0.541015625,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "fc1": {
+          "kept": 1129,
+          "total": 200704,
+          "keep_rate": 0.005625199298469388,
+          "dead_output_units": 34,
+          "output_units": 128,
+          "dead_input_units": 1215,
+          "input_units": 1568
+        },
+        "fc2": {
+          "kept": 382,
+          "total": 1280,
+          "keep_rate": 0.2984375,
+          "dead_output_units": 0,
+          "output_units": 10,
+          "dead_input_units": 32,
+          "input_units": 128
+        }
+      }
+    },
+    {
+      "seed": 52,
+      "method": "magnitude",
+      "dense_accuracy": 0.841,
+      "accuracy": 0.4705,
+      "retention": 0.5594530321046374,
+      "damage": {
+        "dead_classes": 0,
+        "min_class_fanin": 37,
+        "max_class_fanin": 57,
+        "dead_fc1_hidden": 41,
+        "live_fc1_hidden": 87,
+        "dead_conv2_filters": 0,
+        "dead_conv1_filters": 0
+      },
+      "layers": {
+        "conv1": {
+          "kept": 121,
+          "total": 144,
+          "keep_rate": 0.8402777777777778,
+          "dead_output_units": 0,
+          "output_units": 16
+        },
+        "conv2": {
+          "kept": 1633,
+          "total": 4608,
+          "keep_rate": 0.3543836805555556,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "fc1": {
+          "kept": 1907,
+          "total": 200704,
+          "keep_rate": 0.009501554528061224,
+          "dead_output_units": 41,
+          "output_units": 128,
+          "dead_input_units": 1052,
+          "input_units": 1568
+        },
+        "fc2": {
+          "kept": 474,
+          "total": 1280,
+          "keep_rate": 0.3703125,
+          "dead_output_units": 0,
+          "output_units": 10,
+          "dead_input_units": 1,
+          "input_units": 128
+        }
+      }
+    },
+    {
+      "seed": 52,
+      "method": "synflow",
+      "dense_accuracy": 0.841,
+      "accuracy": 0.09925,
+      "retention": 0.11801426872770512,
+      "damage": {
+        "dead_classes": 0,
+        "min_class_fanin": 111,
+        "max_class_fanin": 119,
+        "dead_fc1_hidden": 128,
+        "live_fc1_hidden": 0,
+        "dead_conv2_filters": 0,
+        "dead_conv1_filters": 0
+      },
+      "layers": {
+        "conv1": {
+          "kept": 144,
+          "total": 144,
+          "keep_rate": 1.0,
+          "dead_output_units": 0,
+          "output_units": 16
+        },
+        "conv2": {
+          "kept": 2842,
+          "total": 4608,
+          "keep_rate": 0.6167534722222222,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "fc1": {
+          "kept": 0,
+          "total": 200704,
+          "keep_rate": 0.0,
+          "dead_output_units": 128,
+          "output_units": 128,
+          "dead_input_units": 1568,
+          "input_units": 1568
+        },
+        "fc2": {
+          "kept": 1149,
+          "total": 1280,
+          "keep_rate": 0.89765625,
+          "dead_output_units": 0,
+          "output_units": 10,
+          "dead_input_units": 0,
+          "input_units": 128
+        }
+      }
+    },
+    {
+      "seed": 52,
+      "method": "adaptive_dense_hybrid",
+      "dense_accuracy": 0.841,
+      "accuracy": 0.423,
+      "retention": 0.5029726516052319,
+      "damage": {
+        "dead_classes": 0,
+        "min_class_fanin": 29,
+        "max_class_fanin": 43,
+        "dead_fc1_hidden": 44,
+        "live_fc1_hidden": 84,
+        "dead_conv2_filters": 0,
+        "dead_conv1_filters": 0
+      },
+      "layers": {
+        "conv1": {
+          "kept": 133,
+          "total": 144,
+          "keep_rate": 0.9236111111111112,
+          "dead_output_units": 0,
+          "output_units": 16
+        },
+        "conv2": {
+          "kept": 2561,
+          "total": 4608,
+          "keep_rate": 0.5557725694444444,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "fc1": {
+          "kept": 1072,
+          "total": 200704,
+          "keep_rate": 0.005341198979591837,
+          "dead_output_units": 44,
+          "output_units": 128,
+          "dead_input_units": 1199,
+          "input_units": 1568
+        },
+        "fc2": {
+          "kept": 369,
+          "total": 1280,
+          "keep_rate": 0.28828125,
+          "dead_output_units": 0,
+          "output_units": 10,
+          "dead_input_units": 41,
+          "input_units": 128
+        }
+      }
+    }
+  ]
+}

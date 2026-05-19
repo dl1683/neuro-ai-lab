@@ -1,0 +1,549 @@
+{
+  "experiment": "04_path_flow_calibration_sweep",
+  "setup": "Evaluate label-free path-flow pruning using only a small unlabeled calibration subset to estimate activation statistics. Accuracy is averaged over 90% and 95% sparsity across five trained sklearn-digits MLP seeds.",
+  "summary": {
+    "0.02": {
+      "accuracy_mean": 0.7443561208267091,
+      "accuracy_std": 0.09646400653302457,
+      "retention_mean": 0.7764093240247391,
+      "hidden_coverage_mean": 0.4765625,
+      "mean_calibration_examples": 23.0
+    },
+    "0.05": {
+      "accuracy_mean": 0.7594594594594595,
+      "accuracy_std": 0.08243224079465912,
+      "retention_mean": 0.7921073857962273,
+      "hidden_coverage_mean": 0.4890625,
+      "mean_calibration_examples": 58.0
+    },
+    "0.1": {
+      "accuracy_mean": 0.7737678855325913,
+      "accuracy_std": 0.06949936465165642,
+      "retention_mean": 0.807047036975208,
+      "hidden_coverage_mean": 0.49921875,
+      "mean_calibration_examples": 117.0
+    },
+    "0.25": {
+      "accuracy_mean": 0.7813990461049285,
+      "accuracy_std": 0.07555684649170902,
+      "retention_mean": 0.8150179545277257,
+      "hidden_coverage_mean": 0.5125,
+      "mean_calibration_examples": 292.0
+    },
+    "1.0": {
+      "accuracy_mean": 0.7890302066772656,
+      "accuracy_std": 0.07524778496458068,
+      "retention_mean": 0.8229847795695964,
+      "hidden_coverage_mean": 0.52734375,
+      "mean_calibration_examples": 1168.0
+    }
+  },
+  "accuracy_drop_vs_full_calibration": {
+    "0.02": 0.044674085850556544,
+    "0.05": 0.02957074721780617,
+    "0.1": 0.015262321144674296,
+    "0.25": 0.007631160572337148
+  },
+  "rows": [
+    {
+      "seed": 23,
+      "calibration_fraction": 0.02,
+      "calibration_examples": 23,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.958664546899841,
+      "accuracy": 0.8314785373608903,
+      "accuracy_retention": 0.8673300165837479,
+      "hidden_coverage": 0.546875
+    },
+    {
+      "seed": 23,
+      "calibration_fraction": 0.02,
+      "calibration_examples": 23,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.958664546899841,
+      "accuracy": 0.6788553259141494,
+      "accuracy_retention": 0.7081260364842454,
+      "hidden_coverage": 0.3515625
+    },
+    {
+      "seed": 23,
+      "calibration_fraction": 0.05,
+      "calibration_examples": 58,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.958664546899841,
+      "accuracy": 0.8235294117647058,
+      "accuracy_retention": 0.8590381426202321,
+      "hidden_coverage": 0.578125
+    },
+    {
+      "seed": 23,
+      "calibration_fraction": 0.05,
+      "calibration_examples": 58,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.958664546899841,
+      "accuracy": 0.7313195548489666,
+      "accuracy_retention": 0.7628524046434494,
+      "hidden_coverage": 0.3515625
+    },
+    {
+      "seed": 23,
+      "calibration_fraction": 0.1,
+      "calibration_examples": 117,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.958664546899841,
+      "accuracy": 0.8235294117647058,
+      "accuracy_retention": 0.8590381426202321,
+      "hidden_coverage": 0.625
+    },
+    {
+      "seed": 23,
+      "calibration_fraction": 0.1,
+      "calibration_examples": 117,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.958664546899841,
+      "accuracy": 0.7154213036565977,
+      "accuracy_retention": 0.7462686567164178,
+      "hidden_coverage": 0.34375
+    },
+    {
+      "seed": 23,
+      "calibration_fraction": 0.25,
+      "calibration_examples": 292,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.958664546899841,
+      "accuracy": 0.8473767885532592,
+      "accuracy_retention": 0.8839137645107794,
+      "hidden_coverage": 0.625
+    },
+    {
+      "seed": 23,
+      "calibration_fraction": 0.25,
+      "calibration_examples": 292,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.958664546899841,
+      "accuracy": 0.7011128775834659,
+      "accuracy_retention": 0.7313432835820896,
+      "hidden_coverage": 0.3828125
+    },
+    {
+      "seed": 23,
+      "calibration_fraction": 1.0,
+      "calibration_examples": 1168,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.958664546899841,
+      "accuracy": 0.8616852146263911,
+      "accuracy_retention": 0.8988391376451078,
+      "hidden_coverage": 0.65625
+    },
+    {
+      "seed": 23,
+      "calibration_fraction": 1.0,
+      "calibration_examples": 1168,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.958664546899841,
+      "accuracy": 0.7217806041335453,
+      "accuracy_retention": 0.7529021558872304,
+      "hidden_coverage": 0.375
+    },
+    {
+      "seed": 24,
+      "calibration_fraction": 0.02,
+      "calibration_examples": 23,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.9618441971383148,
+      "accuracy": 0.8823529411764706,
+      "accuracy_retention": 0.9173553719008264,
+      "hidden_coverage": 0.6015625
+    },
+    {
+      "seed": 24,
+      "calibration_fraction": 0.02,
+      "calibration_examples": 23,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.9618441971383148,
+      "accuracy": 0.753577106518283,
+      "accuracy_retention": 0.7834710743801653,
+      "hidden_coverage": 0.390625
+    },
+    {
+      "seed": 24,
+      "calibration_fraction": 0.05,
+      "calibration_examples": 58,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.9618441971383148,
+      "accuracy": 0.8807631160572337,
+      "accuracy_retention": 0.915702479338843,
+      "hidden_coverage": 0.5859375
+    },
+    {
+      "seed": 24,
+      "calibration_fraction": 0.05,
+      "calibration_examples": 58,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.9618441971383148,
+      "accuracy": 0.7313195548489666,
+      "accuracy_retention": 0.7603305785123966,
+      "hidden_coverage": 0.4140625
+    },
+    {
+      "seed": 24,
+      "calibration_fraction": 0.1,
+      "calibration_examples": 117,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.9618441971383148,
+      "accuracy": 0.8600953895071543,
+      "accuracy_retention": 0.8942148760330578,
+      "hidden_coverage": 0.578125
+    },
+    {
+      "seed": 24,
+      "calibration_fraction": 0.1,
+      "calibration_examples": 117,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.9618441971383148,
+      "accuracy": 0.7440381558028617,
+      "accuracy_retention": 0.7735537190082644,
+      "hidden_coverage": 0.3984375
+    },
+    {
+      "seed": 24,
+      "calibration_fraction": 0.25,
+      "calibration_examples": 292,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.9618441971383148,
+      "accuracy": 0.8553259141494436,
+      "accuracy_retention": 0.8892561983471075,
+      "hidden_coverage": 0.6015625
+    },
+    {
+      "seed": 24,
+      "calibration_fraction": 0.25,
+      "calibration_examples": 292,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.9618441971383148,
+      "accuracy": 0.7154213036565977,
+      "accuracy_retention": 0.743801652892562,
+      "hidden_coverage": 0.421875
+    },
+    {
+      "seed": 24,
+      "calibration_fraction": 1.0,
+      "calibration_examples": 1168,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.9618441971383148,
+      "accuracy": 0.8553259141494436,
+      "accuracy_retention": 0.8892561983471075,
+      "hidden_coverage": 0.625
+    },
+    {
+      "seed": 24,
+      "calibration_fraction": 1.0,
+      "calibration_examples": 1168,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.9618441971383148,
+      "accuracy": 0.7265500794912559,
+      "accuracy_retention": 0.7553719008264462,
+      "hidden_coverage": 0.4453125
+    },
+    {
+      "seed": 25,
+      "calibration_fraction": 0.02,
+      "calibration_examples": 23,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.9554848966613673,
+      "accuracy": 0.8044515103338633,
+      "accuracy_retention": 0.8419301164725458,
+      "hidden_coverage": 0.5390625
+    },
+    {
+      "seed": 25,
+      "calibration_fraction": 0.02,
+      "calibration_examples": 23,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.9554848966613673,
+      "accuracy": 0.6629570747217806,
+      "accuracy_retention": 0.6938435940099833,
+      "hidden_coverage": 0.359375
+    },
+    {
+      "seed": 25,
+      "calibration_fraction": 0.05,
+      "calibration_examples": 58,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.9554848966613673,
+      "accuracy": 0.8235294117647058,
+      "accuracy_retention": 0.8618968386023294,
+      "hidden_coverage": 0.578125
+    },
+    {
+      "seed": 25,
+      "calibration_fraction": 0.05,
+      "calibration_examples": 58,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.9554848966613673,
+      "accuracy": 0.604133545310016,
+      "accuracy_retention": 0.632279534109817,
+      "hidden_coverage": 0.390625
+    },
+    {
+      "seed": 25,
+      "calibration_fraction": 0.1,
+      "calibration_examples": 117,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.9554848966613673,
+      "accuracy": 0.8362480127186009,
+      "accuracy_retention": 0.8752079866888519,
+      "hidden_coverage": 0.5859375
+    },
+    {
+      "seed": 25,
+      "calibration_fraction": 0.1,
+      "calibration_examples": 117,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.9554848966613673,
+      "accuracy": 0.6581875993640699,
+      "accuracy_retention": 0.6888519134775374,
+      "hidden_coverage": 0.421875
+    },
+    {
+      "seed": 25,
+      "calibration_fraction": 0.25,
+      "calibration_examples": 292,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.9554848966613673,
+      "accuracy": 0.8553259141494436,
+      "accuracy_retention": 0.8951747088186356,
+      "hidden_coverage": 0.5703125
+    },
+    {
+      "seed": 25,
+      "calibration_fraction": 0.25,
+      "calibration_examples": 292,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.9554848966613673,
+      "accuracy": 0.6836248012718601,
+      "accuracy_retention": 0.7154742096505824,
+      "hidden_coverage": 0.40625
+    },
+    {
+      "seed": 25,
+      "calibration_fraction": 1.0,
+      "calibration_examples": 1168,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.9554848966613673,
+      "accuracy": 0.8569157392686805,
+      "accuracy_retention": 0.8968386023294509,
+      "hidden_coverage": 0.5859375
+    },
+    {
+      "seed": 25,
+      "calibration_fraction": 1.0,
+      "calibration_examples": 1168,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.9554848966613673,
+      "accuracy": 0.7186009538950715,
+      "accuracy_retention": 0.7520798668885191,
+      "hidden_coverage": 0.4375
+    },
+    {
+      "seed": 26,
+      "calibration_fraction": 0.02,
+      "calibration_examples": 23,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.9523052464228935,
+      "accuracy": 0.8410174880763116,
+      "accuracy_retention": 0.8831385642737897,
+      "hidden_coverage": 0.6171875
+    },
+    {
+      "seed": 26,
+      "calibration_fraction": 0.02,
+      "calibration_examples": 23,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.9523052464228935,
+      "accuracy": 0.5739268680445151,
+      "accuracy_retention": 0.6026711185308848,
+      "hidden_coverage": 0.3671875
+    },
+    {
+      "seed": 26,
+      "calibration_fraction": 0.05,
+      "calibration_examples": 58,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.9523052464228935,
+      "accuracy": 0.7821939586645469,
+      "accuracy_retention": 0.8213689482470784,
+      "hidden_coverage": 0.6015625
+    },
+    {
+      "seed": 26,
+      "calibration_fraction": 0.05,
+      "calibration_examples": 58,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.9523052464228935,
+      "accuracy": 0.6804451510333863,
+      "accuracy_retention": 0.7145242070116862,
+      "hidden_coverage": 0.34375
+    },
+    {
+      "seed": 26,
+      "calibration_fraction": 0.1,
+      "calibration_examples": 117,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.9523052464228935,
+      "accuracy": 0.8076311605723371,
+      "accuracy_retention": 0.8480801335559266,
+      "hidden_coverage": 0.609375
+    },
+    {
+      "seed": 26,
+      "calibration_fraction": 0.1,
+      "calibration_examples": 117,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.9523052464228935,
+      "accuracy": 0.6963434022257552,
+      "accuracy_retention": 0.7312186978297162,
+      "hidden_coverage": 0.375
+    },
+    {
+      "seed": 26,
+      "calibration_fraction": 0.25,
+      "calibration_examples": 292,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.9523052464228935,
+      "accuracy": 0.8187599364069952,
+      "accuracy_retention": 0.8597662771285475,
+      "hidden_coverage": 0.6015625
+    },
+    {
+      "seed": 26,
+      "calibration_fraction": 0.25,
+      "calibration_examples": 292,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.9523052464228935,
+      "accuracy": 0.7011128775834659,
+      "accuracy_retention": 0.7362270450751253,
+      "hidden_coverage": 0.3828125
+    },
+    {
+      "seed": 26,
+      "calibration_fraction": 1.0,
+      "calibration_examples": 1168,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.9523052464228935,
+      "accuracy": 0.8505564387917329,
+      "accuracy_retention": 0.8931552587646077,
+      "hidden_coverage": 0.6171875
+    },
+    {
+      "seed": 26,
+      "calibration_fraction": 1.0,
+      "calibration_examples": 1168,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.9523052464228935,
+      "accuracy": 0.6645468998410174,
+      "accuracy_retention": 0.6978297161936561,
+      "hidden_coverage": 0.390625
+    },
+    {
+      "seed": 27,
+      "calibration_fraction": 0.02,
+      "calibration_examples": 23,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.9650238473767886,
+      "accuracy": 0.78060413354531,
+      "accuracy_retention": 0.8088962108731466,
+      "hidden_coverage": 0.59375
+    },
+    {
+      "seed": 27,
+      "calibration_fraction": 0.02,
+      "calibration_examples": 23,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.9650238473767886,
+      "accuracy": 0.6343402225755167,
+      "accuracy_retention": 0.657331136738056,
+      "hidden_coverage": 0.3984375
+    },
+    {
+      "seed": 27,
+      "calibration_fraction": 0.05,
+      "calibration_examples": 58,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.9650238473767886,
+      "accuracy": 0.8473767885532592,
+      "accuracy_retention": 0.8780889621087314,
+      "hidden_coverage": 0.6640625
+    },
+    {
+      "seed": 27,
+      "calibration_fraction": 0.05,
+      "calibration_examples": 58,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.9650238473767886,
+      "accuracy": 0.6899841017488076,
+      "accuracy_retention": 0.71499176276771,
+      "hidden_coverage": 0.3828125
+    },
+    {
+      "seed": 27,
+      "calibration_fraction": 0.1,
+      "calibration_examples": 117,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.9650238473767886,
+      "accuracy": 0.863275039745628,
+      "accuracy_retention": 0.8945634266886326,
+      "hidden_coverage": 0.65625
+    },
+    {
+      "seed": 27,
+      "calibration_fraction": 0.1,
+      "calibration_examples": 117,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.9650238473767886,
+      "accuracy": 0.7329093799682035,
+      "accuracy_retention": 0.7594728171334432,
+      "hidden_coverage": 0.3984375
+    },
+    {
+      "seed": 27,
+      "calibration_fraction": 0.25,
+      "calibration_examples": 292,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.9650238473767886,
+      "accuracy": 0.8918918918918919,
+      "accuracy_retention": 0.9242174629324547,
+      "hidden_coverage": 0.6640625
+    },
+    {
+      "seed": 27,
+      "calibration_fraction": 0.25,
+      "calibration_examples": 292,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.9650238473767886,
+      "accuracy": 0.7440381558028617,
+      "accuracy_retention": 0.771004942339374,
+      "hidden_coverage": 0.46875
+    },
+    {
+      "seed": 27,
+      "calibration_fraction": 1.0,
+      "calibration_examples": 1168,
+      "sparsity": 0.9,
+      "dense_accuracy": 0.9650238473767886,
+      "accuracy": 0.8807631160572337,
+      "accuracy_retention": 0.9126853377265238,
+      "hidden_coverage": 0.671875
+    },
+    {
+      "seed": 27,
+      "calibration_fraction": 1.0,
+      "calibration_examples": 1168,
+      "sparsity": 0.95,
+      "dense_accuracy": 0.9650238473767886,
+      "accuracy": 0.753577106518283,
+      "accuracy_retention": 0.7808896210873146,
+      "hidden_coverage": 0.46875
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "title": "Adaptive path correction as a label-free severe-sparsity guardrail",
+  "claim_grade": "strong severe-sparsity guardrail evidence",
+  "claim": "Against SynFlow and magnitude on Fashion-MNIST MLP/CNN, adaptive path correction is most valuable at the severe sparsity cliff. It is not always best at 90-95%, but at 98% it beats both baselines in every paired case currently tested.",
+  "primary_result": {
+    "setting": "Fashion-MNIST MLP and CNN, SynFlow/magnitude baselines, 90/95/98% sparsity, two seeds each",
+    "overall_vs_synflow_mean_delta": 0.08550694444444445,
+    "overall_vs_synflow_wins": 9,
+    "overall_vs_synflow_n": 12,
+    "severe_98_vs_synflow_mean_delta": 0.25218749999999995,
+    "severe_98_vs_synflow_wins": 4,
+    "severe_98_vs_synflow_n": 4,
+    "severe_98_vs_magnitude_mean_delta": 0.038583333333333344,
+    "severe_98_vs_magnitude_wins": 2,
+    "severe_98_vs_magnitude_n": 4
+  },
+  "what_it_is_not": [
+    "Not evidence for the original branching-ratio criticality mechanism.",
+    "Not a universal replacement for magnitude pruning.",
+    "Not yet validated on large CNNs, transformers, or production-scale datasets."
+  ],
+  "reproduce": [
+    "python experiments/04_criticality_pruning/fashion_mnist_mlp_synflow.py",
+    "python experiments/04_criticality_pruning/fashion_mnist_cnn_synflow.py",
+    "python experiments/04_criticality_pruning/synthesize_label_free_baselines.py"
+  ],
+  "source_artifacts": [
+    "results\\04_criticality_pruning\\fashion_mnist_mlp_synflow_comparison.json",
+    "results\\04_criticality_pruning\\fashion_mnist_cnn_synflow_comparison.json",
+    "results\\04_criticality_pruning\\label_free_baseline_synthesis.json"
+  ]
+}

@@ -1,0 +1,330 @@
+{
+  "experiment": "04_sparsity_cliff_meta_analysis",
+  "claim": "Across the current MLP and CNN transfer checks, path correction should be treated as a sparsity-cliff intervention: keep alpha near zero at moderate sparsity and increase it only when magnitude pruning begins to collapse.",
+  "studies": [
+    {
+      "name": "Fashion-MNIST MLP corrected blend",
+      "path": "results\\04_criticality_pruning\\torch_fashion_mnist_no_balance_blend.json",
+      "best_by_sparsity": [
+        {
+          "sparsity": 0.9,
+          "best_alpha": 0.0,
+          "best_accuracy": 0.8031666666666666,
+          "magnitude_accuracy": 0.8031666666666666,
+          "delta_vs_magnitude": 0.0,
+          "all_alpha_means": {
+            "0.0": 0.8031666666666666,
+            "0.03": 0.7991666666666666,
+            "0.06": 0.8023333333333333,
+            "0.1": 0.7989999999999999,
+            "0.15": 0.8018333333333334,
+            "0.25": 0.7926666666666666,
+            "0.4": 0.7811666666666667,
+            "0.65": 0.7695000000000001,
+            "1.0": 0.729
+          }
+        },
+        {
+          "sparsity": 0.95,
+          "best_alpha": 0.4,
+          "best_accuracy": 0.728,
+          "magnitude_accuracy": 0.6859999999999999,
+          "delta_vs_magnitude": 0.04200000000000004,
+          "all_alpha_means": {
+            "0.0": 0.6859999999999999,
+            "0.03": 0.7048333333333334,
+            "0.06": 0.7168333333333333,
+            "0.1": 0.7096666666666667,
+            "0.15": 0.7158333333333333,
+            "0.25": 0.7133333333333334,
+            "0.4": 0.728,
+            "0.65": 0.6811666666666667,
+            "1.0": 0.6605
+          }
+        },
+        {
+          "sparsity": 0.98,
+          "best_alpha": 0.25,
+          "best_accuracy": 0.6054999999999999,
+          "magnitude_accuracy": 0.5353333333333333,
+          "delta_vs_magnitude": 0.0701666666666666,
+          "all_alpha_means": {
+            "0.0": 0.5353333333333333,
+            "0.03": 0.5283333333333333,
+            "0.06": 0.5121666666666667,
+            "0.1": 0.5501666666666667,
+            "0.15": 0.5831666666666666,
+            "0.25": 0.6054999999999999,
+            "0.4": 0.5698333333333333,
+            "0.65": 0.5088333333333334,
+            "1.0": 0.435
+          }
+        }
+      ]
+    },
+    {
+      "name": "CIFAR-10 MLP corrected blend",
+      "path": "results\\04_criticality_pruning\\torch_cifar10_mlp_path_flow.json",
+      "best_by_sparsity": [
+        {
+          "sparsity": 0.9,
+          "best_alpha": 0.25,
+          "best_accuracy": 0.4123,
+          "magnitude_accuracy": 0.4101,
+          "delta_vs_magnitude": 0.0021999999999999797,
+          "all_alpha_means": {
+            "0.0": 0.4101,
+            "0.05": 0.4114,
+            "0.1": 0.4096,
+            "0.25": 0.4123,
+            "0.5": 0.4034,
+            "1.0": 0.396
+          }
+        },
+        {
+          "sparsity": 0.95,
+          "best_alpha": 0.25,
+          "best_accuracy": 0.3488,
+          "magnitude_accuracy": 0.34609999999999996,
+          "delta_vs_magnitude": 0.0027000000000000357,
+          "all_alpha_means": {
+            "0.0": 0.34609999999999996,
+            "0.05": 0.34299999999999997,
+            "0.1": 0.3469,
+            "0.25": 0.3488,
+            "0.5": 0.346,
+            "1.0": 0.3447
+          }
+        },
+        {
+          "sparsity": 0.98,
+          "best_alpha": 1.0,
+          "best_accuracy": 0.28390000000000004,
+          "magnitude_accuracy": 0.2634,
+          "delta_vs_magnitude": 0.020500000000000018,
+          "all_alpha_means": {
+            "0.0": 0.2634,
+            "0.05": 0.2642,
+            "0.1": 0.269,
+            "0.25": 0.2713,
+            "0.5": 0.2832,
+            "1.0": 0.28390000000000004
+          }
+        }
+      ]
+    },
+    {
+      "name": "Fashion-MNIST CNN dense-hybrid",
+      "path": "results\\04_criticality_pruning\\torch_fashion_mnist_cnn_dense_hybrid.json",
+      "best_by_sparsity": [
+        {
+          "sparsity": 0.9,
+          "best_alpha": 0.05,
+          "best_accuracy": 0.75,
+          "magnitude_accuracy": 0.746375,
+          "delta_vs_magnitude": 0.0036249999999999893,
+          "all_alpha_means": {
+            "0.0": 0.746375,
+            "0.05": 0.75,
+            "0.1": 0.729625,
+            "0.2": 0.714375,
+            "0.35": 0.6933750000000001,
+            "0.5": 0.674875,
+            "0.75": 0.657
+          }
+        },
+        {
+          "sparsity": 0.95,
+          "best_alpha": 0.2,
+          "best_accuracy": 0.62975,
+          "magnitude_accuracy": 0.608125,
+          "delta_vs_magnitude": 0.021625000000000005,
+          "all_alpha_means": {
+            "0.0": 0.608125,
+            "0.05": 0.59875,
+            "0.1": 0.628125,
+            "0.2": 0.62975,
+            "0.35": 0.5923750000000001,
+            "0.5": 0.55425,
+            "0.75": 0.5391250000000001
+          }
+        },
+        {
+          "sparsity": 0.98,
+          "best_alpha": 0.2,
+          "best_accuracy": 0.49175,
+          "magnitude_accuracy": 0.44375,
+          "delta_vs_magnitude": 0.04800000000000004,
+          "all_alpha_means": {
+            "0.0": 0.44375,
+            "0.05": 0.4645,
+            "0.1": 0.47525,
+            "0.2": 0.49175,
+            "0.35": 0.406125,
+            "0.5": 0.2905,
+            "0.75": 0.21537499999999998
+          }
+        }
+      ]
+    }
+  ],
+  "by_sparsity": {
+    "0.9": {
+      "mean_best_alpha": 0.09999999999999999,
+      "mean_delta_vs_magnitude": 0.0019416666666666564,
+      "positive_deltas": 2,
+      "n": 3
+    },
+    "0.95": {
+      "mean_best_alpha": 0.2833333333333334,
+      "mean_delta_vs_magnitude": 0.02210833333333336,
+      "positive_deltas": 3,
+      "n": 3
+    },
+    "0.98": {
+      "mean_best_alpha": 0.48333333333333334,
+      "mean_delta_vs_magnitude": 0.04622222222222222,
+      "positive_deltas": 3,
+      "n": 3
+    }
+  },
+  "positive_points": [
+    {
+      "study": "Fashion-MNIST MLP corrected blend",
+      "sparsity": 0.95,
+      "best_alpha": 0.4,
+      "best_accuracy": 0.728,
+      "magnitude_accuracy": 0.6859999999999999,
+      "delta_vs_magnitude": 0.04200000000000004,
+      "all_alpha_means": {
+        "0.0": 0.6859999999999999,
+        "0.03": 0.7048333333333334,
+        "0.06": 0.7168333333333333,
+        "0.1": 0.7096666666666667,
+        "0.15": 0.7158333333333333,
+        "0.25": 0.7133333333333334,
+        "0.4": 0.728,
+        "0.65": 0.6811666666666667,
+        "1.0": 0.6605
+      }
+    },
+    {
+      "study": "Fashion-MNIST MLP corrected blend",
+      "sparsity": 0.98,
+      "best_alpha": 0.25,
+      "best_accuracy": 0.6054999999999999,
+      "magnitude_accuracy": 0.5353333333333333,
+      "delta_vs_magnitude": 0.0701666666666666,
+      "all_alpha_means": {
+        "0.0": 0.5353333333333333,
+        "0.03": 0.5283333333333333,
+        "0.06": 0.5121666666666667,
+        "0.1": 0.5501666666666667,
+        "0.15": 0.5831666666666666,
+        "0.25": 0.6054999999999999,
+        "0.4": 0.5698333333333333,
+        "0.65": 0.5088333333333334,
+        "1.0": 0.435
+      }
+    },
+    {
+      "study": "CIFAR-10 MLP corrected blend",
+      "sparsity": 0.9,
+      "best_alpha": 0.25,
+      "best_accuracy": 0.4123,
+      "magnitude_accuracy": 0.4101,
+      "delta_vs_magnitude": 0.0021999999999999797,
+      "all_alpha_means": {
+        "0.0": 0.4101,
+        "0.05": 0.4114,
+        "0.1": 0.4096,
+        "0.25": 0.4123,
+        "0.5": 0.4034,
+        "1.0": 0.396
+      }
+    },
+    {
+      "study": "CIFAR-10 MLP corrected blend",
+      "sparsity": 0.95,
+      "best_alpha": 0.25,
+      "best_accuracy": 0.3488,
+      "magnitude_accuracy": 0.34609999999999996,
+      "delta_vs_magnitude": 0.0027000000000000357,
+      "all_alpha_means": {
+        "0.0": 0.34609999999999996,
+        "0.05": 0.34299999999999997,
+        "0.1": 0.3469,
+        "0.25": 0.3488,
+        "0.5": 0.346,
+        "1.0": 0.3447
+      }
+    },
+    {
+      "study": "CIFAR-10 MLP corrected blend",
+      "sparsity": 0.98,
+      "best_alpha": 1.0,
+      "best_accuracy": 0.28390000000000004,
+      "magnitude_accuracy": 0.2634,
+      "delta_vs_magnitude": 0.020500000000000018,
+      "all_alpha_means": {
+        "0.0": 0.2634,
+        "0.05": 0.2642,
+        "0.1": 0.269,
+        "0.25": 0.2713,
+        "0.5": 0.2832,
+        "1.0": 0.28390000000000004
+      }
+    },
+    {
+      "study": "Fashion-MNIST CNN dense-hybrid",
+      "sparsity": 0.9,
+      "best_alpha": 0.05,
+      "best_accuracy": 0.75,
+      "magnitude_accuracy": 0.746375,
+      "delta_vs_magnitude": 0.0036249999999999893,
+      "all_alpha_means": {
+        "0.0": 0.746375,
+        "0.05": 0.75,
+        "0.1": 0.729625,
+        "0.2": 0.714375,
+        "0.35": 0.6933750000000001,
+        "0.5": 0.674875,
+        "0.75": 0.657
+      }
+    },
+    {
+      "study": "Fashion-MNIST CNN dense-hybrid",
+      "sparsity": 0.95,
+      "best_alpha": 0.2,
+      "best_accuracy": 0.62975,
+      "magnitude_accuracy": 0.608125,
+      "delta_vs_magnitude": 0.021625000000000005,
+      "all_alpha_means": {
+        "0.0": 0.608125,
+        "0.05": 0.59875,
+        "0.1": 0.628125,
+        "0.2": 0.62975,
+        "0.35": 0.5923750000000001,
+        "0.5": 0.55425,
+        "0.75": 0.5391250000000001
+      }
+    },
+    {
+      "study": "Fashion-MNIST CNN dense-hybrid",
+      "sparsity": 0.98,
+      "best_alpha": 0.2,
+      "best_accuracy": 0.49175,
+      "magnitude_accuracy": 0.44375,
+      "delta_vs_magnitude": 0.04800000000000004,
+      "all_alpha_means": {
+        "0.0": 0.44375,
+        "0.05": 0.4645,
+        "0.1": 0.47525,
+        "0.2": 0.49175,
+        "0.35": 0.406125,
+        "0.5": 0.2905,
+        "0.75": 0.21537499999999998
+      }
+    }
+  ]
+}

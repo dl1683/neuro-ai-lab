@@ -1,0 +1,11 @@
+{
+  "example": "adaptive path pruning dense score smoke example",
+  "sparsity": 0.98,
+  "alpha": 0.5,
+  "path_kept_fc1": 9,
+  "path_kept_fc2": 4,
+  "magnitude_kept_fc1": 8,
+  "magnitude_kept_fc2": 5,
+  "path_mask_total": 13,
+  "magnitude_mask_total": 13
+}

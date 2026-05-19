@@ -1,0 +1,252 @@
+{
+  "experiment": "04_cifar10_cnn_98pct_adaptive_alpha_ft_sweep",
+  "setup": "CIFAR-10 small CNN transfer test for 98% adaptive dense-tail path correction. Conv layers use magnitude; dense tail uses low-alpha path modulation. Real CIFAR-10 images, 20k train subset, 5k test subset, 2 seeds.",
+  "device": "cuda",
+  "train_n": 20000,
+  "test_n": 5000,
+  "calib_n": 1024,
+  "sparsity": 0.98,
+  "train_epochs": 4,
+  "finetune_epochs": 3,
+  "summary": {
+    "0.0": {
+      "before_mean": 0.16649999999999998,
+      "after_mean": 0.4528,
+      "before_retention_mean": 0.2957817959681732,
+      "after_retention_mean": 0.8024314693182135,
+      "fc1_keep_rate_mean": 0.01096089743077755,
+      "dead_fc1_hidden_mean": 81.5
+    },
+    "0.03": {
+      "before_mean": 0.1814,
+      "after_mean": 0.4579,
+      "before_retention_mean": 0.32151422457652556,
+      "after_retention_mean": 0.8115881927261137,
+      "fc1_keep_rate_mean": 0.0077107748948037624,
+      "dead_fc1_hidden_mean": 84.0
+    },
+    "0.05": {
+      "before_mean": 0.16499999999999998,
+      "after_mean": 0.46399999999999997,
+      "before_retention_mean": 0.2917906355739879,
+      "after_retention_mean": 0.8221689939120957,
+      "fc1_keep_rate_mean": 0.00585174560546875,
+      "dead_fc1_hidden_mean": 86.5
+    },
+    "0.08": {
+      "before_mean": 0.1545,
+      "after_mean": 0.4335,
+      "before_retention_mean": 0.274059303627348,
+      "after_retention_mean": 0.7677825731260611,
+      "fc1_keep_rate_mean": 0.0035654704552143812,
+      "dead_fc1_hidden_mean": 91.5
+    },
+    "0.1": {
+      "before_mean": 0.15839999999999999,
+      "after_mean": 0.41569999999999996,
+      "before_retention_mean": 0.28085422311464486,
+      "after_retention_mean": 0.7356505230995991,
+      "fc1_keep_rate_mean": 0.0025075277080759406,
+      "dead_fc1_hidden_mean": 101.5
+    },
+    "0.15": {
+      "before_mean": 0.125,
+      "after_mean": 0.2424,
+      "before_retention_mean": 0.2216397026705446,
+      "after_retention_mean": 0.42856973309122715,
+      "fc1_keep_rate_mean": 0.0007985433039721102,
+      "dead_fc1_hidden_mean": 132.0
+    },
+    "0.2": {
+      "before_mean": 0.1129,
+      "after_mean": 0.1491,
+      "before_retention_mean": 0.19989793209187343,
+      "after_retention_mean": 0.262941098013073,
+      "fc1_keep_rate_mean": 0.00021870931959711015,
+      "dead_fc1_hidden_mean": 165.0
+    }
+  },
+  "best_before": {
+    "alpha": 0.03,
+    "before_mean": 0.1814,
+    "after_mean": 0.4579,
+    "before_retention_mean": 0.32151422457652556,
+    "after_retention_mean": 0.8115881927261137,
+    "fc1_keep_rate_mean": 0.0077107748948037624,
+    "dead_fc1_hidden_mean": 84.0
+  },
+  "best_after": {
+    "alpha": 0.05,
+    "before_mean": 0.16499999999999998,
+    "after_mean": 0.46399999999999997,
+    "before_retention_mean": 0.2917906355739879,
+    "after_retention_mean": 0.8221689939120957,
+    "fc1_keep_rate_mean": 0.00585174560546875,
+    "dead_fc1_hidden_mean": 86.5
+  },
+  "best_balanced": {
+    "alpha": 0.03,
+    "before_mean": 0.1814,
+    "after_mean": 0.4579,
+    "before_retention_mean": 0.32151422457652556,
+    "after_retention_mean": 0.8115881927261137,
+    "fc1_keep_rate_mean": 0.0077107748948037624,
+    "dead_fc1_hidden_mean": 84.0
+  },
+  "rows": [
+    {
+      "seed": 61,
+      "alpha": 0.0,
+      "dense_accuracy": 0.5774,
+      "before_accuracy": 0.1498,
+      "after_accuracy": 0.4556,
+      "before_retention": 0.259438863872532,
+      "after_retention": 0.7890543817111187,
+      "fc1_keep_rate": 0.01083882711827755,
+      "dead_fc1_hidden": 86
+    },
+    {
+      "seed": 61,
+      "alpha": 0.03,
+      "dense_accuracy": 0.5774,
+      "before_accuracy": 0.1814,
+      "after_accuracy": 0.4578,
+      "before_retention": 0.314166955316938,
+      "after_retention": 0.7928645652926913,
+      "fc1_keep_rate": 0.0077056884765625,
+      "dead_fc1_hidden": 89
+    },
+    {
+      "seed": 61,
+      "alpha": 0.05,
+      "dense_accuracy": 0.5774,
+      "before_accuracy": 0.1812,
+      "after_accuracy": 0.4696,
+      "before_retention": 0.3138205749913405,
+      "after_retention": 0.8133010045029442,
+      "fc1_keep_rate": 0.00592041015625,
+      "dead_fc1_hidden": 89
+    },
+    {
+      "seed": 61,
+      "alpha": 0.08,
+      "dense_accuracy": 0.5774,
+      "before_accuracy": 0.149,
+      "after_accuracy": 0.4472,
+      "before_retention": 0.258053342570142,
+      "after_retention": 0.7745064080360236,
+      "fc1_keep_rate": 0.0036061606369912624,
+      "dead_fc1_hidden": 92
+    },
+    {
+      "seed": 61,
+      "alpha": 0.1,
+      "dense_accuracy": 0.5774,
+      "before_accuracy": 0.1558,
+      "after_accuracy": 0.4438,
+      "before_retention": 0.2698302736404572,
+      "after_retention": 0.7686179425008659,
+      "fc1_keep_rate": 0.0025431315880268812,
+      "dead_fc1_hidden": 102
+    },
+    {
+      "seed": 61,
+      "alpha": 0.15,
+      "dense_accuracy": 0.5774,
+      "before_accuracy": 0.1228,
+      "after_accuracy": 0.2686,
+      "before_retention": 0.21267751991686873,
+      "after_retention": 0.4651887772774506,
+      "fc1_keep_rate": 0.0008036295766942203,
+      "dead_fc1_hidden": 129
+    },
+    {
+      "seed": 61,
+      "alpha": 0.2,
+      "dense_accuracy": 0.5774,
+      "before_accuracy": 0.118,
+      "after_accuracy": 0.1818,
+      "before_retention": 0.20436439210252855,
+      "after_retention": 0.314859715968133,
+      "fc1_keep_rate": 0.00018819174147211015,
+      "dead_fc1_hidden": 168
+    },
+    {
+      "seed": 62,
+      "alpha": 0.0,
+      "dense_accuracy": 0.5516,
+      "before_accuracy": 0.1832,
+      "after_accuracy": 0.45,
+      "before_retention": 0.3321247280638144,
+      "after_retention": 0.8158085569253083,
+      "fc1_keep_rate": 0.01108296774327755,
+      "dead_fc1_hidden": 77
+    },
+    {
+      "seed": 62,
+      "alpha": 0.03,
+      "dense_accuracy": 0.5516,
+      "before_accuracy": 0.1814,
+      "after_accuracy": 0.458,
+      "before_retention": 0.32886149383611313,
+      "after_retention": 0.830311820159536,
+      "fc1_keep_rate": 0.007715861313045025,
+      "dead_fc1_hidden": 79
+    },
+    {
+      "seed": 62,
+      "alpha": 0.05,
+      "dense_accuracy": 0.5516,
+      "before_accuracy": 0.1488,
+      "after_accuracy": 0.4584,
+      "before_retention": 0.2697606961566352,
+      "after_retention": 0.8310369833212473,
+      "fc1_keep_rate": 0.0057830810546875,
+      "dead_fc1_hidden": 84
+    },
+    {
+      "seed": 62,
+      "alpha": 0.08,
+      "dense_accuracy": 0.5516,
+      "before_accuracy": 0.16,
+      "after_accuracy": 0.4198,
+      "before_retention": 0.290065264684554,
+      "after_retention": 0.7610587382160987,
+      "fc1_keep_rate": 0.0035247802734375,
+      "dead_fc1_hidden": 91
+    },
+    {
+      "seed": 62,
+      "alpha": 0.1,
+      "dense_accuracy": 0.5516,
+      "before_accuracy": 0.161,
+      "after_accuracy": 0.3876,
+      "before_retention": 0.29187817258883253,
+      "after_retention": 0.7026831036983322,
+      "fc1_keep_rate": 0.002471923828125,
+      "dead_fc1_hidden": 101
+    },
+    {
+      "seed": 62,
+      "alpha": 0.15,
+      "dense_accuracy": 0.5516,
+      "before_accuracy": 0.1272,
+      "after_accuracy": 0.2162,
+      "before_retention": 0.23060188542422047,
+      "after_retention": 0.3919506889050036,
+      "fc1_keep_rate": 0.00079345703125,
+      "dead_fc1_hidden": 135
+    },
+    {
+      "seed": 62,
+      "alpha": 0.2,
+      "dense_accuracy": 0.5516,
+      "before_accuracy": 0.1078,
+      "after_accuracy": 0.1164,
+      "before_retention": 0.1954314720812183,
+      "after_retention": 0.21102248005801308,
+      "fc1_keep_rate": 0.00024922689772211015,
+      "dead_fc1_hidden": 162
+    }
+  ]
+}
