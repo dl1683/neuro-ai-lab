@@ -19,6 +19,7 @@ SOURCES = [
     ("v5_strong_seed310", "cifar10_tiny_vit_feature_route_margin_selector_v5_90pct_strong_seed310.json"),
     ("v5_strong_seed311", "cifar10_tiny_vit_feature_route_margin_selector_v5_90pct_strong_seed311.json"),
     ("v5_strong_seed312", "cifar10_tiny_vit_feature_route_margin_selector_v5_90pct_strong_seed312.json"),
+    ("v6_strong_seed315", "cifar10_tiny_vit_feature_route_margin_selector_v6_90pct_strong_seed315.json"),
     ("v6_strong_seed313", "cifar10_tiny_vit_feature_route_margin_selector_v6_90pct_strong_seed313.json"),
 ]
 
@@ -298,7 +299,7 @@ def write_report(result: dict) -> None:
             "",
             "This is not a new training run; it is a rule projection over all completed strong TinyViT candidate evaluations. The result is useful because the selector is applied before seeing fine-tune recovery, while the scorecard compares that choice against the evaluated recovery.",
             "",
-            "The boundary is now concrete. When SynFlow's centered CLS/residual-stream feature margin is large, the selector chooses SynFlow and the choice usually wins. When feature alignment favors liveness repair, V5 can still miss the exact repair family. Seed 306 motivated the V5 SynFlow masked-recovery prior. Seed 310 prospectively validates that branch: V4-style liveness selection stays at the magnitude floor, while V5 selects SynFlow and matches the best evaluated candidate. Seed 312 is the live-repair limitation: V5 chooses attention+MLP repair by a small feature margin, but minimal liveness is best and the selected policy slightly trails magnitude. V6 adds the narrow tie-breaker this failure suggests: when live-repair feature margins are tiny, choose the live repair with better masked-before trainability. In projection, V6 fixes seed 312 and reaches the evaluated oracle on the current boundary set. Seed 313 prospectively validates that V6 does not override magnitude when magnitude is the most trainable sparse template.",
+            "The boundary is now concrete. When SynFlow's centered CLS/residual-stream feature margin is large, the selector chooses SynFlow and the choice usually wins. When feature alignment favors liveness repair, the current rule is still weak. Seed 306 motivated the V5 SynFlow masked-recovery prior. Seed 310 prospectively validates that branch: V4-style liveness selection stays at the magnitude floor, while V5 selects SynFlow and matches the best evaluated candidate. Seed 312 motivated V6's live-repair masked-before tie-breaker, which fixes that case in projection. But seed 315 is the new limitation: V6 selects all-route liveness from pre-finetune diagnostics, yet magnitude is slightly better after fine-tuning. Seed 313 prospectively validates that V6 can keep magnitude when magnitude is clearly strongest, but the live-repair branch still needs a better magnitude-vs-repair guardrail.",
         ]
     )
     md.write_text("\n".join(lines) + "\n", encoding="utf-8")
