@@ -1,0 +1,2202 @@
+{
+  "experiment": "04_cifar10_cnn_mass_risk_capacity_pruning",
+  "setup": "CIFAR-10 CNN mass-risk path-capacity pruning. Capacity allocation uses both predicted dead-output risk and score-mass deficit relative to the global sparsity target.",
+  "critical_layers": [
+    "conv2",
+    "conv3",
+    "fc1",
+    "fc2"
+  ],
+  "device": "cuda",
+  "gpu_name": "NVIDIA GeForce RTX 5090 Laptop GPU",
+  "seeds": [
+    171,
+    172,
+    173,
+    174
+  ],
+  "sparsities": [
+    0.98,
+    0.99
+  ],
+  "methods": [
+    "magnitude",
+    "global_synflow",
+    "fixed_capacity",
+    "mass_risk_capacity"
+  ],
+  "summary": {
+    "0.98": {
+      "magnitude": {
+        "before_mean": 0.185,
+        "after_mean": 0.43654999999999994,
+        "fc1_keep_rate_mean": 0.008721669670194387,
+        "dead_fc1_hidden_mean": 87.25,
+        "reserve_fraction_mean": null,
+        "conv2_keep_rate_mean": 0.07811143808066845,
+        "conv3_keep_rate_mean": 0.029975044075399637,
+        "fc2_keep_rate_mean": 0.14049479737877846
+      },
+      "global_synflow": {
+        "before_mean": 0.0976,
+        "after_mean": 0.0976,
+        "fc1_keep_rate_mean": 0.0,
+        "dead_fc1_hidden_mean": 192.0,
+        "reserve_fraction_mean": null,
+        "conv2_keep_rate_mean": 0.1249321848154068,
+        "conv3_keep_rate_mean": 0.0066121420823037624,
+        "fc2_keep_rate_mean": 0.8981771320104599
+      },
+      "fixed_capacity": {
+        "before_mean": 0.14575000000000002,
+        "after_mean": 0.41859999999999997,
+        "fc1_keep_rate_mean": 0.008734385250136256,
+        "dead_fc1_hidden_mean": 0.0,
+        "reserve_fraction_mean": 0.55,
+        "conv2_keep_rate_mean": 0.029812282882630825,
+        "conv3_keep_rate_mean": 0.015163845382630825,
+        "fc2_keep_rate_mean": 0.7746094316244125
+      },
+      "mass_risk_capacity": {
+        "before_mean": 0.1472,
+        "after_mean": 0.3905,
+        "fc1_keep_rate_mean": 0.012540181633085012,
+        "dead_fc1_hidden_mean": 0.0,
+        "reserve_fraction_mean": 0.6106627197265626,
+        "conv2_keep_rate_mean": 0.012125651119276881,
+        "conv3_keep_rate_mean": 0.013997395988553762,
+        "fc2_keep_rate_mean": 0.608723983168602
+      }
+    },
+    "0.99": {
+      "magnitude": {
+        "before_mean": 0.13055,
+        "after_mean": 0.3177,
+        "fc1_keep_rate_mean": 0.0038134257774800062,
+        "dead_fc1_hidden_mean": 92.5,
+        "reserve_fraction_mean": null,
+        "conv2_keep_rate_mean": 0.036471896804869175,
+        "conv3_keep_rate_mean": 0.01282416470348835,
+        "fc2_keep_rate_mean": 0.07057292014360428
+      },
+      "global_synflow": {
+        "before_mean": 0.0976,
+        "after_mean": 0.0976,
+        "fc1_keep_rate_mean": 0.0,
+        "dead_fc1_hidden_mean": 192.0,
+        "reserve_fraction_mean": null,
+        "conv2_keep_rate_mean": 0.008978949626907706,
+        "conv3_keep_rate_mean": 0.0001220703134094947,
+        "fc2_keep_rate_mean": 0.8226562887430191
+      },
+      "fixed_capacity": {
+        "before_mean": 0.1338,
+        "after_mean": 0.34085000000000004,
+        "fc1_keep_rate_mean": 0.0046132407151162624,
+        "dead_fc1_hidden_mean": 0.0,
+        "reserve_fraction_mean": 0.55,
+        "conv2_keep_rate_mean": 0.015625,
+        "conv3_keep_rate_mean": 0.00806342251598835,
+        "fc2_keep_rate_mean": 0.24205730482935905
+      },
+      "mass_risk_capacity": {
+        "before_mean": 0.1339,
+        "after_mean": 0.3291,
+        "fc1_keep_rate_mean": 0.006128947134129703,
+        "dead_fc1_hidden_mean": 0.0,
+        "reserve_fraction_mean": 0.6560558268229166,
+        "conv2_keep_rate_mean": 0.0109998919069767,
+        "conv3_keep_rate_mean": 0.010409885318949819,
+        "fc2_keep_rate_mean": 0.13242188096046448
+      }
+    }
+  },
+  "paired_deltas": [
+    {
+      "sparsity": 0.98,
+      "method": "global_synflow",
+      "before_delta_mean": -0.08739999999999999,
+      "after_delta_mean": -0.33895,
+      "before_wins": 0,
+      "after_wins": 0,
+      "paired_rows": [
+        {
+          "seed": 171,
+          "before_delta": -0.0818,
+          "after_delta": -0.3352
+        },
+        {
+          "seed": 172,
+          "before_delta": -0.0742,
+          "after_delta": -0.34719999999999995
+        },
+        {
+          "seed": 173,
+          "before_delta": -0.08899999999999998,
+          "after_delta": -0.3208
+        },
+        {
+          "seed": 174,
+          "before_delta": -0.10459999999999998,
+          "after_delta": -0.35259999999999997
+        }
+      ]
+    },
+    {
+      "sparsity": 0.98,
+      "method": "fixed_capacity",
+      "before_delta_mean": -0.03924999999999999,
+      "after_delta_mean": -0.017949999999999994,
+      "before_wins": 0,
+      "after_wins": 0,
+      "paired_rows": [
+        {
+          "seed": 171,
+          "before_delta": -0.0116,
+          "after_delta": -0.01940000000000003
+        },
+        {
+          "seed": 172,
+          "before_delta": -0.0684,
+          "after_delta": -0.014399999999999968
+        },
+        {
+          "seed": 173,
+          "before_delta": -0.02159999999999998,
+          "after_delta": -0.015600000000000003
+        },
+        {
+          "seed": 174,
+          "before_delta": -0.05539999999999998,
+          "after_delta": -0.022399999999999975
+        }
+      ]
+    },
+    {
+      "sparsity": 0.98,
+      "method": "mass_risk_capacity",
+      "before_delta_mean": -0.0378,
+      "after_delta_mean": -0.04604999999999998,
+      "before_wins": 0,
+      "after_wins": 0,
+      "paired_rows": [
+        {
+          "seed": 171,
+          "before_delta": -0.02940000000000001,
+          "after_delta": -0.05680000000000002
+        },
+        {
+          "seed": 172,
+          "before_delta": -0.04600000000000001,
+          "after_delta": -0.04259999999999997
+        },
+        {
+          "seed": 173,
+          "before_delta": -0.025999999999999995,
+          "after_delta": -0.05019999999999997
+        },
+        {
+          "seed": 174,
+          "before_delta": -0.04979999999999998,
+          "after_delta": -0.034599999999999964
+        }
+      ]
+    },
+    {
+      "sparsity": 0.99,
+      "method": "global_synflow",
+      "before_delta_mean": -0.03294999999999999,
+      "after_delta_mean": -0.22009999999999996,
+      "before_wins": 0,
+      "after_wins": 0,
+      "paired_rows": [
+        {
+          "seed": 171,
+          "before_delta": -0.02239999999999999,
+          "after_delta": -0.21799999999999997
+        },
+        {
+          "seed": 172,
+          "before_delta": -0.048399999999999985,
+          "after_delta": -0.21339999999999998
+        },
+        {
+          "seed": 173,
+          "before_delta": -0.058800000000000005,
+          "after_delta": -0.22159999999999996
+        },
+        {
+          "seed": 174,
+          "before_delta": -0.0021999999999999936,
+          "after_delta": -0.2274
+        }
+      ]
+    },
+    {
+      "sparsity": 0.99,
+      "method": "fixed_capacity",
+      "before_delta_mean": 0.0032500000000000064,
+      "after_delta_mean": 0.023150000000000004,
+      "before_wins": 2,
+      "after_wins": 4,
+      "paired_rows": [
+        {
+          "seed": 171,
+          "before_delta": 0.025800000000000017,
+          "after_delta": 0.012400000000000022
+        },
+        {
+          "seed": 172,
+          "before_delta": -0.04179999999999999,
+          "after_delta": 0.020399999999999974
+        },
+        {
+          "seed": 173,
+          "before_delta": -0.004200000000000009,
+          "after_delta": 0.03660000000000002
+        },
+        {
+          "seed": 174,
+          "before_delta": 0.03320000000000001,
+          "after_delta": 0.0232
+        }
+      ]
+    },
+    {
+      "sparsity": 0.99,
+      "method": "mass_risk_capacity",
+      "before_delta_mean": 0.003349999999999999,
+      "after_delta_mean": 0.011400000000000007,
+      "before_wins": 1,
+      "after_wins": 3,
+      "paired_rows": [
+        {
+          "seed": 171,
+          "before_delta": -0.007800000000000001,
+          "after_delta": 0.018400000000000027
+        },
+        {
+          "seed": 172,
+          "before_delta": -0.023799999999999988,
+          "after_delta": 0.005400000000000016
+        },
+        {
+          "seed": 173,
+          "before_delta": -0.0066000000000000225,
+          "after_delta": 0.022199999999999998
+        },
+        {
+          "seed": 174,
+          "before_delta": 0.05160000000000001,
+          "after_delta": -0.00040000000000001146
+        }
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "seed": 171,
+      "sparsity": 0.98,
+      "method": "magnitude",
+      "dense_accuracy": 0.5124,
+      "before_accuracy": 0.1794,
+      "after_accuracy": 0.4328,
+      "before_retention": 0.3501170960187354,
+      "after_retention": 0.8446526151444185,
+      "fc1_keep_rate": 0.007598876953125,
+      "dead_fc1_hidden": 89,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.6736111044883728,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.0887044295668602,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.03032769076526165,
+          "dead_output_units": 3,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.007598876953125,
+          "dead_output_units": 89,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.1380208432674408,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": null
+    },
+    {
+      "seed": 171,
+      "sparsity": 0.98,
+      "method": "global_synflow",
+      "dense_accuracy": 0.5124,
+      "before_accuracy": 0.0976,
+      "after_accuracy": 0.0976,
+      "before_retention": 0.1904761904761905,
+      "after_retention": 0.1904761904761905,
+      "fc1_keep_rate": 0.0,
+      "dead_fc1_hidden": 192,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.944444477558136,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.1293402761220932,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.0047200522385537624,
+          "dead_output_units": 29,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.0,
+          "dead_output_units": 192,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.8958333730697632,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": {
+        "predicted": true
+      }
+    },
+    {
+      "seed": 171,
+      "sparsity": 0.98,
+      "method": "fixed_capacity",
+      "dense_accuracy": 0.5124,
+      "before_accuracy": 0.1678,
+      "after_accuracy": 0.4134,
+      "before_retention": 0.3274785323965652,
+      "after_retention": 0.8067915690866511,
+      "fc1_keep_rate": 0.0087432861328125,
+      "dead_fc1_hidden": 0,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.9085648059844971,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.02973090298473835,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.015109592117369175,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.0087432861328125,
+          "dead_output_units": 0,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.7734375596046448,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": {
+        "reserve_fraction": 0.55,
+        "features": {
+          "conv2": {
+            "output_units": 64.0,
+            "dead_fraction": 0.0,
+            "keep_rate": 0.1293402777777778,
+            "deficit": 0.0,
+            "vulnerability": 0.0
+          },
+          "conv3": {
+            "output_units": 64.0,
+            "dead_fraction": 0.453125,
+            "keep_rate": 0.004720052083333333,
+            "deficit": 0.7639973958333336,
+            "vulnerability": 0.5619303385416667
+          },
+          "fc1": {
+            "output_units": 192.0,
+            "dead_fraction": 1.0,
+            "keep_rate": 0.0,
+            "deficit": 1.0,
+            "vulnerability": 1.0
+          },
+          "fc2": {
+            "output_units": 10.0,
+            "dead_fraction": 0.0,
+            "keep_rate": 0.8958333333333334,
+            "deficit": 0.0,
+            "vulnerability": 0.0
+          }
+        },
+        "layer_budgets": {
+          "conv2": 543,
+          "conv3": 543,
+          "fc1": 1630,
+          "fc2": 85
+        }
+      }
+    },
+    {
+      "seed": 171,
+      "sparsity": 0.98,
+      "method": "mass_risk_capacity",
+      "dense_accuracy": 0.5124,
+      "before_accuracy": 0.15,
+      "after_accuracy": 0.376,
+      "before_retention": 0.2927400468384075,
+      "after_retention": 0.7338017174082748,
+      "fc1_keep_rate": 0.0124969482421875,
+      "dead_fc1_hidden": 0,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.8391203880310059,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.01166449673473835,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.014756944961845875,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.0124969482421875,
+          "dead_output_units": 0,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.6005208492279053,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": {
+        "reserve_fraction": 0.6137158203125,
+        "features": {
+          "conv2": {
+            "output_units": 64.0,
+            "dead_fraction": 0.0,
+            "keep_rate": 0.1293402777777778,
+            "deficit": 0.0,
+            "vulnerability": 0.0
+          },
+          "conv3": {
+            "output_units": 64.0,
+            "dead_fraction": 0.453125,
+            "keep_rate": 0.004720052083333333,
+            "deficit": 0.7639973958333336,
+            "vulnerability": 0.5619303385416667
+          },
+          "fc1": {
+            "output_units": 192.0,
+            "dead_fraction": 1.0,
+            "keep_rate": 0.0,
+            "deficit": 1.0,
+            "vulnerability": 1.0
+          },
+          "fc2": {
+            "output_units": 10.0,
+            "dead_fraction": 0.0,
+            "keep_rate": 0.8958333333333334,
+            "deficit": 0.0,
+            "vulnerability": 0.0
+          }
+        },
+        "layer_budgets": {
+          "conv2": 197,
+          "conv3": 530,
+          "fc1": 2368,
+          "fc2": 31
+        }
+      }
+    },
+    {
+      "seed": 171,
+      "sparsity": 0.99,
+      "method": "magnitude",
+      "dense_accuracy": 0.5124,
+      "before_accuracy": 0.12,
+      "after_accuracy": 0.3156,
+      "before_retention": 0.234192037470726,
+      "after_retention": 0.6159250585480094,
+      "fc1_keep_rate": 0.003082275390625,
+      "dead_fc1_hidden": 95,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.6145833134651184,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.0439453125,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.01264105923473835,
+          "dead_output_units": 7,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.003082275390625,
+          "dead_output_units": 95,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.06979166716337204,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": null
+    },
+    {
+      "seed": 171,
+      "sparsity": 0.99,
+      "method": "global_synflow",
+      "dense_accuracy": 0.5124,
+      "before_accuracy": 0.0976,
+      "after_accuracy": 0.0976,
+      "before_retention": 0.1904761904761905,
+      "after_retention": 0.1904761904761905,
+      "fc1_keep_rate": 0.0,
+      "dead_fc1_hidden": 192,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.9166666865348816,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.00922309048473835,
+          "dead_output_units": 21,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.0,
+          "dead_output_units": 64,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.0,
+          "dead_output_units": 192,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.8255208730697632,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": {
+        "predicted": true
+      }
+    },
+    {
+      "seed": 171,
+      "sparsity": 0.99,
+      "method": "fixed_capacity",
+      "dense_accuracy": 0.5124,
+      "before_accuracy": 0.1458,
+      "after_accuracy": 0.328,
+      "before_retention": 0.2845433255269321,
+      "after_retention": 0.6401249024199844,
+      "fc1_keep_rate": 0.004618327133357525,
+      "dead_fc1_hidden": 0,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.6875,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.01519097201526165,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.00800238735973835,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.004618327133357525,
+          "dead_output_units": 0,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.2447916865348816,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": {
+        "reserve_fraction": 0.55,
+        "features": {
+          "conv2": {
+            "output_units": 64.0,
+            "dead_fraction": 0.328125,
+            "keep_rate": 0.009223090277777778,
+            "deficit": 0.07769097222222303,
+            "vulnerability": 0.24047309027777808
+          },
+          "conv3": {
+            "output_units": 64.0,
+            "dead_fraction": 1.0,
+            "keep_rate": 0.0,
+            "deficit": 1.0,
+            "vulnerability": 1.0
+          },
+          "fc1": {
+            "output_units": 192.0,
+            "dead_fraction": 1.0,
+            "keep_rate": 0.0,
+            "deficit": 1.0,
+            "vulnerability": 1.0
+          },
+          "fc2": {
+            "output_units": 10.0,
+            "dead_fraction": 0.0,
+            "keep_rate": 0.8255208333333334,
+            "deficit": 0.0,
+            "vulnerability": 0.0
+          }
+        },
+        "layer_budgets": {
+          "conv2": 272,
+          "conv3": 272,
+          "fc1": 815,
+          "fc2": 42
+        }
+      }
+    },
+    {
+      "seed": 171,
+      "sparsity": 0.99,
+      "method": "mass_risk_capacity",
+      "dense_accuracy": 0.5124,
+      "before_accuracy": 0.1122,
+      "after_accuracy": 0.334,
+      "before_retention": 0.2189695550351288,
+      "after_retention": 0.6518345042935207,
+      "fc1_keep_rate": 0.0061492919921875,
+      "dead_fc1_hidden": 0,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.5810185074806213,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.009928385727107525,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.010606554336845875,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.0061492919921875,
+          "dead_output_units": 0,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.13645833730697632,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": {
+        "reserve_fraction": 0.6544283854166667,
+        "features": {
+          "conv2": {
+            "output_units": 64.0,
+            "dead_fraction": 0.328125,
+            "keep_rate": 0.009223090277777778,
+            "deficit": 0.07769097222222303,
+            "vulnerability": 0.24047309027777808
+          },
+          "conv3": {
+            "output_units": 64.0,
+            "dead_fraction": 1.0,
+            "keep_rate": 0.0,
+            "deficit": 1.0,
+            "vulnerability": 1.0
+          },
+          "fc1": {
+            "output_units": 192.0,
+            "dead_fraction": 1.0,
+            "keep_rate": 0.0,
+            "deficit": 1.0,
+            "vulnerability": 1.0
+          },
+          "fc2": {
+            "output_units": 10.0,
+            "dead_fraction": 0.0,
+            "keep_rate": 0.8255208333333334,
+            "deficit": 0.0,
+            "vulnerability": 0.0
+          }
+        },
+        "layer_budgets": {
+          "conv2": 161,
+          "conv3": 373,
+          "fc1": 1119,
+          "fc2": 15
+        }
+      }
+    },
+    {
+      "seed": 172,
+      "sparsity": 0.98,
+      "method": "magnitude",
+      "dense_accuracy": 0.5104,
+      "before_accuracy": 0.1718,
+      "after_accuracy": 0.4448,
+      "before_retention": 0.33659874608150475,
+      "after_retention": 0.8714733542319749,
+      "fc1_keep_rate": 0.0091094970703125,
+      "dead_fc1_hidden": 98,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.6423611044883728,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.0723198801279068,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.0315212681889534,
+          "dead_output_units": 4,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.0091094970703125,
+          "dead_output_units": 98,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.13177083432674408,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": null
+    },
+    {
+      "seed": 172,
+      "sparsity": 0.98,
+      "method": "global_synflow",
+      "dense_accuracy": 0.5104,
+      "before_accuracy": 0.0976,
+      "after_accuracy": 0.0976,
+      "before_retention": 0.1912225705329154,
+      "after_retention": 0.1912225705329154,
+      "fc1_keep_rate": 0.0,
+      "dead_fc1_hidden": 192,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.9502314925193787,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.123914934694767,
+          "dead_output_units": 1,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.0067003038711845875,
+          "dead_output_units": 25,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.0,
+          "dead_output_units": 192,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.9072917103767395,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": {
+        "predicted": true
+      }
+    },
+    {
+      "seed": 172,
+      "sparsity": 0.98,
+      "method": "fixed_capacity",
+      "dense_accuracy": 0.5104,
+      "before_accuracy": 0.1034,
+      "after_accuracy": 0.4304,
+      "before_retention": 0.20258620689655174,
+      "after_retention": 0.8432601880877744,
+      "fc1_keep_rate": 0.0087890625,
+      "dead_fc1_hidden": 0,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.8842592835426331,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.02978515625,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.01513671875,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.0087890625,
+          "dead_output_units": 0,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.7786458730697632,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": {
+        "reserve_fraction": 0.55,
+        "features": {
+          "conv2": {
+            "output_units": 64.0,
+            "dead_fraction": 0.015625,
+            "keep_rate": 0.12391493055555555,
+            "deficit": 0.0,
+            "vulnerability": 0.01015625
+          },
+          "conv3": {
+            "output_units": 64.0,
+            "dead_fraction": 0.390625,
+            "keep_rate": 0.006700303819444444,
+            "deficit": 0.6649848090277781,
+            "vulnerability": 0.4866509331597223
+          },
+          "fc1": {
+            "output_units": 192.0,
+            "dead_fraction": 1.0,
+            "keep_rate": 0.0,
+            "deficit": 1.0,
+            "vulnerability": 1.0
+          },
+          "fc2": {
+            "output_units": 10.0,
+            "dead_fraction": 0.0,
+            "keep_rate": 0.9072916666666667,
+            "deficit": 0.0,
+            "vulnerability": 0.0
+          }
+        },
+        "layer_budgets": {
+          "conv2": 543,
+          "conv3": 543,
+          "fc1": 1630,
+          "fc2": 85
+        }
+      }
+    },
+    {
+      "seed": 172,
+      "sparsity": 0.98,
+      "method": "mass_risk_capacity",
+      "dense_accuracy": 0.5104,
+      "before_accuracy": 0.1258,
+      "after_accuracy": 0.4022,
+      "before_retention": 0.24647335423197492,
+      "after_retention": 0.7880094043887148,
+      "fc1_keep_rate": 0.012613932602107525,
+      "dead_fc1_hidden": 0,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.8333333134651184,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.012478298507630825,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.013671875,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.012613932602107525,
+          "dead_output_units": 0,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.6041666865348816,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": {
+        "reserve_fraction": 0.6098084309895834,
+        "features": {
+          "conv2": {
+            "output_units": 64.0,
+            "dead_fraction": 0.015625,
+            "keep_rate": 0.12391493055555555,
+            "deficit": 0.0,
+            "vulnerability": 0.01015625
+          },
+          "conv3": {
+            "output_units": 64.0,
+            "dead_fraction": 0.390625,
+            "keep_rate": 0.006700303819444444,
+            "deficit": 0.6649848090277781,
+            "vulnerability": 0.4866509331597223
+          },
+          "fc1": {
+            "output_units": 192.0,
+            "dead_fraction": 1.0,
+            "keep_rate": 0.0,
+            "deficit": 1.0,
+            "vulnerability": 1.0
+          },
+          "fc2": {
+            "output_units": 10.0,
+            "dead_fraction": 0.0,
+            "keep_rate": 0.9072916666666667,
+            "deficit": 0.0,
+            "vulnerability": 0.0
+          }
+        },
+        "layer_budgets": {
+          "conv2": 205,
+          "conv3": 488,
+          "fc1": 2382,
+          "fc2": 31
+        }
+      }
+    },
+    {
+      "seed": 172,
+      "sparsity": 0.99,
+      "method": "magnitude",
+      "dense_accuracy": 0.5104,
+      "before_accuracy": 0.146,
+      "after_accuracy": 0.311,
+      "before_retention": 0.28605015673981193,
+      "after_retention": 0.6093260188087775,
+      "fc1_keep_rate": 0.004191081039607525,
+      "dead_fc1_hidden": 103,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.5914351940155029,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.0320638008415699,
+          "dead_output_units": 2,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.013210720382630825,
+          "dead_output_units": 10,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.004191081039607525,
+          "dead_output_units": 103,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.06979166716337204,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": null
+    },
+    {
+      "seed": 172,
+      "sparsity": 0.99,
+      "method": "global_synflow",
+      "dense_accuracy": 0.5104,
+      "before_accuracy": 0.0976,
+      "after_accuracy": 0.0976,
+      "before_retention": 0.1912225705329154,
+      "after_retention": 0.1912225705329154,
+      "fc1_keep_rate": 0.0,
+      "dead_fc1_hidden": 192,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.9108796119689941,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.009114583022892475,
+          "dead_output_units": 28,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 5.425347262644209e-05,
+          "dead_output_units": 62,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.0,
+          "dead_output_units": 192,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.8281250596046448,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": {
+        "predicted": true
+      }
+    },
+    {
+      "seed": 172,
+      "sparsity": 0.99,
+      "method": "fixed_capacity",
+      "dense_accuracy": 0.5104,
+      "before_accuracy": 0.1042,
+      "after_accuracy": 0.3314,
+      "before_retention": 0.204153605015674,
+      "after_retention": 0.649294670846395,
+      "fc1_keep_rate": 0.004669189453125,
+      "dead_fc1_hidden": 0,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.6840277910232544,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.01578775979578495,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.008056640625,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.004669189453125,
+          "dead_output_units": 0,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.2343750149011612,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": {
+        "reserve_fraction": 0.55,
+        "features": {
+          "conv2": {
+            "output_units": 64.0,
+            "dead_fraction": 0.4375,
+            "keep_rate": 0.009114583333333334,
+            "deficit": 0.08854166666666742,
+            "vulnerability": 0.31536458333333356
+          },
+          "conv3": {
+            "output_units": 64.0,
+            "dead_fraction": 0.96875,
+            "keep_rate": 5.425347222222222e-05,
+            "deficit": 0.9945746527777778,
+            "vulnerability": 0.9777886284722223
+          },
+          "fc1": {
+            "output_units": 192.0,
+            "dead_fraction": 1.0,
+            "keep_rate": 0.0,
+            "deficit": 1.0,
+            "vulnerability": 1.0
+          },
+          "fc2": {
+            "output_units": 10.0,
+            "dead_fraction": 0.0,
+            "keep_rate": 0.828125,
+            "deficit": 0.0,
+            "vulnerability": 0.0
+          }
+        },
+        "layer_budgets": {
+          "conv2": 272,
+          "conv3": 272,
+          "fc1": 815,
+          "fc2": 42
+        }
+      }
+    },
+    {
+      "seed": 172,
+      "sparsity": 0.99,
+      "method": "mass_risk_capacity",
+      "dense_accuracy": 0.5104,
+      "before_accuracy": 0.1222,
+      "after_accuracy": 0.3164,
+      "before_retention": 0.23942006269592478,
+      "after_retention": 0.6199059561128527,
+      "fc1_keep_rate": 0.006174723617732525,
+      "dead_fc1_hidden": 0,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.5682870149612427,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.011338976211845875,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.010470920242369175,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.006174723617732525,
+          "dead_output_units": 0,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.12864583730697632,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": {
+        "reserve_fraction": 0.6575891927083334,
+        "features": {
+          "conv2": {
+            "output_units": 64.0,
+            "dead_fraction": 0.4375,
+            "keep_rate": 0.009114583333333334,
+            "deficit": 0.08854166666666742,
+            "vulnerability": 0.31536458333333356
+          },
+          "conv3": {
+            "output_units": 64.0,
+            "dead_fraction": 0.96875,
+            "keep_rate": 5.425347222222222e-05,
+            "deficit": 0.9945746527777778,
+            "vulnerability": 0.9777886284722223
+          },
+          "fc1": {
+            "output_units": 192.0,
+            "dead_fraction": 1.0,
+            "keep_rate": 0.0,
+            "deficit": 1.0,
+            "vulnerability": 1.0
+          },
+          "fc2": {
+            "output_units": 10.0,
+            "dead_fraction": 0.0,
+            "keep_rate": 0.828125,
+            "deficit": 0.0,
+            "vulnerability": 0.0
+          }
+        },
+        "layer_budgets": {
+          "conv2": 181,
+          "conv3": 365,
+          "fc1": 1114,
+          "fc2": 15
+        }
+      }
+    },
+    {
+      "seed": 173,
+      "sparsity": 0.98,
+      "method": "magnitude",
+      "dense_accuracy": 0.5066,
+      "before_accuracy": 0.1866,
+      "after_accuracy": 0.4184,
+      "before_retention": 0.3683379392025266,
+      "after_retention": 0.8258981444926963,
+      "fc1_keep_rate": 0.009958903305232525,
+      "dead_fc1_hidden": 73,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.6446759104728699,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.0714518204331398,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.026123046875,
+          "dead_output_units": 5,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.009958903305232525,
+          "dead_output_units": 73,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.15572917461395264,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": null
+    },
+    {
+      "seed": 173,
+      "sparsity": 0.98,
+      "method": "global_synflow",
+      "dense_accuracy": 0.5066,
+      "before_accuracy": 0.0976,
+      "after_accuracy": 0.0976,
+      "before_retention": 0.19265692854322936,
+      "after_retention": 0.19265692854322936,
+      "fc1_keep_rate": 0.0,
+      "dead_fc1_hidden": 192,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.9571759104728699,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.123426653444767,
+          "dead_output_units": 1,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.0074055991135537624,
+          "dead_output_units": 29,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.0,
+          "dead_output_units": 192,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.8953125476837158,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": {
+        "predicted": true
+      }
+    },
+    {
+      "seed": 173,
+      "sparsity": 0.98,
+      "method": "fixed_capacity",
+      "dense_accuracy": 0.5066,
+      "before_accuracy": 0.165,
+      "after_accuracy": 0.4028,
+      "before_retention": 0.3257007500986972,
+      "after_retention": 0.7951046190288195,
+      "fc1_keep_rate": 0.008661906234920025,
+      "dead_fc1_hidden": 0,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.9108796119689941,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.0298936627805233,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.015218098647892475,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.008661906234920025,
+          "dead_output_units": 0,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.7770833969116211,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": {
+        "reserve_fraction": 0.55,
+        "features": {
+          "conv2": {
+            "output_units": 64.0,
+            "dead_fraction": 0.015625,
+            "keep_rate": 0.12342664930555555,
+            "deficit": 0.0,
+            "vulnerability": 0.01015625
+          },
+          "conv3": {
+            "output_units": 64.0,
+            "dead_fraction": 0.453125,
+            "keep_rate": 0.007405598958333333,
+            "deficit": 0.6297200520833337,
+            "vulnerability": 0.5149332682291667
+          },
+          "fc1": {
+            "output_units": 192.0,
+            "dead_fraction": 1.0,
+            "keep_rate": 0.0,
+            "deficit": 1.0,
+            "vulnerability": 1.0
+          },
+          "fc2": {
+            "output_units": 10.0,
+            "dead_fraction": 0.0,
+            "keep_rate": 0.8953125,
+            "deficit": 0.0,
+            "vulnerability": 0.0
+          }
+        },
+        "layer_budgets": {
+          "conv2": 543,
+          "conv3": 543,
+          "fc1": 1630,
+          "fc2": 85
+        }
+      }
+    },
+    {
+      "seed": 173,
+      "sparsity": 0.98,
+      "method": "mass_risk_capacity",
+      "dense_accuracy": 0.5066,
+      "before_accuracy": 0.1606,
+      "after_accuracy": 0.3682,
+      "before_retention": 0.3170153967627319,
+      "after_retention": 0.7268061587050928,
+      "fc1_keep_rate": 0.012451171875,
+      "dead_fc1_hidden": 0,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.8298611044883728,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.012369791977107525,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.014187282882630825,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.012451171875,
+          "dead_output_units": 0,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.6135417222976685,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": {
+        "reserve_fraction": 0.61150537109375,
+        "features": {
+          "conv2": {
+            "output_units": 64.0,
+            "dead_fraction": 0.015625,
+            "keep_rate": 0.12342664930555555,
+            "deficit": 0.0,
+            "vulnerability": 0.01015625
+          },
+          "conv3": {
+            "output_units": 64.0,
+            "dead_fraction": 0.453125,
+            "keep_rate": 0.007405598958333333,
+            "deficit": 0.6297200520833337,
+            "vulnerability": 0.5149332682291667
+          },
+          "fc1": {
+            "output_units": 192.0,
+            "dead_fraction": 1.0,
+            "keep_rate": 0.0,
+            "deficit": 1.0,
+            "vulnerability": 1.0
+          },
+          "fc2": {
+            "output_units": 10.0,
+            "dead_fraction": 0.0,
+            "keep_rate": 0.8953125,
+            "deficit": 0.0,
+            "vulnerability": 0.0
+          }
+        },
+        "layer_budgets": {
+          "conv2": 204,
+          "conv3": 504,
+          "fc1": 2376,
+          "fc2": 31
+        }
+      }
+    },
+    {
+      "seed": 173,
+      "sparsity": 0.99,
+      "method": "magnitude",
+      "dense_accuracy": 0.5066,
+      "before_accuracy": 0.1564,
+      "after_accuracy": 0.3192,
+      "before_retention": 0.3087248322147651,
+      "after_retention": 0.6300829056454795,
+      "fc1_keep_rate": 0.0044708251953125,
+      "dead_fc1_hidden": 77,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.5868055820465088,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.0324978306889534,
+          "dead_output_units": 2,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.01117621548473835,
+          "dead_output_units": 10,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.0044708251953125,
+          "dead_output_units": 77,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.0781250074505806,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": null
+    },
+    {
+      "seed": 173,
+      "sparsity": 0.99,
+      "method": "global_synflow",
+      "dense_accuracy": 0.5066,
+      "before_accuracy": 0.0976,
+      "after_accuracy": 0.0976,
+      "before_retention": 0.19265692854322936,
+      "after_retention": 0.19265692854322936,
+      "fc1_keep_rate": 0.0,
+      "dead_fc1_hidden": 192,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.9340277910232544,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.00835503451526165,
+          "dead_output_units": 29,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.00018988715601153672,
+          "dead_output_units": 61,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.0,
+          "dead_output_units": 192,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.8223958611488342,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": {
+        "predicted": true
+      }
+    },
+    {
+      "seed": 173,
+      "sparsity": 0.99,
+      "method": "fixed_capacity",
+      "dense_accuracy": 0.5066,
+      "before_accuracy": 0.1522,
+      "after_accuracy": 0.3558,
+      "before_retention": 0.30043426766679826,
+      "after_retention": 0.7023292538491906,
+      "fc1_keep_rate": 0.004542033188045025,
+      "dead_fc1_hidden": 0,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.6805555820465088,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.01584201492369175,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.008165148086845875,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.004542033188045025,
+          "dead_output_units": 0,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.24635417759418488,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": {
+        "reserve_fraction": 0.55,
+        "features": {
+          "conv2": {
+            "output_units": 64.0,
+            "dead_fraction": 0.453125,
+            "keep_rate": 0.008355034722222222,
+            "deficit": 0.16449652777777854,
+            "vulnerability": 0.3521050347222225
+          },
+          "conv3": {
+            "output_units": 64.0,
+            "dead_fraction": 0.953125,
+            "keep_rate": 0.00018988715277777778,
+            "deficit": 0.9810112847222222,
+            "vulnerability": 0.9628851996527777
+          },
+          "fc1": {
+            "output_units": 192.0,
+            "dead_fraction": 1.0,
+            "keep_rate": 0.0,
+            "deficit": 1.0,
+            "vulnerability": 1.0
+          },
+          "fc2": {
+            "output_units": 10.0,
+            "dead_fraction": 0.0,
+            "keep_rate": 0.8223958333333333,
+            "deficit": 0.0,
+            "vulnerability": 0.0
+          }
+        },
+        "layer_budgets": {
+          "conv2": 272,
+          "conv3": 272,
+          "fc1": 815,
+          "fc2": 42
+        }
+      }
+    },
+    {
+      "seed": 173,
+      "sparsity": 0.99,
+      "method": "mass_risk_capacity",
+      "dense_accuracy": 0.5066,
+      "before_accuracy": 0.1498,
+      "after_accuracy": 0.3414,
+      "before_retention": 0.2956968022108172,
+      "after_retention": 0.6739044611133043,
+      "fc1_keep_rate": 0.006037394516170025,
+      "dead_fc1_hidden": 0,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.5868055820465088,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.011881510727107525,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.0103895403444767,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.006037394516170025,
+          "dead_output_units": 0,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.13072916865348816,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": {
+        "reserve_fraction": 0.6588994140625,
+        "features": {
+          "conv2": {
+            "output_units": 64.0,
+            "dead_fraction": 0.453125,
+            "keep_rate": 0.008355034722222222,
+            "deficit": 0.16449652777777854,
+            "vulnerability": 0.3521050347222225
+          },
+          "conv3": {
+            "output_units": 64.0,
+            "dead_fraction": 0.953125,
+            "keep_rate": 0.00018988715277777778,
+            "deficit": 0.9810112847222222,
+            "vulnerability": 0.9628851996527777
+          },
+          "fc1": {
+            "output_units": 192.0,
+            "dead_fraction": 1.0,
+            "keep_rate": 0.0,
+            "deficit": 1.0,
+            "vulnerability": 1.0
+          },
+          "fc2": {
+            "output_units": 10.0,
+            "dead_fraction": 0.0,
+            "keep_rate": 0.8223958333333333,
+            "deficit": 0.0,
+            "vulnerability": 0.0
+          }
+        },
+        "layer_budgets": {
+          "conv2": 191,
+          "conv3": 360,
+          "fc1": 1112,
+          "fc2": 14
+        }
+      }
+    },
+    {
+      "seed": 174,
+      "sparsity": 0.98,
+      "method": "magnitude",
+      "dense_accuracy": 0.5022,
+      "before_accuracy": 0.2022,
+      "after_accuracy": 0.4502,
+      "before_retention": 0.4026284348864994,
+      "after_retention": 0.8964555953803266,
+      "fc1_keep_rate": 0.008219401352107525,
+      "dead_fc1_hidden": 89,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.6539351940155029,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.079969622194767,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.0319281704723835,
+          "dead_output_units": 13,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.008219401352107525,
+          "dead_output_units": 89,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.13645833730697632,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": null
+    },
+    {
+      "seed": 174,
+      "sparsity": 0.98,
+      "method": "global_synflow",
+      "dense_accuracy": 0.5022,
+      "before_accuracy": 0.0976,
+      "after_accuracy": 0.0976,
+      "before_retention": 0.19434488251692555,
+      "after_retention": 0.19434488251692555,
+      "fc1_keep_rate": 0.0,
+      "dead_fc1_hidden": 192,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.9583333134651184,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.123046875,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.007622613105922937,
+          "dead_output_units": 24,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.0,
+          "dead_output_units": 192,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.8942708969116211,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": {
+        "predicted": true
+      }
+    },
+    {
+      "seed": 174,
+      "sparsity": 0.98,
+      "method": "fixed_capacity",
+      "dense_accuracy": 0.5022,
+      "before_accuracy": 0.1468,
+      "after_accuracy": 0.4278,
+      "before_retention": 0.29231381919553967,
+      "after_retention": 0.8518518518518519,
+      "fc1_keep_rate": 0.0087432861328125,
+      "dead_fc1_hidden": 0,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.9120370149612427,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.02983940951526165,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.01519097201526165,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.0087432861328125,
+          "dead_output_units": 0,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.7692708969116211,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": {
+        "reserve_fraction": 0.55,
+        "features": {
+          "conv2": {
+            "output_units": 64.0,
+            "dead_fraction": 0.0,
+            "keep_rate": 0.123046875,
+            "deficit": 0.0,
+            "vulnerability": 0.0
+          },
+          "conv3": {
+            "output_units": 64.0,
+            "dead_fraction": 0.375,
+            "keep_rate": 0.007622612847222222,
+            "deficit": 0.6188693576388893,
+            "vulnerability": 0.46035427517361127
+          },
+          "fc1": {
+            "output_units": 192.0,
+            "dead_fraction": 1.0,
+            "keep_rate": 0.0,
+            "deficit": 1.0,
+            "vulnerability": 1.0
+          },
+          "fc2": {
+            "output_units": 10.0,
+            "dead_fraction": 0.0,
+            "keep_rate": 0.8942708333333333,
+            "deficit": 0.0,
+            "vulnerability": 0.0
+          }
+        },
+        "layer_budgets": {
+          "conv2": 543,
+          "conv3": 543,
+          "fc1": 1630,
+          "fc2": 85
+        }
+      }
+    },
+    {
+      "seed": 174,
+      "sparsity": 0.98,
+      "method": "mass_risk_capacity",
+      "dense_accuracy": 0.5022,
+      "before_accuracy": 0.1524,
+      "after_accuracy": 0.4156,
+      "before_retention": 0.30346475507765835,
+      "after_retention": 0.8275587415372363,
+      "fc1_keep_rate": 0.012598673813045025,
+      "dead_fc1_hidden": 0,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.8321759104728699,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.011990017257630825,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.01337348110973835,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.012598673813045025,
+          "dead_output_units": 0,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.6166666746139526,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": {
+        "reserve_fraction": 0.6076212565104167,
+        "features": {
+          "conv2": {
+            "output_units": 64.0,
+            "dead_fraction": 0.0,
+            "keep_rate": 0.123046875,
+            "deficit": 0.0,
+            "vulnerability": 0.0
+          },
+          "conv3": {
+            "output_units": 64.0,
+            "dead_fraction": 0.375,
+            "keep_rate": 0.007622612847222222,
+            "deficit": 0.6188693576388893,
+            "vulnerability": 0.46035427517361127
+          },
+          "fc1": {
+            "output_units": 192.0,
+            "dead_fraction": 1.0,
+            "keep_rate": 0.0,
+            "deficit": 1.0,
+            "vulnerability": 1.0
+          },
+          "fc2": {
+            "output_units": 10.0,
+            "dead_fraction": 0.0,
+            "keep_rate": 0.8942708333333333,
+            "deficit": 0.0,
+            "vulnerability": 0.0
+          }
+        },
+        "layer_budgets": {
+          "conv2": 199,
+          "conv3": 474,
+          "fc1": 2390,
+          "fc2": 31
+        }
+      }
+    },
+    {
+      "seed": 174,
+      "sparsity": 0.99,
+      "method": "magnitude",
+      "dense_accuracy": 0.5022,
+      "before_accuracy": 0.0998,
+      "after_accuracy": 0.325,
+      "before_retention": 0.19872560732775787,
+      "after_retention": 0.647152528872959,
+      "fc1_keep_rate": 0.003509521484375,
+      "dead_fc1_hidden": 95,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.5995370149612427,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.0373806431889534,
+          "dead_output_units": 1,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.014268663711845875,
+          "dead_output_units": 13,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.003509521484375,
+          "dead_output_units": 95,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.06458333879709244,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": null
+    },
+    {
+      "seed": 174,
+      "sparsity": 0.99,
+      "method": "global_synflow",
+      "dense_accuracy": 0.5022,
+      "before_accuracy": 0.0976,
+      "after_accuracy": 0.0976,
+      "before_retention": 0.19434488251692555,
+      "after_retention": 0.19434488251692555,
+      "fc1_keep_rate": 0.0,
+      "dead_fc1_hidden": 192,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.9305555820465088,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.00922309048473835,
+          "dead_output_units": 26,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.000244140625,
+          "dead_output_units": 58,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.0,
+          "dead_output_units": 192,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.8145833611488342,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": {
+        "predicted": true
+      }
+    },
+    {
+      "seed": 174,
+      "sparsity": 0.99,
+      "method": "fixed_capacity",
+      "dense_accuracy": 0.5022,
+      "before_accuracy": 0.133,
+      "after_accuracy": 0.3482,
+      "before_retention": 0.26483472720031864,
+      "after_retention": 0.6933492632417364,
+      "fc1_keep_rate": 0.0046234130859375,
+      "dead_fc1_hidden": 0,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.6793981790542603,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.01567925326526165,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.008029513992369175,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.0046234130859375,
+          "dead_output_units": 0,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.24270834028720856,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": {
+        "reserve_fraction": 0.55,
+        "features": {
+          "conv2": {
+            "output_units": 64.0,
+            "dead_fraction": 0.40625,
+            "keep_rate": 0.009223090277777778,
+            "deficit": 0.07769097222222303,
+            "vulnerability": 0.2912543402777781
+          },
+          "conv3": {
+            "output_units": 64.0,
+            "dead_fraction": 0.90625,
+            "keep_rate": 0.000244140625,
+            "deficit": 0.9755859375,
+            "vulnerability": 0.930517578125
+          },
+          "fc1": {
+            "output_units": 192.0,
+            "dead_fraction": 1.0,
+            "keep_rate": 0.0,
+            "deficit": 1.0,
+            "vulnerability": 1.0
+          },
+          "fc2": {
+            "output_units": 10.0,
+            "dead_fraction": 0.0,
+            "keep_rate": 0.8145833333333333,
+            "deficit": 0.0,
+            "vulnerability": 0.0
+          }
+        },
+        "layer_budgets": {
+          "conv2": 272,
+          "conv3": 272,
+          "fc1": 815,
+          "fc2": 42
+        }
+      }
+    },
+    {
+      "seed": 174,
+      "sparsity": 0.99,
+      "method": "mass_risk_capacity",
+      "dense_accuracy": 0.5022,
+      "before_accuracy": 0.1514,
+      "after_accuracy": 0.3246,
+      "before_retention": 0.30147351652728,
+      "after_retention": 0.6463560334528077,
+      "fc1_keep_rate": 0.0061543784104287624,
+      "dead_fc1_hidden": 0,
+      "damage": {
+        "conv1": {
+          "keep_rate": 0.5844907164573669,
+          "dead_output_units": 0,
+          "output_units": 32
+        },
+        "conv2": {
+          "keep_rate": 0.010850694961845875,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "conv3": {
+          "keep_rate": 0.010172526352107525,
+          "dead_output_units": 0,
+          "output_units": 64
+        },
+        "fc1": {
+          "keep_rate": 0.0061543784104287624,
+          "dead_output_units": 0,
+          "output_units": 192
+        },
+        "fc2": {
+          "keep_rate": 0.13385418057441711,
+          "dead_output_units": 0,
+          "output_units": 10
+        }
+      },
+      "meta": {
+        "reserve_fraction": 0.6533063151041667,
+        "features": {
+          "conv2": {
+            "output_units": 64.0,
+            "dead_fraction": 0.40625,
+            "keep_rate": 0.009223090277777778,
+            "deficit": 0.07769097222222303,
+            "vulnerability": 0.2912543402777781
+          },
+          "conv3": {
+            "output_units": 64.0,
+            "dead_fraction": 0.90625,
+            "keep_rate": 0.000244140625,
+            "deficit": 0.9755859375,
+            "vulnerability": 0.930517578125
+          },
+          "fc1": {
+            "output_units": 192.0,
+            "dead_fraction": 1.0,
+            "keep_rate": 0.0,
+            "deficit": 1.0,
+            "vulnerability": 1.0
+          },
+          "fc2": {
+            "output_units": 10.0,
+            "dead_fraction": 0.0,
+            "keep_rate": 0.8145833333333333,
+            "deficit": 0.0,
+            "vulnerability": 0.0
+          }
+        },
+        "layer_budgets": {
+          "conv2": 175,
+          "conv3": 354,
+          "fc1": 1120,
+          "fc2": 15
+        }
+      }
+    }
+  ]
+}

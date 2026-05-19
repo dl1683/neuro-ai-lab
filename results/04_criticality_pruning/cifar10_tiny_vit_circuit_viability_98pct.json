@@ -1,0 +1,270 @@
+{
+  "experiment": "04_cifar10_tiny_vit_circuit_viability_98pct",
+  "setup": "TinyViT CIFAR-10 subset transformer-analogue severe-pruning test. MLP down-projection and classifier readout rows are treated as circuit bottlenecks.",
+  "device": "cuda",
+  "gpu_name": "NVIDIA GeForce RTX 5090 Laptop GPU",
+  "seeds": [
+    286,
+    287
+  ],
+  "train_subset": 20000,
+  "test_subset": 5000,
+  "sparsity": 0.98,
+  "dense_epochs": 8,
+  "finetune_epochs": 3,
+  "dense_accuracy_mean": 0.5467,
+  "summary": {
+    "magnitude": {
+      "after_mean": 0.10070000000000001,
+      "after_std": 0.0017000000000000001,
+      "dead_outputs_mean": 1956.5,
+      "mlp_down_dead_outputs_mean": 512.0,
+      "mlp_down_min_mean": 0.0,
+      "head_min_mean": 0.0
+    },
+    "global_synflow": {
+      "after_mean": 0.10999999999999999,
+      "after_std": 0.0114,
+      "dead_outputs_mean": 2792.0,
+      "mlp_down_dead_outputs_mean": 389.5,
+      "mlp_down_min_mean": 0.0,
+      "head_min_mean": 71.0,
+      "after_delta_mean": 0.009299999999999989,
+      "after_wins": 1
+    },
+    "minimal_liveness_repair": {
+      "after_mean": 0.1131,
+      "after_std": 0.010699999999999994,
+      "dead_outputs_mean": 62.5,
+      "mlp_down_dead_outputs_mean": 0.0,
+      "mlp_down_min_mean": 1.0,
+      "head_min_mean": 0.5,
+      "after_delta_mean": 0.012399999999999994,
+      "after_wins": 1
+    },
+    "selective_mlp_readout_repair": {
+      "after_mean": 0.0959,
+      "after_std": 0.006500000000000006,
+      "dead_outputs_mean": 1452.0,
+      "mlp_down_dead_outputs_mean": 0.0,
+      "mlp_down_min_mean": 1.0,
+      "head_min_mean": 1.0,
+      "after_delta_mean": -0.004800000000000006,
+      "after_wins": 0
+    },
+    "all_route_liveness_floor": {
+      "after_mean": 0.0996,
+      "after_std": 0.0023999999999999994,
+      "dead_outputs_mean": 0.0,
+      "mlp_down_dead_outputs_mean": 0.0,
+      "mlp_down_min_mean": 1.0,
+      "head_min_mean": 1.0,
+      "after_delta_mean": -0.0011000000000000107,
+      "after_wins": 0
+    },
+    "mlp_readout_reserve": {
+      "after_mean": 0.0995,
+      "after_std": 0.001899999999999999,
+      "dead_outputs_mean": 2181.0,
+      "mlp_down_dead_outputs_mean": 0.0,
+      "mlp_down_min_mean": 15.0,
+      "head_min_mean": 8.0,
+      "after_delta_mean": -0.0011999999999999997,
+      "after_wins": 1
+    }
+  },
+  "rows": [
+    {
+      "seed": 286,
+      "method": "magnitude",
+      "dense_accuracy": 0.5404,
+      "before_accuracy": 0.099,
+      "after_accuracy": 0.099,
+      "route_quality": {
+        "total_dead_outputs": 1958,
+        "mlp_down_dead_outputs": 512,
+        "mlp_down_min": 0.0,
+        "mlp_down_mean": 0.0,
+        "head_dead_outputs": 6,
+        "head_min": 0.0,
+        "head_mean": 0.6000000238418579
+      }
+    },
+    {
+      "seed": 286,
+      "method": "global_synflow",
+      "dense_accuracy": 0.5404,
+      "before_accuracy": 0.1186,
+      "after_accuracy": 0.1214,
+      "route_quality": {
+        "total_dead_outputs": 2816,
+        "mlp_down_dead_outputs": 397,
+        "mlp_down_min": 0.0,
+        "mlp_down_mean": 0.875,
+        "head_dead_outputs": 0,
+        "head_min": 70.0,
+        "head_mean": 75.4000015258789
+      }
+    },
+    {
+      "seed": 286,
+      "method": "minimal_liveness_repair",
+      "dense_accuracy": 0.5404,
+      "before_accuracy": 0.122,
+      "after_accuracy": 0.1238,
+      "route_quality": {
+        "total_dead_outputs": 67,
+        "mlp_down_dead_outputs": 0,
+        "mlp_down_min": 1.0,
+        "mlp_down_mean": 1.0,
+        "head_dead_outputs": 2,
+        "head_min": 0.0,
+        "head_mean": 0.9000000357627869
+      }
+    },
+    {
+      "seed": 286,
+      "method": "selective_mlp_readout_repair",
+      "dense_accuracy": 0.5404,
+      "before_accuracy": 0.0912,
+      "after_accuracy": 0.0894,
+      "route_quality": {
+        "total_dead_outputs": 1455,
+        "mlp_down_dead_outputs": 0,
+        "mlp_down_min": 1.0,
+        "mlp_down_mean": 1.0,
+        "head_dead_outputs": 0,
+        "head_min": 1.0,
+        "head_mean": 1.100000023841858
+      }
+    },
+    {
+      "seed": 286,
+      "method": "all_route_liveness_floor",
+      "dense_accuracy": 0.5404,
+      "before_accuracy": 0.0888,
+      "after_accuracy": 0.0972,
+      "route_quality": {
+        "total_dead_outputs": 0,
+        "mlp_down_dead_outputs": 0,
+        "mlp_down_min": 1.0,
+        "mlp_down_mean": 1.0,
+        "head_dead_outputs": 0,
+        "head_min": 1.0,
+        "head_mean": 1.100000023841858
+      }
+    },
+    {
+      "seed": 286,
+      "method": "mlp_readout_reserve",
+      "dense_accuracy": 0.5404,
+      "before_accuracy": 0.0976,
+      "after_accuracy": 0.1014,
+      "route_quality": {
+        "total_dead_outputs": 2174,
+        "mlp_down_dead_outputs": 0,
+        "mlp_down_min": 15.0,
+        "mlp_down_mean": 15.0,
+        "head_dead_outputs": 0,
+        "head_min": 8.0,
+        "head_mean": 8.0
+      }
+    },
+    {
+      "seed": 287,
+      "method": "magnitude",
+      "dense_accuracy": 0.553,
+      "before_accuracy": 0.1024,
+      "after_accuracy": 0.1024,
+      "route_quality": {
+        "total_dead_outputs": 1955,
+        "mlp_down_dead_outputs": 512,
+        "mlp_down_min": 0.0,
+        "mlp_down_mean": 0.0,
+        "head_dead_outputs": 9,
+        "head_min": 0.0,
+        "head_mean": 0.10000000149011612
+      }
+    },
+    {
+      "seed": 287,
+      "method": "global_synflow",
+      "dense_accuracy": 0.553,
+      "before_accuracy": 0.0976,
+      "after_accuracy": 0.0986,
+      "route_quality": {
+        "total_dead_outputs": 2768,
+        "mlp_down_dead_outputs": 382,
+        "mlp_down_min": 0.0,
+        "mlp_down_mean": 0.744140625,
+        "head_dead_outputs": 0,
+        "head_min": 72.0,
+        "head_mean": 77.0
+      }
+    },
+    {
+      "seed": 287,
+      "method": "minimal_liveness_repair",
+      "dense_accuracy": 0.553,
+      "before_accuracy": 0.1024,
+      "after_accuracy": 0.1024,
+      "route_quality": {
+        "total_dead_outputs": 58,
+        "mlp_down_dead_outputs": 0,
+        "mlp_down_min": 1.0,
+        "mlp_down_mean": 1.0,
+        "head_dead_outputs": 0,
+        "head_min": 1.0,
+        "head_mean": 1.0
+      }
+    },
+    {
+      "seed": 287,
+      "method": "selective_mlp_readout_repair",
+      "dense_accuracy": 0.553,
+      "before_accuracy": 0.1024,
+      "after_accuracy": 0.1024,
+      "route_quality": {
+        "total_dead_outputs": 1449,
+        "mlp_down_dead_outputs": 0,
+        "mlp_down_min": 1.0,
+        "mlp_down_mean": 1.0,
+        "head_dead_outputs": 0,
+        "head_min": 1.0,
+        "head_mean": 1.0
+      }
+    },
+    {
+      "seed": 287,
+      "method": "all_route_liveness_floor",
+      "dense_accuracy": 0.553,
+      "before_accuracy": 0.1024,
+      "after_accuracy": 0.102,
+      "route_quality": {
+        "total_dead_outputs": 0,
+        "mlp_down_dead_outputs": 0,
+        "mlp_down_min": 1.0,
+        "mlp_down_mean": 1.0,
+        "head_dead_outputs": 0,
+        "head_min": 1.0,
+        "head_mean": 1.0
+      }
+    },
+    {
+      "seed": 287,
+      "method": "mlp_readout_reserve",
+      "dense_accuracy": 0.553,
+      "before_accuracy": 0.0976,
+      "after_accuracy": 0.0976,
+      "route_quality": {
+        "total_dead_outputs": 2188,
+        "mlp_down_dead_outputs": 0,
+        "mlp_down_min": 15.0,
+        "mlp_down_mean": 15.0,
+        "head_dead_outputs": 0,
+        "head_min": 8.0,
+        "head_mean": 8.0
+      }
+    }
+  ]
+}

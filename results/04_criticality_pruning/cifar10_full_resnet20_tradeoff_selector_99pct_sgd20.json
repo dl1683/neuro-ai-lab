@@ -1,0 +1,362 @@
+{
+  "experiment": "04_cifar10_full_resnet20_tradeoff_selector_99pct_sgd20",
+  "setup": "Fresh full-CIFAR ResNet-20 99% sparsity test of a feature-preservation / liveness tradeoff selector.",
+  "device": "cuda",
+  "gpu_name": "NVIDIA GeForce RTX 5090 Laptop GPU",
+  "seeds": [
+    279,
+    280
+  ],
+  "sparsity": 0.99,
+  "reserve": 0.6,
+  "summary": {
+    "magnitude": {
+      "after_mean": 0.44595,
+      "after_std": 0.006649999999999989,
+      "projection_min_mean": 1.366676902398467,
+      "fc_score_mean": 3.745660901069641,
+      "main_path_min_mean": 0.0,
+      "dead_outputs_mean": 373.0
+    },
+    "feature_viability_repair": {
+      "after_mean": 0.49970000000000003,
+      "after_std": 0.024300000000000016,
+      "projection_min_mean": 1.2214270662516356,
+      "fc_score_mean": 3.718249797821045,
+      "main_path_min_mean": 0.5826987493783236,
+      "dead_outputs_mean": 32.0,
+      "after_delta_mean": 0.05374999999999999,
+      "after_wins": 2
+    },
+    "plain_reserve": {
+      "after_mean": 0.49134999999999995,
+      "after_std": 0.008849999999999997,
+      "projection_min_mean": 1.178608775138855,
+      "fc_score_mean": 3.2586731910705566,
+      "main_path_min_mean": 1.2482786774635315,
+      "dead_outputs_mean": 1.5,
+      "after_delta_mean": 0.04539999999999997,
+      "after_wins": 2
+    },
+    "predicted_route_split": {
+      "after_mean": 0.48505,
+      "after_std": 0.017949999999999994,
+      "projection_min_mean": 1.5640822052955627,
+      "fc_score_mean": 3.627230405807495,
+      "main_path_min_mean": 1.0394765734672546,
+      "dead_outputs_mean": 1.0,
+      "after_delta_mean": 0.039099999999999996,
+      "after_wins": 2
+    },
+    "tradeoff_policy": {
+      "after_mean": 0.49970000000000003,
+      "after_std": 0.024300000000000016,
+      "projection_min_mean": 1.2214270662516356,
+      "fc_score_mean": 3.718249797821045,
+      "main_path_min_mean": 0.5826987493783236,
+      "dead_outputs_mean": 32.0,
+      "after_delta_mean": 0.05374999999999999,
+      "after_wins": 2
+    }
+  },
+  "paired_deltas": [
+    {
+      "method": "feature_viability_repair",
+      "after_delta_mean": 0.05374999999999999,
+      "after_delta_std": 0.017650000000000027,
+      "after_wins": 2,
+      "paired_rows": [
+        {
+          "seed": 279,
+          "after_delta": 0.07140000000000002
+        },
+        {
+          "seed": 280,
+          "after_delta": 0.036099999999999965
+        }
+      ]
+    },
+    {
+      "method": "plain_reserve",
+      "after_delta_mean": 0.04539999999999997,
+      "after_delta_std": 0.0022000000000000075,
+      "after_wins": 2,
+      "paired_rows": [
+        {
+          "seed": 279,
+          "after_delta": 0.047599999999999976
+        },
+        {
+          "seed": 280,
+          "after_delta": 0.04319999999999996
+        }
+      ]
+    },
+    {
+      "method": "predicted_route_split",
+      "after_delta_mean": 0.039099999999999996,
+      "after_delta_std": 0.024599999999999983,
+      "after_wins": 2,
+      "paired_rows": [
+        {
+          "seed": 279,
+          "after_delta": 0.014500000000000013
+        },
+        {
+          "seed": 280,
+          "after_delta": 0.06369999999999998
+        }
+      ]
+    },
+    {
+      "method": "tradeoff_policy",
+      "after_delta_mean": 0.05374999999999999,
+      "after_delta_std": 0.017650000000000027,
+      "after_wins": 2,
+      "paired_rows": [
+        {
+          "seed": 279,
+          "after_delta": 0.07140000000000002
+        },
+        {
+          "seed": 280,
+          "after_delta": 0.036099999999999965
+        }
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "seed": 279,
+      "selected_method": "feature_viability_repair",
+      "ecology_selected_method": "plain_reserve",
+      "ecology_split": {
+        "main": 0.5499999999999999,
+        "projection": 0.25000000000000006,
+        "readout": 0.2
+      },
+      "ranked_methods": [
+        {
+          "method": "feature_viability_repair",
+          "score": 0.8271960217506897,
+          "feature_overlap_with_magnitude": 0.8556662975267626,
+          "liveness": 0.5225642624234534,
+          "readout_ratio": 0.9913035246935192,
+          "dead_penalty": 0.08951406649616368
+        },
+        {
+          "method": "predicted_route_split",
+          "score": 0.7774935649100497,
+          "feature_overlap_with_magnitude": 0.5721668512366187,
+          "liveness": 0.8710253432080828,
+          "readout_ratio": 0.9352601699217797,
+          "dead_penalty": 0.0025575447570332483
+        },
+        {
+          "method": "magnitude",
+          "score": 0.7489868193080056,
+          "feature_overlap_with_magnitude": 1.0,
+          "liveness": 0.20290240972942816,
+          "readout_ratio": 1.0,
+          "dead_penalty": 1.0
+        },
+        {
+          "method": "plain_reserve",
+          "score": 0.6842095721688752,
+          "feature_overlap_with_magnitude": 0.4780361757105943,
+          "liveness": 0.7971202121458982,
+          "readout_ratio": 0.8505073175784202,
+          "dead_penalty": 0.0025575447570332483
+        }
+      ]
+    },
+    {
+      "seed": 280,
+      "selected_method": "feature_viability_repair",
+      "ecology_selected_method": "plain_reserve",
+      "ecology_split": {
+        "main": 0.5499999999999999,
+        "projection": 0.20000000000000004,
+        "readout": 0.25
+      },
+      "ranked_methods": [
+        {
+          "method": "feature_viability_repair",
+          "score": 0.8621507793215595,
+          "feature_overlap_with_magnitude": 0.8689553340716132,
+          "liveness": 0.6009244147316607,
+          "readout_ratio": 0.9921487062622716,
+          "dead_penalty": 0.08169014084507042
+        },
+        {
+          "method": "predicted_route_split",
+          "score": 0.8043742136583405,
+          "feature_overlap_with_magnitude": 0.6057585825027686,
+          "liveness": 0.8623624996801231,
+          "readout_ratio": 1.0,
+          "dead_penalty": 0.0028169014084507044
+        },
+        {
+          "method": "magnitude",
+          "score": 0.75429399442802,
+          "feature_overlap_with_magnitude": 1.0,
+          "liveness": 0.21942537069810167,
+          "readout_ratio": 0.9980585524416591,
+          "dead_penalty": 1.0
+        },
+        {
+          "method": "plain_reserve",
+          "score": 0.7211521655645949,
+          "feature_overlap_with_magnitude": 0.5009228497600591,
+          "liveness": 0.8496334420622799,
+          "readout_ratio": 0.8879973160724972,
+          "dead_penalty": 0.005633802816901409
+        }
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "seed": 279,
+      "method": "magnitude",
+      "dense_accuracy": 0.879,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.4526,
+      "route_quality": {
+        "main_path_min": 0.0,
+        "projection_min": 1.3277164213359356,
+        "fc_score": 3.7704594135284424,
+        "route_min": 0.0,
+        "total_dead_outputs": 391
+      }
+    },
+    {
+      "seed": 279,
+      "method": "feature_viability_repair",
+      "dense_accuracy": 0.879,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.524,
+      "route_quality": {
+        "main_path_min": 0.5342548778280616,
+        "projection_min": 1.1827986314892769,
+        "fc_score": 3.7376697063446045,
+        "route_min": 0.5342548778280616,
+        "total_dead_outputs": 35
+      }
+    },
+    {
+      "seed": 279,
+      "method": "plain_reserve",
+      "dense_accuracy": 0.879,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.5002,
+      "route_quality": {
+        "main_path_min": 1.252763032913208,
+        "projection_min": 1.1882244348526,
+        "fc_score": 3.206803321838379,
+        "route_min": 1.1882244348526,
+        "total_dead_outputs": 1
+      }
+    },
+    {
+      "seed": 279,
+      "method": "predicted_route_split",
+      "dense_accuracy": 0.879,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.4671,
+      "route_quality": {
+        "main_path_min": 1.0560526847839355,
+        "projection_min": 1.6522579193115234,
+        "fc_score": 3.526360511779785,
+        "route_min": 1.0560526847839355,
+        "total_dead_outputs": 1
+      }
+    },
+    {
+      "seed": 279,
+      "method": "tradeoff_policy",
+      "dense_accuracy": 0.879,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.524,
+      "route_quality": {
+        "main_path_min": 0.5342548778280616,
+        "projection_min": 1.1827986314892769,
+        "fc_score": 3.7376697063446045,
+        "route_min": 0.5342548778280616,
+        "total_dead_outputs": 35
+      },
+      "policy_source_method": "feature_viability_repair"
+    },
+    {
+      "seed": 280,
+      "method": "magnitude",
+      "dense_accuracy": 0.8784,
+      "before_accuracy": 0.1133,
+      "after_accuracy": 0.4393,
+      "route_quality": {
+        "main_path_min": 0.0,
+        "projection_min": 1.4056373834609985,
+        "fc_score": 3.72086238861084,
+        "route_min": 0.0,
+        "total_dead_outputs": 355
+      }
+    },
+    {
+      "seed": 280,
+      "method": "feature_viability_repair",
+      "dense_accuracy": 0.8784,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.4754,
+      "route_quality": {
+        "main_path_min": 0.6311426209285855,
+        "projection_min": 1.2600555010139942,
+        "fc_score": 3.6988298892974854,
+        "route_min": 0.6311426209285855,
+        "total_dead_outputs": 29
+      }
+    },
+    {
+      "seed": 280,
+      "method": "plain_reserve",
+      "dense_accuracy": 0.8784,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.4825,
+      "route_quality": {
+        "main_path_min": 1.243794322013855,
+        "projection_min": 1.1689931154251099,
+        "fc_score": 3.3105430603027344,
+        "route_min": 1.1689931154251099,
+        "total_dead_outputs": 2
+      }
+    },
+    {
+      "seed": 280,
+      "method": "predicted_route_split",
+      "dense_accuracy": 0.8784,
+      "before_accuracy": 0.0999,
+      "after_accuracy": 0.503,
+      "route_quality": {
+        "main_path_min": 1.0229004621505737,
+        "projection_min": 1.475906491279602,
+        "fc_score": 3.728100299835205,
+        "route_min": 1.0229004621505737,
+        "total_dead_outputs": 1
+      }
+    },
+    {
+      "seed": 280,
+      "method": "tradeoff_policy",
+      "dense_accuracy": 0.8784,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.4754,
+      "route_quality": {
+        "main_path_min": 0.6311426209285855,
+        "projection_min": 1.2600555010139942,
+        "fc_score": 3.6988298892974854,
+        "route_min": 0.6311426209285855,
+        "total_dead_outputs": 29
+      },
+      "policy_source_method": "feature_viability_repair"
+    }
+  ]
+}

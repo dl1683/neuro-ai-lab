@@ -1,0 +1,322 @@
+{
+  "experiment": "04_cifar10_tiny_vit_feature_subspace_diagnostic_95pct",
+  "setup": "TinyViT CIFAR-10 subset 95% sparsity diagnostic comparing pre-finetune CLS/residual-stream feature preservation against route-liveness metrics and masked recovery.",
+  "device": "cuda",
+  "gpu_name": "NVIDIA GeForce RTX 5090 Laptop GPU",
+  "seeds": [
+    290,
+    291
+  ],
+  "sparsity": 0.95,
+  "dense_accuracy_mean": 0.5411,
+  "summary": {
+    "magnitude": {
+      "after_mean": 0.11019999999999999,
+      "after_std": 0.012400000000000001,
+      "cls_cosine_mean": 0.05290479678660631,
+      "centered_cls_cosine_mean": 0.00846007652580738,
+      "dead_outputs_mean": 1260.0,
+      "mlp_down_dead_outputs_mean": 511.5,
+      "attn_out_dead_outputs_mean": 314.0
+    },
+    "global_synflow": {
+      "after_mean": 0.1686,
+      "after_std": 0.007000000000000006,
+      "cls_cosine_mean": 0.08722284063696861,
+      "centered_cls_cosine_mean": 0.052551272325217724,
+      "dead_outputs_mean": 2269.5,
+      "mlp_down_dead_outputs_mean": 239.0,
+      "attn_out_dead_outputs_mean": 133.0,
+      "after_delta_mean": 0.0584,
+      "after_wins": 2
+    },
+    "minimal_liveness_repair": {
+      "after_mean": 0.1031,
+      "after_std": 0.0040999999999999995,
+      "cls_cosine_mean": 0.039802605053409934,
+      "centered_cls_cosine_mean": -0.008281156420707703,
+      "dead_outputs_mean": 78.5,
+      "mlp_down_dead_outputs_mean": 0.0,
+      "attn_out_dead_outputs_mean": 24.5,
+      "after_delta_mean": -0.007099999999999995,
+      "after_wins": 1
+    },
+    "attn_mlp_readout_repair": {
+      "after_mean": 0.0953,
+      "after_std": 0.005299999999999999,
+      "cls_cosine_mean": 0.044444632483646274,
+      "centered_cls_cosine_mean": -0.0030499324202537537,
+      "dead_outputs_mean": 484.5,
+      "mlp_down_dead_outputs_mean": 0.0,
+      "attn_out_dead_outputs_mean": 18.5,
+      "after_delta_mean": -0.014900000000000004,
+      "after_wins": 1
+    },
+    "all_route_liveness_floor": {
+      "after_mean": 0.101,
+      "after_std": 0.003999999999999997,
+      "cls_cosine_mean": 0.04219622467644513,
+      "centered_cls_cosine_mean": -0.007095932960510254,
+      "dead_outputs_mean": 0.0,
+      "mlp_down_dead_outputs_mean": 0.0,
+      "attn_out_dead_outputs_mean": 0.0,
+      "after_delta_mean": -0.0092,
+      "after_wins": 0
+    }
+  },
+  "diagnostics": {
+    "centered_cls_cosine_vs_after_corr": 0.5829819280466383
+  },
+  "rows": [
+    {
+      "seed": 290,
+      "method": "magnitude",
+      "dense_accuracy": 0.5484,
+      "before_accuracy": 0.1098,
+      "after_accuracy": 0.1226,
+      "feature_alignment": {
+        "cls_cosine_mean": 0.09145240485668182,
+        "cls_cosine_std": 0.08910328149795532,
+        "centered_cls_cosine_mean": 0.04910265654325485,
+        "feature_samples": 2048
+      },
+      "route_quality": {
+        "total_dead_outputs": 1285,
+        "mlp_down_dead_outputs": 512,
+        "mlp_down_min": 0.0,
+        "mlp_down_mean": 0.0,
+        "attn_out_dead_outputs": 319,
+        "attn_out_min": 0.0,
+        "attn_out_mean": 0.509765625,
+        "head_dead_outputs": 1,
+        "head_min": 0.0,
+        "head_mean": 2.799999952316284
+      }
+    },
+    {
+      "seed": 290,
+      "method": "global_synflow",
+      "dense_accuracy": 0.5484,
+      "before_accuracy": 0.1538,
+      "after_accuracy": 0.1756,
+      "feature_alignment": {
+        "cls_cosine_mean": 0.08283514529466629,
+        "cls_cosine_std": 0.08673222362995148,
+        "centered_cls_cosine_mean": 0.027308998629450798,
+        "feature_samples": 2048
+      },
+      "route_quality": {
+        "total_dead_outputs": 2300,
+        "mlp_down_dead_outputs": 258,
+        "mlp_down_min": 0.0,
+        "mlp_down_mean": 4.087890625,
+        "attn_out_dead_outputs": 136,
+        "attn_out_min": 0.0,
+        "attn_out_mean": 18.029296875,
+        "head_dead_outputs": 0,
+        "head_min": 89.0,
+        "head_mean": 92.80000305175781
+      }
+    },
+    {
+      "seed": 290,
+      "method": "minimal_liveness_repair",
+      "dense_accuracy": 0.5484,
+      "before_accuracy": 0.1014,
+      "after_accuracy": 0.1072,
+      "feature_alignment": {
+        "cls_cosine_mean": 0.0813656598329544,
+        "cls_cosine_std": 0.09929826855659485,
+        "centered_cls_cosine_mean": 0.03206411004066467,
+        "feature_samples": 2048
+      },
+      "route_quality": {
+        "total_dead_outputs": 73,
+        "mlp_down_dead_outputs": 0,
+        "mlp_down_min": 1.0,
+        "mlp_down_mean": 1.0,
+        "attn_out_dead_outputs": 24,
+        "attn_out_min": 0.0,
+        "attn_out_mean": 1.05078125,
+        "head_dead_outputs": 0,
+        "head_min": 1.0,
+        "head_mean": 2.299999952316284
+      }
+    },
+    {
+      "seed": 290,
+      "method": "attn_mlp_readout_repair",
+      "dense_accuracy": 0.5484,
+      "before_accuracy": 0.0856,
+      "after_accuracy": 0.09,
+      "feature_alignment": {
+        "cls_cosine_mean": 0.08211559802293777,
+        "cls_cosine_std": 0.10733512789011002,
+        "centered_cls_cosine_mean": 0.030785106122493744,
+        "feature_samples": 2048
+      },
+      "route_quality": {
+        "total_dead_outputs": 499,
+        "mlp_down_dead_outputs": 0,
+        "mlp_down_min": 1.0,
+        "mlp_down_mean": 1.0,
+        "attn_out_dead_outputs": 18,
+        "attn_out_min": 0.0,
+        "attn_out_mean": 1.072265625,
+        "head_dead_outputs": 0,
+        "head_min": 1.0,
+        "head_mean": 2.5
+      }
+    },
+    {
+      "seed": 290,
+      "method": "all_route_liveness_floor",
+      "dense_accuracy": 0.5484,
+      "before_accuracy": 0.1014,
+      "after_accuracy": 0.105,
+      "feature_alignment": {
+        "cls_cosine_mean": 0.08216974884271622,
+        "cls_cosine_std": 0.09938965737819672,
+        "centered_cls_cosine_mean": 0.03145482763648033,
+        "feature_samples": 2048
+      },
+      "route_quality": {
+        "total_dead_outputs": 0,
+        "mlp_down_dead_outputs": 0,
+        "mlp_down_min": 1.0,
+        "mlp_down_mean": 1.0,
+        "attn_out_dead_outputs": 0,
+        "attn_out_min": 1.0,
+        "attn_out_mean": 1.09375,
+        "head_dead_outputs": 0,
+        "head_min": 1.0,
+        "head_mean": 2.299999952316284
+      }
+    },
+    {
+      "seed": 291,
+      "method": "magnitude",
+      "dense_accuracy": 0.5338,
+      "before_accuracy": 0.0976,
+      "after_accuracy": 0.0978,
+      "feature_alignment": {
+        "cls_cosine_mean": 0.0143571887165308,
+        "cls_cosine_std": 0.08224906772375107,
+        "centered_cls_cosine_mean": -0.03218250349164009,
+        "feature_samples": 2048
+      },
+      "route_quality": {
+        "total_dead_outputs": 1235,
+        "mlp_down_dead_outputs": 511,
+        "mlp_down_min": 0.0,
+        "mlp_down_mean": 0.001953125,
+        "attn_out_dead_outputs": 309,
+        "attn_out_min": 0.0,
+        "attn_out_mean": 0.544921875,
+        "head_dead_outputs": 2,
+        "head_min": 0.0,
+        "head_mean": 2.6000001430511475
+      }
+    },
+    {
+      "seed": 291,
+      "method": "global_synflow",
+      "dense_accuracy": 0.5338,
+      "before_accuracy": 0.1424,
+      "after_accuracy": 0.1616,
+      "feature_alignment": {
+        "cls_cosine_mean": 0.09161053597927094,
+        "cls_cosine_std": 0.10258165746927261,
+        "centered_cls_cosine_mean": 0.07779354602098465,
+        "feature_samples": 2048
+      },
+      "route_quality": {
+        "total_dead_outputs": 2239,
+        "mlp_down_dead_outputs": 220,
+        "mlp_down_min": 0.0,
+        "mlp_down_mean": 5.037109375,
+        "attn_out_dead_outputs": 130,
+        "attn_out_min": 0.0,
+        "attn_out_mean": 17.380859375,
+        "head_dead_outputs": 0,
+        "head_min": 97.0,
+        "head_mean": 101.70000457763672
+      }
+    },
+    {
+      "seed": 291,
+      "method": "minimal_liveness_repair",
+      "dense_accuracy": 0.5338,
+      "before_accuracy": 0.0988,
+      "after_accuracy": 0.099,
+      "feature_alignment": {
+        "cls_cosine_mean": -0.0017604497261345387,
+        "cls_cosine_std": 0.09295498579740524,
+        "centered_cls_cosine_mean": -0.04862642288208008,
+        "feature_samples": 2048
+      },
+      "route_quality": {
+        "total_dead_outputs": 84,
+        "mlp_down_dead_outputs": 0,
+        "mlp_down_min": 1.0,
+        "mlp_down_mean": 1.0,
+        "attn_out_dead_outputs": 25,
+        "attn_out_min": 0.0,
+        "attn_out_mean": 1.0703125,
+        "head_dead_outputs": 0,
+        "head_min": 1.0,
+        "head_mean": 2.299999952316284
+      }
+    },
+    {
+      "seed": 291,
+      "method": "attn_mlp_readout_repair",
+      "dense_accuracy": 0.5338,
+      "before_accuracy": 0.1006,
+      "after_accuracy": 0.1006,
+      "feature_alignment": {
+        "cls_cosine_mean": 0.006773666944354773,
+        "cls_cosine_std": 0.09138073027133942,
+        "centered_cls_cosine_mean": -0.03688497096300125,
+        "feature_samples": 2048
+      },
+      "route_quality": {
+        "total_dead_outputs": 470,
+        "mlp_down_dead_outputs": 0,
+        "mlp_down_min": 1.0,
+        "mlp_down_mean": 1.0,
+        "attn_out_dead_outputs": 19,
+        "attn_out_min": 0.0,
+        "attn_out_mean": 1.087890625,
+        "head_dead_outputs": 0,
+        "head_min": 1.0,
+        "head_mean": 2.5
+      }
+    },
+    {
+      "seed": 291,
+      "method": "all_route_liveness_floor",
+      "dense_accuracy": 0.5338,
+      "before_accuracy": 0.0912,
+      "after_accuracy": 0.097,
+      "feature_alignment": {
+        "cls_cosine_mean": 0.002222700510174036,
+        "cls_cosine_std": 0.09233193099498749,
+        "centered_cls_cosine_mean": -0.04564669355750084,
+        "feature_samples": 2048
+      },
+      "route_quality": {
+        "total_dead_outputs": 0,
+        "mlp_down_dead_outputs": 0,
+        "mlp_down_min": 1.0,
+        "mlp_down_mean": 1.0,
+        "attn_out_dead_outputs": 0,
+        "attn_out_min": 1.0,
+        "attn_out_mean": 1.119140625,
+        "head_dead_outputs": 0,
+        "head_min": 1.0,
+        "head_mean": 2.299999952316284
+      }
+    }
+  ]
+}

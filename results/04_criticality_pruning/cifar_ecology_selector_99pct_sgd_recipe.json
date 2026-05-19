@@ -1,0 +1,594 @@
+{
+  "experiment": "04_cifar_ecology_selector_99pct_sgd_recipe",
+  "setup": "Fresh CIFAR-10 and CIFAR-100 full-dataset ResNet-20-style validation of an ecology-aware pre-finetune selector that chooses broad reserve or conservative route split from readout deficit.",
+  "device": "cuda",
+  "gpu_name": "NVIDIA GeForce RTX 5090 Laptop GPU",
+  "sparsity": 0.99,
+  "reserve": 0.6,
+  "tasks": {
+    "cifar10": {
+      "seeds": [
+        263,
+        264
+      ]
+    },
+    "cifar100": {
+      "seeds": [
+        265,
+        266
+      ]
+    }
+  },
+  "summary": {
+    "cifar10": {
+      "magnitude": {
+        "after_mean": 0.4393,
+        "after_std": 0.009399999999999992,
+        "projection_min_mean": 1.3741539074108005,
+        "fc_score_mean": 3.6886794567108154,
+        "main_path_min_mean": 0.0,
+        "dead_outputs_mean": 340.5
+      },
+      "plain_reserve": {
+        "after_mean": 0.4625,
+        "after_std": 0.005600000000000022,
+        "projection_min_mean": 1.1858150362968445,
+        "fc_score_mean": 3.3211978673934937,
+        "main_path_min_mean": 1.23017817735672,
+        "dead_outputs_mean": 0.5,
+        "after_delta_mean": 0.0232,
+        "after_wins": 2
+      },
+      "predicted_route_split": {
+        "after_mean": 0.4547,
+        "after_std": 0.0009000000000000119,
+        "projection_min_mean": 1.6522579193115234,
+        "fc_score_mean": 3.529297351837158,
+        "main_path_min_mean": 1.0340120196342468,
+        "dead_outputs_mean": 0.5,
+        "after_delta_mean": 0.015399999999999997,
+        "after_wins": 2
+      },
+      "ecology_selected": {
+        "after_mean": 0.46740000000000004,
+        "after_std": 0.007300000000000001,
+        "projection_min_mean": 1.1858150362968445,
+        "fc_score_mean": 3.3211978673934937,
+        "main_path_min_mean": 1.23017817735672,
+        "dead_outputs_mean": 0.5,
+        "after_delta_mean": 0.028100000000000014,
+        "after_wins": 2
+      }
+    },
+    "cifar100": {
+      "magnitude": {
+        "after_mean": 0.05405,
+        "after_std": 0.00014999999999999736,
+        "projection_min_mean": 0.46806713193655014,
+        "fc_score_mean": 3.038999915122986,
+        "main_path_min_mean": 0.0,
+        "dead_outputs_mean": 540.0
+      },
+      "plain_reserve": {
+        "after_mean": 0.07255,
+        "after_std": 0.004150000000000001,
+        "projection_min_mean": 1.1344091296195984,
+        "fc_score_mean": 1.091917634010315,
+        "main_path_min_mean": 1.2000340223312378,
+        "dead_outputs_mean": 1.0,
+        "after_delta_mean": 0.018500000000000003,
+        "after_wins": 2
+      },
+      "predicted_route_split": {
+        "after_mean": 0.09154999999999999,
+        "after_std": 0.0011500000000000052,
+        "projection_min_mean": 1.1664889454841614,
+        "fc_score_mean": 2.033397674560547,
+        "main_path_min_mean": 0.9972903728485107,
+        "dead_outputs_mean": 1.0,
+        "after_delta_mean": 0.0375,
+        "after_wins": 2
+      },
+      "ecology_selected": {
+        "after_mean": 0.09079999999999999,
+        "after_std": 0.0020999999999999977,
+        "projection_min_mean": 1.1664889454841614,
+        "fc_score_mean": 2.033397674560547,
+        "main_path_min_mean": 0.9972903728485107,
+        "dead_outputs_mean": 1.0,
+        "after_delta_mean": 0.03675,
+        "after_wins": 2
+      }
+    }
+  },
+  "paired_deltas": {
+    "cifar10": [
+      {
+        "method": "plain_reserve",
+        "after_delta_mean": 0.0232,
+        "after_delta_std": 0.00379999999999997,
+        "after_wins": 2,
+        "paired_rows": [
+          {
+            "seed": 263,
+            "after_delta": 0.01940000000000003
+          },
+          {
+            "seed": 264,
+            "after_delta": 0.02699999999999997
+          }
+        ]
+      },
+      {
+        "method": "predicted_route_split",
+        "after_delta_mean": 0.015399999999999997,
+        "after_delta_std": 0.010300000000000004,
+        "after_wins": 2,
+        "paired_rows": [
+          {
+            "seed": 263,
+            "after_delta": 0.005099999999999993
+          },
+          {
+            "seed": 264,
+            "after_delta": 0.0257
+          }
+        ]
+      },
+      {
+        "method": "ecology_selected",
+        "after_delta_mean": 0.028100000000000014,
+        "after_delta_std": 0.0020999999999999908,
+        "after_wins": 2,
+        "paired_rows": [
+          {
+            "seed": 263,
+            "after_delta": 0.026000000000000023
+          },
+          {
+            "seed": 264,
+            "after_delta": 0.030200000000000005
+          }
+        ]
+      }
+    ],
+    "cifar100": [
+      {
+        "method": "plain_reserve",
+        "after_delta_mean": 0.018500000000000003,
+        "after_delta_std": 0.0040000000000000036,
+        "after_wins": 2,
+        "paired_rows": [
+          {
+            "seed": 265,
+            "after_delta": 0.022500000000000006
+          },
+          {
+            "seed": 266,
+            "after_delta": 0.014499999999999999
+          }
+        ]
+      },
+      {
+        "method": "predicted_route_split",
+        "after_delta_mean": 0.0375,
+        "after_delta_std": 0.0013000000000000025,
+        "after_wins": 2,
+        "paired_rows": [
+          {
+            "seed": 265,
+            "after_delta": 0.036199999999999996
+          },
+          {
+            "seed": 266,
+            "after_delta": 0.0388
+          }
+        ]
+      },
+      {
+        "method": "ecology_selected",
+        "after_delta_mean": 0.03675,
+        "after_delta_std": 0.002249999999999995,
+        "after_wins": 2,
+        "paired_rows": [
+          {
+            "seed": 265,
+            "after_delta": 0.0345
+          },
+          {
+            "seed": 266,
+            "after_delta": 0.03899999999999999
+          }
+        ]
+      }
+    ]
+  },
+  "decisions": [
+    {
+      "task": "cifar10",
+      "seed": 263,
+      "selected_method": "plain_reserve",
+      "selected_split": null,
+      "plain_readout_ratio": 0.8993797971424423,
+      "readout_ratio_threshold": 0.66,
+      "best_split": {
+        "main": 0.5499999999999999,
+        "projection": 0.25000000000000006,
+        "readout": 0.2
+      },
+      "plain_quality": {
+        "main_path_min": 1.2347444295883179,
+        "projection_min": 1.1929750442504883,
+        "fc_score": 3.2995338439941406,
+        "route_min": 1.1929750442504883,
+        "total_dead_outputs": 0
+      },
+      "magnitude_quality": {
+        "main_path_min": 0.0,
+        "projection_min": 1.3646335154771805,
+        "fc_score": 3.6686768531799316,
+        "route_min": 0.0,
+        "total_dead_outputs": 333
+      },
+      "best_split_quality": {
+        "main_path_min": 1.04512357711792,
+        "projection_min": 1.6522579193115234,
+        "fc_score": 3.529297351837158,
+        "route_min": 1.04512357711792,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "task": "cifar10",
+      "seed": 264,
+      "selected_method": "plain_reserve",
+      "selected_split": null,
+      "plain_readout_ratio": 0.9013611402900868,
+      "readout_ratio_threshold": 0.66,
+      "best_split": {
+        "main": 0.5499999999999999,
+        "projection": 0.25000000000000006,
+        "readout": 0.2
+      },
+      "plain_quality": {
+        "main_path_min": 1.225611925125122,
+        "projection_min": 1.1786550283432007,
+        "fc_score": 3.3428618907928467,
+        "route_min": 1.1786550283432007,
+        "total_dead_outputs": 1
+      },
+      "magnitude_quality": {
+        "main_path_min": 0.0,
+        "projection_min": 1.3836742993444204,
+        "fc_score": 3.708682060241699,
+        "route_min": 0.0,
+        "total_dead_outputs": 348
+      },
+      "best_split_quality": {
+        "main_path_min": 1.0229004621505737,
+        "projection_min": 1.6522579193115234,
+        "fc_score": 3.529297351837158,
+        "route_min": 1.0229004621505737,
+        "total_dead_outputs": 1
+      }
+    },
+    {
+      "task": "cifar100",
+      "seed": 265,
+      "selected_method": "predicted_route_split",
+      "selected_split": {
+        "main": 0.49999999999999994,
+        "projection": 0.1,
+        "readout": 0.4
+      },
+      "plain_readout_ratio": 0.361345261265479,
+      "readout_ratio_threshold": 0.66,
+      "best_split": {
+        "main": 0.49999999999999994,
+        "projection": 0.1,
+        "readout": 0.4
+      },
+      "plain_quality": {
+        "main_path_min": 1.1929750442504883,
+        "projection_min": 1.1394343376159668,
+        "fc_score": 1.0952733755111694,
+        "route_min": 1.0952733755111694,
+        "total_dead_outputs": 1
+      },
+      "magnitude_quality": {
+        "main_path_min": 0.0,
+        "projection_min": 0.5090054450556636,
+        "fc_score": 3.031099319458008,
+        "route_min": 0.0,
+        "total_dead_outputs": 545
+      },
+      "best_split_quality": {
+        "main_path_min": 1.0001722574234009,
+        "projection_min": 1.04512357711792,
+        "fc_score": 2.033397674560547,
+        "route_min": 1.0001722574234009,
+        "total_dead_outputs": 1
+      }
+    },
+    {
+      "task": "cifar100",
+      "seed": 266,
+      "selected_method": "predicted_route_split",
+      "selected_split": {
+        "main": 0.44999999999999996,
+        "projection": 0.15000000000000002,
+        "readout": 0.4
+      },
+      "plain_readout_ratio": 0.35726860416192113,
+      "readout_ratio_threshold": 0.66,
+      "best_split": {
+        "main": 0.44999999999999996,
+        "projection": 0.15000000000000002,
+        "readout": 0.4
+      },
+      "plain_quality": {
+        "main_path_min": 1.2070930004119873,
+        "projection_min": 1.12938392162323,
+        "fc_score": 1.0885618925094604,
+        "route_min": 1.0885618925094604,
+        "total_dead_outputs": 1
+      },
+      "magnitude_quality": {
+        "main_path_min": 0.0,
+        "projection_min": 0.4271288188174367,
+        "fc_score": 3.046900510787964,
+        "route_min": 0.0,
+        "total_dead_outputs": 535
+      },
+      "best_split_quality": {
+        "main_path_min": 0.9944084882736206,
+        "projection_min": 1.2878543138504028,
+        "fc_score": 2.033397674560547,
+        "route_min": 0.9944084882736206,
+        "total_dead_outputs": 1
+      }
+    }
+  ],
+  "rows": [
+    {
+      "task": "cifar10",
+      "seed": 263,
+      "method": "magnitude",
+      "dense_accuracy": 0.8828,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.4487,
+      "route_quality": {
+        "main_path_min": 0.0,
+        "projection_min": 1.3646335154771805,
+        "fc_score": 3.6686768531799316,
+        "route_min": 0.0,
+        "total_dead_outputs": 333
+      }
+    },
+    {
+      "task": "cifar10",
+      "seed": 263,
+      "method": "plain_reserve",
+      "dense_accuracy": 0.8828,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.4681,
+      "route_quality": {
+        "main_path_min": 1.2347444295883179,
+        "projection_min": 1.1929750442504883,
+        "fc_score": 3.2995338439941406,
+        "route_min": 1.1929750442504883,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "task": "cifar10",
+      "seed": 263,
+      "method": "predicted_route_split",
+      "dense_accuracy": 0.8828,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.4538,
+      "route_quality": {
+        "main_path_min": 1.04512357711792,
+        "projection_min": 1.6522579193115234,
+        "fc_score": 3.529297351837158,
+        "route_min": 1.04512357711792,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "task": "cifar10",
+      "seed": 263,
+      "method": "ecology_selected",
+      "dense_accuracy": 0.8828,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.4747,
+      "route_quality": {
+        "main_path_min": 1.2347444295883179,
+        "projection_min": 1.1929750442504883,
+        "fc_score": 3.2995338439941406,
+        "route_min": 1.1929750442504883,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "task": "cifar10",
+      "seed": 264,
+      "method": "magnitude",
+      "dense_accuracy": 0.88,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.4299,
+      "route_quality": {
+        "main_path_min": 0.0,
+        "projection_min": 1.3836742993444204,
+        "fc_score": 3.708682060241699,
+        "route_min": 0.0,
+        "total_dead_outputs": 348
+      }
+    },
+    {
+      "task": "cifar10",
+      "seed": 264,
+      "method": "plain_reserve",
+      "dense_accuracy": 0.88,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.4569,
+      "route_quality": {
+        "main_path_min": 1.225611925125122,
+        "projection_min": 1.1786550283432007,
+        "fc_score": 3.3428618907928467,
+        "route_min": 1.1786550283432007,
+        "total_dead_outputs": 1
+      }
+    },
+    {
+      "task": "cifar10",
+      "seed": 264,
+      "method": "predicted_route_split",
+      "dense_accuracy": 0.88,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.4556,
+      "route_quality": {
+        "main_path_min": 1.0229004621505737,
+        "projection_min": 1.6522579193115234,
+        "fc_score": 3.529297351837158,
+        "route_min": 1.0229004621505737,
+        "total_dead_outputs": 1
+      }
+    },
+    {
+      "task": "cifar10",
+      "seed": 264,
+      "method": "ecology_selected",
+      "dense_accuracy": 0.88,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.4601,
+      "route_quality": {
+        "main_path_min": 1.225611925125122,
+        "projection_min": 1.1786550283432007,
+        "fc_score": 3.3428618907928467,
+        "route_min": 1.1786550283432007,
+        "total_dead_outputs": 1
+      }
+    },
+    {
+      "task": "cifar100",
+      "seed": 265,
+      "method": "magnitude",
+      "dense_accuracy": 0.5967,
+      "before_accuracy": 0.0097,
+      "after_accuracy": 0.0542,
+      "route_quality": {
+        "main_path_min": 0.0,
+        "projection_min": 0.5090054450556636,
+        "fc_score": 3.031099319458008,
+        "route_min": 0.0,
+        "total_dead_outputs": 545
+      }
+    },
+    {
+      "task": "cifar100",
+      "seed": 265,
+      "method": "plain_reserve",
+      "dense_accuracy": 0.5967,
+      "before_accuracy": 0.01,
+      "after_accuracy": 0.0767,
+      "route_quality": {
+        "main_path_min": 1.1929750442504883,
+        "projection_min": 1.1394343376159668,
+        "fc_score": 1.0952733755111694,
+        "route_min": 1.0952733755111694,
+        "total_dead_outputs": 1
+      }
+    },
+    {
+      "task": "cifar100",
+      "seed": 265,
+      "method": "predicted_route_split",
+      "dense_accuracy": 0.5967,
+      "before_accuracy": 0.01,
+      "after_accuracy": 0.0904,
+      "route_quality": {
+        "main_path_min": 1.0001722574234009,
+        "projection_min": 1.04512357711792,
+        "fc_score": 2.033397674560547,
+        "route_min": 1.0001722574234009,
+        "total_dead_outputs": 1
+      }
+    },
+    {
+      "task": "cifar100",
+      "seed": 265,
+      "method": "ecology_selected",
+      "dense_accuracy": 0.5967,
+      "before_accuracy": 0.01,
+      "after_accuracy": 0.0887,
+      "route_quality": {
+        "main_path_min": 1.0001722574234009,
+        "projection_min": 1.04512357711792,
+        "fc_score": 2.033397674560547,
+        "route_min": 1.0001722574234009,
+        "total_dead_outputs": 1
+      }
+    },
+    {
+      "task": "cifar100",
+      "seed": 266,
+      "method": "magnitude",
+      "dense_accuracy": 0.5968,
+      "before_accuracy": 0.01,
+      "after_accuracy": 0.0539,
+      "route_quality": {
+        "main_path_min": 0.0,
+        "projection_min": 0.4271288188174367,
+        "fc_score": 3.046900510787964,
+        "route_min": 0.0,
+        "total_dead_outputs": 535
+      }
+    },
+    {
+      "task": "cifar100",
+      "seed": 266,
+      "method": "plain_reserve",
+      "dense_accuracy": 0.5968,
+      "before_accuracy": 0.01,
+      "after_accuracy": 0.0684,
+      "route_quality": {
+        "main_path_min": 1.2070930004119873,
+        "projection_min": 1.12938392162323,
+        "fc_score": 1.0885618925094604,
+        "route_min": 1.0885618925094604,
+        "total_dead_outputs": 1
+      }
+    },
+    {
+      "task": "cifar100",
+      "seed": 266,
+      "method": "predicted_route_split",
+      "dense_accuracy": 0.5968,
+      "before_accuracy": 0.0101,
+      "after_accuracy": 0.0927,
+      "route_quality": {
+        "main_path_min": 0.9944084882736206,
+        "projection_min": 1.2878543138504028,
+        "fc_score": 2.033397674560547,
+        "route_min": 0.9944084882736206,
+        "total_dead_outputs": 1
+      }
+    },
+    {
+      "task": "cifar100",
+      "seed": 266,
+      "method": "ecology_selected",
+      "dense_accuracy": 0.5968,
+      "before_accuracy": 0.0101,
+      "after_accuracy": 0.0929,
+      "route_quality": {
+        "main_path_min": 0.9944084882736206,
+        "projection_min": 1.2878543138504028,
+        "fc_score": 2.033397674560547,
+        "route_min": 0.9944084882736206,
+        "total_dead_outputs": 1
+      }
+    }
+  ]
+}

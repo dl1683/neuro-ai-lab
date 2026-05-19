@@ -1,0 +1,597 @@
+{
+  "experiment": "04_tiny_vit_strong_selector_boundary_synthesis",
+  "setup": "Post-hoc synthesis across all completed strong TinyViT 90% sparsity runs. Applies the same V3 selector rule to every evaluated seed and compares the projected choice with the best evaluated candidate.",
+  "sources": [
+    "cifar10_tiny_vit_feature_route_margin_selector_90pct_strong.json",
+    "cifar10_tiny_vit_feature_route_margin_selector_v2_90pct_strong.json",
+    "cifar10_tiny_vit_feature_route_margin_selector_v2_90pct_strong_replicate.json",
+    "cifar10_tiny_vit_feature_route_margin_selector_v3_90pct_strong.json",
+    "cifar10_tiny_vit_feature_route_margin_selector_v3_90pct_strong_replicate.json",
+    "cifar10_tiny_vit_feature_route_margin_selector_v4_90pct_strong.json"
+  ],
+  "seed_count": 7,
+  "v3_positive_vs_magnitude": 5,
+  "v3_matches_best": 5,
+  "v3_mean_delta_vs_magnitude": 0.03498571428571429,
+  "v3_mean_gap_to_best": 0.0007000000000000022,
+  "v4_positive_vs_magnitude": 5,
+  "v4_matches_best": 7,
+  "v4_mean_delta_vs_magnitude": 0.035685714285714286,
+  "v4_mean_gap_to_best": 0.0,
+  "cases": [
+    {
+      "seed": 298,
+      "source_family": "v1_strong_seed298",
+      "source": "cifar10_tiny_vit_feature_route_margin_selector_90pct_strong.json",
+      "dense_accuracy": 0.7162,
+      "original_selected_method": "global_synflow",
+      "original_reason": "feature_argmax",
+      "v3_projected_method": "all_route_liveness_floor",
+      "v3_projected_reason": "all_route_liveness_capacity_guardrail",
+      "best_method": "magnitude",
+      "magnitude_after": 0.167,
+      "v3_after": 0.1646,
+      "best_after": 0.167,
+      "v3_delta_vs_magnitude": -0.0024000000000000132,
+      "v3_gap_to_best": 0.0024000000000000132,
+      "v3_matches_best": false,
+      "ranked_candidates": [
+        {
+          "method": "global_synflow",
+          "centered_cls_cosine_mean": 0.04395107179880142,
+          "route_dead": 162
+        },
+        {
+          "method": "attn_mlp_readout_repair",
+          "centered_cls_cosine_mean": 0.03815719112753868,
+          "route_dead": 0
+        },
+        {
+          "method": "minimal_liveness_repair",
+          "centered_cls_cosine_mean": 0.03713509067893028,
+          "route_dead": 0
+        },
+        {
+          "method": "all_route_liveness_floor",
+          "centered_cls_cosine_mean": 0.03713509067893028,
+          "route_dead": 0
+        },
+        {
+          "method": "magnitude",
+          "centered_cls_cosine_mean": 0.035750627517700195,
+          "route_dead": 74
+        }
+      ],
+      "v4_projected_method": "magnitude",
+      "v4_projected_reason": "magnitude_masked_trainability_guardrail",
+      "v4_after": 0.167,
+      "v4_delta_vs_magnitude": 0.0,
+      "v4_gap_to_best": 0.0,
+      "v4_matches_best": true,
+      "v4_ranked_candidates": [
+        {
+          "method": "global_synflow",
+          "centered_cls_cosine_mean": 0.04395107179880142,
+          "route_dead": 162,
+          "before_accuracy": 0.0974
+        },
+        {
+          "method": "attn_mlp_readout_repair",
+          "centered_cls_cosine_mean": 0.03815719112753868,
+          "route_dead": 0,
+          "before_accuracy": 0.1348
+        },
+        {
+          "method": "minimal_liveness_repair",
+          "centered_cls_cosine_mean": 0.03713509067893028,
+          "route_dead": 0,
+          "before_accuracy": 0.1311
+        },
+        {
+          "method": "all_route_liveness_floor",
+          "centered_cls_cosine_mean": 0.03713509067893028,
+          "route_dead": 0,
+          "before_accuracy": 0.1311
+        },
+        {
+          "method": "magnitude",
+          "centered_cls_cosine_mean": 0.035750627517700195,
+          "route_dead": 74,
+          "before_accuracy": 0.133
+        }
+      ]
+    },
+    {
+      "seed": 299,
+      "source_family": "v2_strong_seed299",
+      "source": "cifar10_tiny_vit_feature_route_margin_selector_v2_90pct_strong.json",
+      "dense_accuracy": 0.7248,
+      "original_selected_method": "magnitude",
+      "original_reason": "magnitude_trainable_capacity_guardrail",
+      "v3_projected_method": "all_route_liveness_floor",
+      "v3_projected_reason": "all_route_liveness_capacity_guardrail",
+      "best_method": "magnitude",
+      "magnitude_after": 0.1218,
+      "v3_after": 0.1193,
+      "best_after": 0.1218,
+      "v3_delta_vs_magnitude": -0.0025000000000000022,
+      "v3_gap_to_best": 0.0025000000000000022,
+      "v3_matches_best": false,
+      "ranked_candidates": [
+        {
+          "method": "global_synflow",
+          "centered_cls_cosine_mean": 0.0027204183861613274,
+          "route_dead": 176
+        },
+        {
+          "method": "magnitude",
+          "centered_cls_cosine_mean": -0.005375959910452366,
+          "route_dead": 82
+        },
+        {
+          "method": "minimal_liveness_repair",
+          "centered_cls_cosine_mean": -0.006052485667169094,
+          "route_dead": 0
+        },
+        {
+          "method": "all_route_liveness_floor",
+          "centered_cls_cosine_mean": -0.006052485667169094,
+          "route_dead": 0
+        },
+        {
+          "method": "attn_mlp_readout_repair",
+          "centered_cls_cosine_mean": -0.006874863523989916,
+          "route_dead": 0
+        }
+      ],
+      "v4_projected_method": "magnitude",
+      "v4_projected_reason": "magnitude_masked_trainability_guardrail",
+      "v4_after": 0.1218,
+      "v4_delta_vs_magnitude": 0.0,
+      "v4_gap_to_best": 0.0,
+      "v4_matches_best": true,
+      "v4_ranked_candidates": [
+        {
+          "method": "global_synflow",
+          "centered_cls_cosine_mean": 0.0027204183861613274,
+          "route_dead": 176,
+          "before_accuracy": 0.0664
+        },
+        {
+          "method": "magnitude",
+          "centered_cls_cosine_mean": -0.005375959910452366,
+          "route_dead": 82,
+          "before_accuracy": 0.1052
+        },
+        {
+          "method": "minimal_liveness_repair",
+          "centered_cls_cosine_mean": -0.006052485667169094,
+          "route_dead": 0,
+          "before_accuracy": 0.1102
+        },
+        {
+          "method": "all_route_liveness_floor",
+          "centered_cls_cosine_mean": -0.006052485667169094,
+          "route_dead": 0,
+          "before_accuracy": 0.1102
+        },
+        {
+          "method": "attn_mlp_readout_repair",
+          "centered_cls_cosine_mean": -0.006874863523989916,
+          "route_dead": 0,
+          "before_accuracy": 0.11
+        }
+      ]
+    },
+    {
+      "seed": 300,
+      "source_family": "v2_strong_seed300",
+      "source": "cifar10_tiny_vit_feature_route_margin_selector_v2_90pct_strong_replicate.json",
+      "dense_accuracy": 0.7275,
+      "original_selected_method": "magnitude",
+      "original_reason": "magnitude_trainable_capacity_guardrail",
+      "v3_projected_method": "all_route_liveness_floor",
+      "v3_projected_reason": "all_route_liveness_capacity_guardrail",
+      "best_method": "all_route_liveness_floor",
+      "magnitude_after": 0.1382,
+      "v3_after": 0.1484,
+      "best_after": 0.1484,
+      "v3_delta_vs_magnitude": 0.010200000000000015,
+      "v3_gap_to_best": 0.0,
+      "v3_matches_best": true,
+      "ranked_candidates": [
+        {
+          "method": "global_synflow",
+          "centered_cls_cosine_mean": 0.024792466312646866,
+          "route_dead": 159
+        },
+        {
+          "method": "minimal_liveness_repair",
+          "centered_cls_cosine_mean": 0.019813943654298782,
+          "route_dead": 0
+        },
+        {
+          "method": "all_route_liveness_floor",
+          "centered_cls_cosine_mean": 0.019813943654298782,
+          "route_dead": 0
+        },
+        {
+          "method": "magnitude",
+          "centered_cls_cosine_mean": 0.01883828639984131,
+          "route_dead": 76
+        },
+        {
+          "method": "attn_mlp_readout_repair",
+          "centered_cls_cosine_mean": 0.018148645758628845,
+          "route_dead": 0
+        }
+      ],
+      "v4_projected_method": "all_route_liveness_floor",
+      "v4_projected_reason": "all_route_liveness_feature_trainability_guardrail",
+      "v4_after": 0.1484,
+      "v4_delta_vs_magnitude": 0.010200000000000015,
+      "v4_gap_to_best": 0.0,
+      "v4_matches_best": true,
+      "v4_ranked_candidates": [
+        {
+          "method": "global_synflow",
+          "centered_cls_cosine_mean": 0.024792466312646866,
+          "route_dead": 159,
+          "before_accuracy": 0.1343
+        },
+        {
+          "method": "minimal_liveness_repair",
+          "centered_cls_cosine_mean": 0.019813943654298782,
+          "route_dead": 0,
+          "before_accuracy": 0.1458
+        },
+        {
+          "method": "all_route_liveness_floor",
+          "centered_cls_cosine_mean": 0.019813943654298782,
+          "route_dead": 0,
+          "before_accuracy": 0.1458
+        },
+        {
+          "method": "magnitude",
+          "centered_cls_cosine_mean": 0.01883828639984131,
+          "route_dead": 76,
+          "before_accuracy": 0.1435
+        },
+        {
+          "method": "attn_mlp_readout_repair",
+          "centered_cls_cosine_mean": 0.018148645758628845,
+          "route_dead": 0,
+          "before_accuracy": 0.1427
+        }
+      ]
+    },
+    {
+      "seed": 301,
+      "source_family": "v3_strong_seed301",
+      "source": "cifar10_tiny_vit_feature_route_margin_selector_v3_90pct_strong.json",
+      "dense_accuracy": 0.7282,
+      "original_selected_method": "global_synflow",
+      "original_reason": "feature_argmax",
+      "v3_projected_method": "global_synflow",
+      "v3_projected_reason": "feature_argmax",
+      "best_method": "global_synflow",
+      "magnitude_after": 0.1139,
+      "v3_after": 0.1452,
+      "best_after": 0.1452,
+      "v3_delta_vs_magnitude": 0.031299999999999994,
+      "v3_gap_to_best": 0.0,
+      "v3_matches_best": true,
+      "ranked_candidates": [
+        {
+          "method": "global_synflow",
+          "centered_cls_cosine_mean": 0.05614648014307022,
+          "route_dead": 180
+        },
+        {
+          "method": "minimal_liveness_repair",
+          "centered_cls_cosine_mean": 0.03764067217707634,
+          "route_dead": 2
+        },
+        {
+          "method": "all_route_liveness_floor",
+          "centered_cls_cosine_mean": 0.03761962801218033,
+          "route_dead": 0
+        },
+        {
+          "method": "attn_mlp_readout_repair",
+          "centered_cls_cosine_mean": 0.03638342767953873,
+          "route_dead": 2
+        },
+        {
+          "method": "magnitude",
+          "centered_cls_cosine_mean": 0.03531341254711151,
+          "route_dead": 66
+        }
+      ],
+      "v4_projected_method": "global_synflow",
+      "v4_projected_reason": "feature_argmax",
+      "v4_after": 0.1452,
+      "v4_delta_vs_magnitude": 0.031299999999999994,
+      "v4_gap_to_best": 0.0,
+      "v4_matches_best": true,
+      "v4_ranked_candidates": [
+        {
+          "method": "global_synflow",
+          "centered_cls_cosine_mean": 0.05614648014307022,
+          "route_dead": 180,
+          "before_accuracy": 0.116
+        },
+        {
+          "method": "minimal_liveness_repair",
+          "centered_cls_cosine_mean": 0.03764067217707634,
+          "route_dead": 2,
+          "before_accuracy": 0.1112
+        },
+        {
+          "method": "all_route_liveness_floor",
+          "centered_cls_cosine_mean": 0.03761962801218033,
+          "route_dead": 0,
+          "before_accuracy": 0.1121
+        },
+        {
+          "method": "attn_mlp_readout_repair",
+          "centered_cls_cosine_mean": 0.03638342767953873,
+          "route_dead": 2,
+          "before_accuracy": 0.1075
+        },
+        {
+          "method": "magnitude",
+          "centered_cls_cosine_mean": 0.03531341254711151,
+          "route_dead": 66,
+          "before_accuracy": 0.1096
+        }
+      ]
+    },
+    {
+      "seed": 302,
+      "source_family": "v3_strong_seed302_303",
+      "source": "cifar10_tiny_vit_feature_route_margin_selector_v3_90pct_strong_replicate.json",
+      "dense_accuracy": 0.7161,
+      "original_selected_method": "global_synflow",
+      "original_reason": "feature_argmax",
+      "v3_projected_method": "global_synflow",
+      "v3_projected_reason": "feature_argmax",
+      "best_method": "global_synflow",
+      "magnitude_after": 0.1199,
+      "v3_after": 0.1601,
+      "best_after": 0.1601,
+      "v3_delta_vs_magnitude": 0.040199999999999986,
+      "v3_gap_to_best": 0.0,
+      "v3_matches_best": true,
+      "ranked_candidates": [
+        {
+          "method": "global_synflow",
+          "centered_cls_cosine_mean": 0.05099278688430786,
+          "route_dead": 177
+        },
+        {
+          "method": "magnitude",
+          "centered_cls_cosine_mean": -0.003405521623790264,
+          "route_dead": 81
+        },
+        {
+          "method": "attn_mlp_readout_repair",
+          "centered_cls_cosine_mean": -0.005312417168170214,
+          "route_dead": 0
+        },
+        {
+          "method": "minimal_liveness_repair",
+          "centered_cls_cosine_mean": -0.006013143341988325,
+          "route_dead": 0
+        },
+        {
+          "method": "all_route_liveness_floor",
+          "centered_cls_cosine_mean": -0.006013143341988325,
+          "route_dead": 0
+        }
+      ],
+      "v4_projected_method": "global_synflow",
+      "v4_projected_reason": "feature_argmax",
+      "v4_after": 0.1601,
+      "v4_delta_vs_magnitude": 0.040199999999999986,
+      "v4_gap_to_best": 0.0,
+      "v4_matches_best": true,
+      "v4_ranked_candidates": [
+        {
+          "method": "global_synflow",
+          "centered_cls_cosine_mean": 0.05099278688430786,
+          "route_dead": 177,
+          "before_accuracy": 0.1265
+        },
+        {
+          "method": "magnitude",
+          "centered_cls_cosine_mean": -0.003405521623790264,
+          "route_dead": 81,
+          "before_accuracy": 0.097
+        },
+        {
+          "method": "attn_mlp_readout_repair",
+          "centered_cls_cosine_mean": -0.005312417168170214,
+          "route_dead": 0,
+          "before_accuracy": 0.0951
+        },
+        {
+          "method": "minimal_liveness_repair",
+          "centered_cls_cosine_mean": -0.006013143341988325,
+          "route_dead": 0,
+          "before_accuracy": 0.097
+        },
+        {
+          "method": "all_route_liveness_floor",
+          "centered_cls_cosine_mean": -0.006013143341988325,
+          "route_dead": 0,
+          "before_accuracy": 0.097
+        }
+      ]
+    },
+    {
+      "seed": 303,
+      "source_family": "v3_strong_seed302_303",
+      "source": "cifar10_tiny_vit_feature_route_margin_selector_v3_90pct_strong_replicate.json",
+      "dense_accuracy": 0.7192,
+      "original_selected_method": "global_synflow",
+      "original_reason": "feature_argmax",
+      "v3_projected_method": "global_synflow",
+      "v3_projected_reason": "feature_argmax",
+      "best_method": "global_synflow",
+      "magnitude_after": 0.0414,
+      "v3_after": 0.1408,
+      "best_after": 0.1408,
+      "v3_delta_vs_magnitude": 0.09940000000000002,
+      "v3_gap_to_best": 0.0,
+      "v3_matches_best": true,
+      "ranked_candidates": [
+        {
+          "method": "global_synflow",
+          "centered_cls_cosine_mean": 0.028716159984469414,
+          "route_dead": 176
+        },
+        {
+          "method": "magnitude",
+          "centered_cls_cosine_mean": -0.03936333209276199,
+          "route_dead": 73
+        },
+        {
+          "method": "minimal_liveness_repair",
+          "centered_cls_cosine_mean": -0.039725128561258316,
+          "route_dead": 0
+        },
+        {
+          "method": "all_route_liveness_floor",
+          "centered_cls_cosine_mean": -0.039725128561258316,
+          "route_dead": 0
+        },
+        {
+          "method": "attn_mlp_readout_repair",
+          "centered_cls_cosine_mean": -0.041861642152071,
+          "route_dead": 0
+        }
+      ],
+      "v4_projected_method": "global_synflow",
+      "v4_projected_reason": "feature_argmax",
+      "v4_after": 0.1408,
+      "v4_delta_vs_magnitude": 0.09940000000000002,
+      "v4_gap_to_best": 0.0,
+      "v4_matches_best": true,
+      "v4_ranked_candidates": [
+        {
+          "method": "global_synflow",
+          "centered_cls_cosine_mean": 0.028716159984469414,
+          "route_dead": 176,
+          "before_accuracy": 0.1121
+        },
+        {
+          "method": "magnitude",
+          "centered_cls_cosine_mean": -0.03936333209276199,
+          "route_dead": 73,
+          "before_accuracy": 0.0398
+        },
+        {
+          "method": "minimal_liveness_repair",
+          "centered_cls_cosine_mean": -0.039725128561258316,
+          "route_dead": 0,
+          "before_accuracy": 0.0391
+        },
+        {
+          "method": "all_route_liveness_floor",
+          "centered_cls_cosine_mean": -0.039725128561258316,
+          "route_dead": 0,
+          "before_accuracy": 0.0391
+        },
+        {
+          "method": "attn_mlp_readout_repair",
+          "centered_cls_cosine_mean": -0.041861642152071,
+          "route_dead": 0,
+          "before_accuracy": 0.0391
+        }
+      ]
+    },
+    {
+      "seed": 304,
+      "source_family": "v4_strong_seed304",
+      "source": "cifar10_tiny_vit_feature_route_margin_selector_v4_90pct_strong.json",
+      "dense_accuracy": 0.7263,
+      "original_selected_method": "global_synflow",
+      "original_reason": "feature_argmax",
+      "v3_projected_method": "global_synflow",
+      "v3_projected_reason": "feature_argmax",
+      "best_method": "global_synflow",
+      "magnitude_after": 0.1022,
+      "v3_after": 0.1709,
+      "best_after": 0.1709,
+      "v3_delta_vs_magnitude": 0.0687,
+      "v3_gap_to_best": 0.0,
+      "v3_matches_best": true,
+      "ranked_candidates": [
+        {
+          "method": "global_synflow",
+          "centered_cls_cosine_mean": 0.032273679971694946,
+          "route_dead": 185
+        },
+        {
+          "method": "minimal_liveness_repair",
+          "centered_cls_cosine_mean": -0.014397467486560345,
+          "route_dead": 0
+        },
+        {
+          "method": "all_route_liveness_floor",
+          "centered_cls_cosine_mean": -0.014397467486560345,
+          "route_dead": 0
+        },
+        {
+          "method": "attn_mlp_readout_repair",
+          "centered_cls_cosine_mean": -0.01480419933795929,
+          "route_dead": 0
+        },
+        {
+          "method": "magnitude",
+          "centered_cls_cosine_mean": -0.01557997241616249,
+          "route_dead": 69
+        }
+      ],
+      "v4_projected_method": "global_synflow",
+      "v4_projected_reason": "feature_argmax",
+      "v4_after": 0.1709,
+      "v4_delta_vs_magnitude": 0.0687,
+      "v4_gap_to_best": 0.0,
+      "v4_matches_best": true,
+      "v4_ranked_candidates": [
+        {
+          "method": "global_synflow",
+          "centered_cls_cosine_mean": 0.032273679971694946,
+          "route_dead": 185,
+          "before_accuracy": 0.1555
+        },
+        {
+          "method": "minimal_liveness_repair",
+          "centered_cls_cosine_mean": -0.014397467486560345,
+          "route_dead": 0,
+          "before_accuracy": 0.0933
+        },
+        {
+          "method": "all_route_liveness_floor",
+          "centered_cls_cosine_mean": -0.014397467486560345,
+          "route_dead": 0,
+          "before_accuracy": 0.0933
+        },
+        {
+          "method": "attn_mlp_readout_repair",
+          "centered_cls_cosine_mean": -0.01480419933795929,
+          "route_dead": 0,
+          "before_accuracy": 0.093
+        },
+        {
+          "method": "magnitude",
+          "centered_cls_cosine_mean": -0.01557997241616249,
+          "route_dead": 69,
+          "before_accuracy": 0.0984
+        }
+      ]
+    }
+  ]
+}

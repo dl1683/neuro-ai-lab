@@ -34,3 +34,6 @@ Thumbs.db
 .idea/
 
 # Keep result JSON/Markdown artifacts unless explicitly too large; they are the evidence trail.
+
+# Private local strategy notes
+.private/

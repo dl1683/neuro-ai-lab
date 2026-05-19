@@ -1,0 +1,288 @@
+{
+  "experiment": "04_cifar100_full_resnet20_route_split_99pct_sgd_recipe",
+  "setup": "Full CIFAR-100 train/test ResNet-20-style route-family split test at 99% sparsity using the 20 dense SGD/cosine plus 5 masked fine-tune recipe.",
+  "device": "cuda",
+  "gpu_name": "NVIDIA GeForce RTX 5090 Laptop GPU",
+  "seeds": [
+    253,
+    254
+  ],
+  "sparsity": 0.99,
+  "reserve": 0.6,
+  "splits": {
+    "plain_reserve": null,
+    "balanced_40_35_25": {
+      "main": 0.4,
+      "projection": 0.35,
+      "readout": 0.25
+    },
+    "readout_heavy_35_20_45": {
+      "main": 0.35,
+      "projection": 0.2,
+      "readout": 0.45
+    },
+    "readout_main_45_15_40": {
+      "main": 0.45,
+      "projection": 0.15,
+      "readout": 0.4
+    }
+  },
+  "summary": {
+    "magnitude": {
+      "after_mean": 0.06525,
+      "after_std": 0.00014999999999999736,
+      "projection_min_mean": 0.578520336188376,
+      "fc_score_mean": 3.0557504892349243,
+      "main_path_min_mean": 0.0,
+      "dead_outputs_mean": 548.0
+    },
+    "plain_reserve": {
+      "after_mean": 0.07975,
+      "after_std": 0.0010499999999999954,
+      "projection_min_mean": 1.1393842697143555,
+      "fc_score_mean": 1.0885562300682068,
+      "main_path_min_mean": 1.207049310207367,
+      "dead_outputs_mean": 0.0,
+      "after_delta_mean": 0.014499999999999999,
+      "after_wins": 2
+    },
+    "balanced_40_35_25": {
+      "after_mean": 0.0875,
+      "after_std": 0.0010000000000000009,
+      "projection_min_mean": 1.9525842666625977,
+      "fc_score_mean": 1.6399666666984558,
+      "main_path_min_mean": 0.9531047344207764,
+      "dead_outputs_mean": 0.0,
+      "after_delta_mean": 0.022249999999999992,
+      "after_wins": 2
+    },
+    "readout_heavy_35_20_45": {
+      "after_mean": 0.0902,
+      "after_std": 0.0006999999999999992,
+      "projection_min_mean": 1.4953573942184448,
+      "fc_score_mean": 2.1365303993225098,
+      "main_path_min_mean": 0.9531047344207764,
+      "dead_outputs_mean": 0.0,
+      "after_delta_mean": 0.024949999999999993,
+      "after_wins": 2
+    },
+    "readout_main_45_15_40": {
+      "after_mean": 0.09115000000000001,
+      "after_std": 0.004249999999999997,
+      "projection_min_mean": 1.285675823688507,
+      "fc_score_mean": 2.033397674560547,
+      "main_path_min_mean": 0.9827633798122406,
+      "dead_outputs_mean": 0.0,
+      "after_delta_mean": 0.0259,
+      "after_wins": 2
+    }
+  },
+  "paired_deltas": [
+    {
+      "method": "plain_reserve",
+      "after_delta_mean": 0.014499999999999999,
+      "after_delta_std": 0.0011999999999999927,
+      "after_wins": 2,
+      "paired_rows": [
+        {
+          "seed": 253,
+          "after_delta": 0.015699999999999992
+        },
+        {
+          "seed": 254,
+          "after_delta": 0.013300000000000006
+        }
+      ]
+    },
+    {
+      "method": "balanced_40_35_25",
+      "after_delta_mean": 0.022249999999999992,
+      "after_delta_std": 0.0008500000000000035,
+      "after_wins": 2,
+      "paired_rows": [
+        {
+          "seed": 253,
+          "after_delta": 0.02139999999999999
+        },
+        {
+          "seed": 254,
+          "after_delta": 0.023099999999999996
+        }
+      ]
+    },
+    {
+      "method": "readout_heavy_35_20_45",
+      "after_delta_mean": 0.024949999999999993,
+      "after_delta_std": 0.0008499999999999966,
+      "after_wins": 2,
+      "paired_rows": [
+        {
+          "seed": 253,
+          "after_delta": 0.02579999999999999
+        },
+        {
+          "seed": 254,
+          "after_delta": 0.024099999999999996
+        }
+      ]
+    },
+    {
+      "method": "readout_main_45_15_40",
+      "after_delta_mean": 0.0259,
+      "after_delta_std": 0.004399999999999994,
+      "after_wins": 2,
+      "paired_rows": [
+        {
+          "seed": 253,
+          "after_delta": 0.030299999999999994
+        },
+        {
+          "seed": 254,
+          "after_delta": 0.021500000000000005
+        }
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "seed": 253,
+      "method": "magnitude",
+      "dense_accuracy": 0.5953,
+      "before_accuracy": 0.0151,
+      "after_accuracy": 0.0651,
+      "route_quality": {
+        "main_path_min": 0.0,
+        "projection_min": 0.5448437631130219,
+        "fc_score": 3.0392706394195557,
+        "route_min": 0.0,
+        "total_dead_outputs": 540
+      }
+    },
+    {
+      "seed": 253,
+      "method": "plain_reserve",
+      "dense_accuracy": 0.5953,
+      "before_accuracy": 0.0103,
+      "after_accuracy": 0.0808,
+      "route_quality": {
+        "main_path_min": 1.216395378112793,
+        "projection_min": 1.12938392162323,
+        "fc_score": 1.0919232368469238,
+        "route_min": 1.0919232368469238,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "seed": 253,
+      "method": "balanced_40_35_25",
+      "dense_accuracy": 0.5953,
+      "before_accuracy": 0.01,
+      "after_accuracy": 0.0865,
+      "route_quality": {
+        "main_path_min": 0.9531047344207764,
+        "projection_min": 1.9525842666625977,
+        "fc_score": 1.6409366130828857,
+        "route_min": 0.9531047344207764,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "seed": 253,
+      "method": "readout_heavy_35_20_45",
+      "dense_accuracy": 0.5953,
+      "before_accuracy": 0.01,
+      "after_accuracy": 0.0909,
+      "route_quality": {
+        "main_path_min": 0.9531047344207764,
+        "projection_min": 1.4936060905456543,
+        "fc_score": 2.1365303993225098,
+        "route_min": 0.9531047344207764,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "seed": 253,
+      "method": "readout_main_45_15_40",
+      "dense_accuracy": 0.5953,
+      "before_accuracy": 0.01,
+      "after_accuracy": 0.0954,
+      "route_quality": {
+        "main_path_min": 0.9769153594970703,
+        "projection_min": 1.292155385017395,
+        "fc_score": 2.033397674560547,
+        "route_min": 0.9769153594970703,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "seed": 254,
+      "method": "magnitude",
+      "dense_accuracy": 0.5959,
+      "before_accuracy": 0.01,
+      "after_accuracy": 0.0654,
+      "route_quality": {
+        "main_path_min": 0.0,
+        "projection_min": 0.61219690926373,
+        "fc_score": 3.072230339050293,
+        "route_min": 0.0,
+        "total_dead_outputs": 556
+      }
+    },
+    {
+      "seed": 254,
+      "method": "plain_reserve",
+      "dense_accuracy": 0.5959,
+      "before_accuracy": 0.0106,
+      "after_accuracy": 0.0787,
+      "route_quality": {
+        "main_path_min": 1.197703242301941,
+        "projection_min": 1.149384617805481,
+        "fc_score": 1.0851892232894897,
+        "route_min": 1.0851892232894897,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "seed": 254,
+      "method": "balanced_40_35_25",
+      "dense_accuracy": 0.5959,
+      "before_accuracy": 0.0118,
+      "after_accuracy": 0.0885,
+      "route_quality": {
+        "main_path_min": 0.9531047344207764,
+        "projection_min": 1.9525842666625977,
+        "fc_score": 1.6389967203140259,
+        "route_min": 0.9531047344207764,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "seed": 254,
+      "method": "readout_heavy_35_20_45",
+      "dense_accuracy": 0.5959,
+      "before_accuracy": 0.0174,
+      "after_accuracy": 0.0895,
+      "route_quality": {
+        "main_path_min": 0.9531047344207764,
+        "projection_min": 1.4971086978912354,
+        "fc_score": 2.1365303993225098,
+        "route_min": 0.9531047344207764,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "seed": 254,
+      "method": "readout_main_45_15_40",
+      "dense_accuracy": 0.5959,
+      "before_accuracy": 0.0168,
+      "after_accuracy": 0.0869,
+      "route_quality": {
+        "main_path_min": 0.9886114001274109,
+        "projection_min": 1.2791962623596191,
+        "fc_score": 2.033397674560547,
+        "route_min": 0.9886114001274109,
+        "total_dead_outputs": 0
+      }
+    }
+  ]
+}

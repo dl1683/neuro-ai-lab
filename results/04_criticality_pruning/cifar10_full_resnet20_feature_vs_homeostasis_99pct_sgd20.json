@@ -1,0 +1,298 @@
+{
+  "experiment": "04_cifar10_full_resnet20_feature_vs_homeostasis_99pct_sgd20",
+  "setup": "Fresh full-CIFAR ResNet-20 99% sparsity test comparing magnitude-first feature repair against homeostatic/ecology repair when magnitude has a dead route floor.",
+  "device": "cuda",
+  "gpu_name": "NVIDIA GeForce RTX 5090 Laptop GPU",
+  "seeds": [
+    277,
+    278
+  ],
+  "sparsity": 0.99,
+  "reserve": 0.6,
+  "summary": {
+    "magnitude": {
+      "after_mean": 0.4591,
+      "after_std": 0.005699999999999983,
+      "projection_min_mean": 1.4707528743892908,
+      "fc_score_mean": 3.7701940536499023,
+      "main_path_min_mean": 0.0,
+      "dead_outputs_mean": 364.0
+    },
+    "feature_viability_repair": {
+      "after_mean": 0.49260000000000004,
+      "after_std": 0.005299999999999999,
+      "projection_min_mean": 1.3059644047170877,
+      "fc_score_mean": 3.7490360736846924,
+      "main_path_min_mean": 0.604111697524786,
+      "dead_outputs_mean": 35.5,
+      "after_delta_mean": 0.0335,
+      "after_wins": 2
+    },
+    "plain_reserve": {
+      "after_mean": 0.4778,
+      "after_std": 0.011699999999999988,
+      "projection_min_mean": 1.1738240718841553,
+      "fc_score_mean": 3.341079354286194,
+      "main_path_min_mean": 1.230094850063324,
+      "dead_outputs_mean": 1.0,
+      "after_delta_mean": 0.018699999999999994,
+      "after_wins": 2
+    },
+    "predicted_route_split": {
+      "after_mean": 0.4733,
+      "after_std": 0.0006999999999999784,
+      "projection_min_mean": 1.5676409602165222,
+      "fc_score_mean": 3.6328232288360596,
+      "main_path_min_mean": 1.0256074666976929,
+      "dead_outputs_mean": 1.0,
+      "after_delta_mean": 0.01419999999999999,
+      "after_wins": 2
+    },
+    "unified_policy": {
+      "after_mean": 0.4778,
+      "after_std": 0.011699999999999988,
+      "projection_min_mean": 1.1738240718841553,
+      "fc_score_mean": 3.341079354286194,
+      "main_path_min_mean": 1.230094850063324,
+      "dead_outputs_mean": 1.0,
+      "after_delta_mean": 0.018699999999999994,
+      "after_wins": 2
+    }
+  },
+  "paired_deltas": [
+    {
+      "method": "feature_viability_repair",
+      "after_delta_mean": 0.0335,
+      "after_delta_std": 0.0003999999999999837,
+      "after_wins": 2,
+      "paired_rows": [
+        {
+          "seed": 277,
+          "after_delta": 0.033899999999999986
+        },
+        {
+          "seed": 278,
+          "after_delta": 0.03310000000000002
+        }
+      ]
+    },
+    {
+      "method": "plain_reserve",
+      "after_delta_mean": 0.018699999999999994,
+      "after_delta_std": 0.01739999999999997,
+      "after_wins": 2,
+      "paired_rows": [
+        {
+          "seed": 277,
+          "after_delta": 0.036099999999999965
+        },
+        {
+          "seed": 278,
+          "after_delta": 0.0013000000000000234
+        }
+      ]
+    },
+    {
+      "method": "predicted_route_split",
+      "after_delta_mean": 0.01419999999999999,
+      "after_delta_std": 0.006399999999999961,
+      "after_wins": 2,
+      "paired_rows": [
+        {
+          "seed": 277,
+          "after_delta": 0.02059999999999995
+        },
+        {
+          "seed": 278,
+          "after_delta": 0.007800000000000029
+        }
+      ]
+    },
+    {
+      "method": "unified_policy",
+      "after_delta_mean": 0.018699999999999994,
+      "after_delta_std": 0.01739999999999997,
+      "after_wins": 2,
+      "paired_rows": [
+        {
+          "seed": 277,
+          "after_delta": 0.036099999999999965
+        },
+        {
+          "seed": 278,
+          "after_delta": 0.0013000000000000234
+        }
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "seed": 277,
+      "selected_family": "ecology_selector",
+      "magnitude_route_floor": 0.0,
+      "selected_method": "plain_reserve",
+      "ecology_selected_method": "plain_reserve",
+      "ecology_split": {
+        "main": 0.5499999999999999,
+        "projection": 0.20000000000000004,
+        "readout": 0.25
+      }
+    },
+    {
+      "seed": 278,
+      "selected_family": "ecology_selector",
+      "magnitude_route_floor": 0.0,
+      "selected_method": "plain_reserve",
+      "ecology_selected_method": "plain_reserve",
+      "ecology_split": {
+        "main": 0.5499999999999999,
+        "projection": 0.25000000000000006,
+        "readout": 0.2
+      }
+    }
+  ],
+  "rows": [
+    {
+      "seed": 277,
+      "method": "magnitude",
+      "dense_accuracy": 0.8825,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.4534,
+      "route_quality": {
+        "main_path_min": 0.0,
+        "projection_min": 1.4836177416145802,
+        "fc_score": 3.7932395935058594,
+        "route_min": 0.0,
+        "total_dead_outputs": 353
+      }
+    },
+    {
+      "seed": 277,
+      "method": "feature_viability_repair",
+      "dense_accuracy": 0.8825,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.4873,
+      "route_quality": {
+        "main_path_min": 0.6638882365077734,
+        "projection_min": 1.3727826662361622,
+        "fc_score": 3.7796337604522705,
+        "route_min": 0.6638882365077734,
+        "total_dead_outputs": 28
+      }
+    },
+    {
+      "seed": 277,
+      "method": "plain_reserve",
+      "dense_accuracy": 0.8825,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.4895,
+      "route_quality": {
+        "main_path_min": 1.216395378112793,
+        "projection_min": 1.1689931154251099,
+        "fc_score": 3.346389055252075,
+        "route_min": 1.1689931154251099,
+        "total_dead_outputs": 2
+      }
+    },
+    {
+      "seed": 277,
+      "method": "predicted_route_split",
+      "dense_accuracy": 0.8825,
+      "before_accuracy": 0.1141,
+      "after_accuracy": 0.474,
+      "route_quality": {
+        "main_path_min": 1.0116009712219238,
+        "projection_min": 1.483024001121521,
+        "fc_score": 3.730501174926758,
+        "route_min": 1.0116009712219238,
+        "total_dead_outputs": 2
+      }
+    },
+    {
+      "seed": 277,
+      "method": "unified_policy",
+      "dense_accuracy": 0.8825,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.4895,
+      "route_quality": {
+        "main_path_min": 1.216395378112793,
+        "projection_min": 1.1689931154251099,
+        "fc_score": 3.346389055252075,
+        "route_min": 1.1689931154251099,
+        "total_dead_outputs": 2
+      },
+      "policy_source_method": "plain_reserve"
+    },
+    {
+      "seed": 278,
+      "method": "magnitude",
+      "dense_accuracy": 0.8802,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.4648,
+      "route_quality": {
+        "main_path_min": 0.0,
+        "projection_min": 1.4578880071640015,
+        "fc_score": 3.7471485137939453,
+        "route_min": 0.0,
+        "total_dead_outputs": 375
+      }
+    },
+    {
+      "seed": 278,
+      "method": "feature_viability_repair",
+      "dense_accuracy": 0.8802,
+      "before_accuracy": 0.1131,
+      "after_accuracy": 0.4979,
+      "route_quality": {
+        "main_path_min": 0.5443351585417986,
+        "projection_min": 1.2391461431980133,
+        "fc_score": 3.7184383869171143,
+        "route_min": 0.5443351585417986,
+        "total_dead_outputs": 43
+      }
+    },
+    {
+      "seed": 278,
+      "method": "plain_reserve",
+      "dense_accuracy": 0.8802,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.4661,
+      "route_quality": {
+        "main_path_min": 1.243794322013855,
+        "projection_min": 1.1786550283432007,
+        "fc_score": 3.3357696533203125,
+        "route_min": 1.1786550283432007,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "seed": 278,
+      "method": "predicted_route_split",
+      "dense_accuracy": 0.8802,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.4726,
+      "route_quality": {
+        "main_path_min": 1.039613962173462,
+        "projection_min": 1.6522579193115234,
+        "fc_score": 3.5351452827453613,
+        "route_min": 1.039613962173462,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "seed": 278,
+      "method": "unified_policy",
+      "dense_accuracy": 0.8802,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.4661,
+      "route_quality": {
+        "main_path_min": 1.243794322013855,
+        "projection_min": 1.1786550283432007,
+        "fc_score": 3.3357696533203125,
+        "route_min": 1.1786550283432007,
+        "total_dead_outputs": 0
+      },
+      "policy_source_method": "plain_reserve"
+    }
+  ]
+}

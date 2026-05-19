@@ -1,0 +1,468 @@
+{
+  "experiment": "04_cifar100_full_resnet20_predicted_route_split_99pct_sgd_recipe",
+  "setup": "Full CIFAR-100 train/test ResNet-20-style predicted route split at 99% sparsity using pre-finetune route-quality deficits.",
+  "device": "cuda",
+  "gpu_name": "NVIDIA GeForce RTX 5090 Laptop GPU",
+  "seeds": [
+    255,
+    256
+  ],
+  "sparsity": 0.99,
+  "reserve": 0.6,
+  "summary": {
+    "magnitude": {
+      "after_mean": 0.07089999999999999,
+      "after_std": 0.0005999999999999964,
+      "projection_min_mean": 0.6473386497236788,
+      "fc_score_mean": 3.0572789907455444,
+      "main_path_min_mean": 0.0,
+      "dead_outputs_mean": 542.0
+    },
+    "plain_reserve": {
+      "after_mean": 0.08965000000000001,
+      "after_std": 0.0029500000000000012,
+      "projection_min_mean": 1.1518537402153015,
+      "fc_score_mean": 1.0952677726745605,
+      "main_path_min_mean": 1.1858150362968445,
+      "dead_outputs_mean": 0.0,
+      "after_delta_mean": 0.018750000000000003,
+      "after_wins": 2
+    },
+    "predicted_route_split": {
+      "after_mean": 0.09805,
+      "after_std": 0.011349999999999999,
+      "projection_min_mean": 1.4971086978912354,
+      "fc_score_mean": 2.2300143241882324,
+      "main_path_min_mean": 0.9470623731613159,
+      "dead_outputs_mean": 1.5,
+      "after_delta_mean": 0.02715,
+      "after_wins": 2
+    }
+  },
+  "paired_deltas": [
+    {
+      "method": "plain_reserve",
+      "after_delta_mean": 0.018750000000000003,
+      "after_delta_std": 0.002350000000000005,
+      "after_wins": 2,
+      "paired_rows": [
+        {
+          "seed": 255,
+          "after_delta": 0.021100000000000008
+        },
+        {
+          "seed": 256,
+          "after_delta": 0.016399999999999998
+        }
+      ]
+    },
+    {
+      "method": "predicted_route_split",
+      "after_delta_mean": 0.02715,
+      "after_delta_std": 0.011949999999999995,
+      "after_wins": 2,
+      "paired_rows": [
+        {
+          "seed": 255,
+          "after_delta": 0.015200000000000005
+        },
+        {
+          "seed": 256,
+          "after_delta": 0.039099999999999996
+        }
+      ]
+    }
+  ],
+  "chosen_splits": [
+    {
+      "seed": 255,
+      "split": {
+        "main": 0.3,
+        "projection": 0.20000000000000004,
+        "readout": 0.4999999999999999
+      },
+      "score": 1.5616490287858038,
+      "quality": {
+        "main_path_min": 0.9470623731613159,
+        "projection_min": 1.4971086978912354,
+        "fc_score": 2.2300143241882324,
+        "route_min": 0.9470623731613159,
+        "total_dead_outputs": 0
+      },
+      "plain_quality": {
+        "main_path_min": 1.1929750442504883,
+        "projection_min": 1.149384617805481,
+        "fc_score": 1.0986123085021973,
+        "route_min": 1.0986123085021973,
+        "total_dead_outputs": 0
+      },
+      "magnitude_quality": {
+        "main_path_min": 0.0,
+        "projection_min": 0.5846832599490881,
+        "fc_score": 3.0633909702301025,
+        "route_min": 0.0,
+        "total_dead_outputs": 541
+      },
+      "top_splits": [
+        {
+          "split": {
+            "main": 0.3,
+            "projection": 0.20000000000000004,
+            "readout": 0.4999999999999999
+          },
+          "score": 1.5616490287858038,
+          "quality": {
+            "main_path_min": 0.9470623731613159,
+            "projection_min": 1.4971086978912354,
+            "fc_score": 2.2300143241882324,
+            "route_min": 0.9470623731613159,
+            "total_dead_outputs": 0
+          }
+        },
+        {
+          "split": {
+            "main": 0.3,
+            "projection": 0.25000000000000006,
+            "readout": 0.4499999999999999
+          },
+          "score": 1.55536412591207,
+          "quality": {
+            "main_path_min": 0.9470623731613159,
+            "projection_min": 1.67006254196167,
+            "fc_score": 2.1365303993225098,
+            "route_min": 0.9470623731613159,
+            "total_dead_outputs": 0
+          }
+        },
+        {
+          "split": {
+            "main": 0.3,
+            "projection": 0.15000000000000002,
+            "readout": 0.5499999999999999
+          },
+          "score": 1.5519908314937803,
+          "quality": {
+            "main_path_min": 0.9470623731613159,
+            "projection_min": 1.2878543138504028,
+            "fc_score": 2.3155012130737305,
+            "route_min": 0.9470623731613159,
+            "total_dead_outputs": 0
+          }
+        },
+        {
+          "split": {
+            "main": 0.35,
+            "projection": 0.20000000000000004,
+            "readout": 0.44999999999999996
+          },
+          "score": 1.5500897541307659,
+          "quality": {
+            "main_path_min": 0.9470623731613159,
+            "projection_min": 1.4971086978912354,
+            "fc_score": 2.1365303993225098,
+            "route_min": 0.9470623731613159,
+            "total_dead_outputs": 0
+          }
+        },
+        {
+          "split": {
+            "main": 0.3,
+            "projection": 0.30000000000000004,
+            "readout": 0.3999999999999999
+          },
+          "score": 1.542611778455988,
+          "quality": {
+            "main_path_min": 0.9470623731613159,
+            "projection_min": 1.8225311040878296,
+            "fc_score": 2.033397674560547,
+            "route_min": 0.9470623731613159,
+            "total_dead_outputs": 0
+          }
+        },
+        {
+          "split": {
+            "main": 0.35,
+            "projection": 0.25000000000000006,
+            "readout": 0.39999999999999997
+          },
+          "score": 1.542611778455988,
+          "quality": {
+            "main_path_min": 0.9470623731613159,
+            "projection_min": 1.67006254196167,
+            "fc_score": 2.033397674560547,
+            "route_min": 0.9470623731613159,
+            "total_dead_outputs": 0
+          }
+        },
+        {
+          "split": {
+            "main": 0.35,
+            "projection": 0.15000000000000002,
+            "readout": 0.5
+          },
+          "score": 1.541420389255165,
+          "quality": {
+            "main_path_min": 0.9470623731613159,
+            "projection_min": 1.2878543138504028,
+            "fc_score": 2.2300143241882324,
+            "route_min": 0.9470623731613159,
+            "total_dead_outputs": 0
+          }
+        },
+        {
+          "split": {
+            "main": 0.44999999999999996,
+            "projection": 0.1,
+            "readout": 0.45000000000000007
+          },
+          "score": 1.5406993288576716,
+          "quality": {
+            "main_path_min": 0.9769153594970703,
+            "projection_min": 1.0560526847839355,
+            "fc_score": 2.1365303993225098,
+            "route_min": 0.9769153594970703,
+            "total_dead_outputs": 0
+          }
+        }
+      ]
+    },
+    {
+      "seed": 256,
+      "split": {
+        "main": 0.3,
+        "projection": 0.20000000000000004,
+        "readout": 0.4999999999999999
+      },
+      "score": 1.569999337604885,
+      "quality": {
+        "main_path_min": 0.9470623731613159,
+        "projection_min": 1.4971086978912354,
+        "fc_score": 2.2300143241882324,
+        "route_min": 0.9470623731613159,
+        "total_dead_outputs": 3
+      },
+      "plain_quality": {
+        "main_path_min": 1.1786550283432007,
+        "projection_min": 1.154322862625122,
+        "fc_score": 1.0919232368469238,
+        "route_min": 1.0919232368469238,
+        "total_dead_outputs": 0
+      },
+      "magnitude_quality": {
+        "main_path_min": 0.0,
+        "projection_min": 0.7099940394982696,
+        "fc_score": 3.0511670112609863,
+        "route_min": 0.0,
+        "total_dead_outputs": 543
+      },
+      "top_splits": [
+        {
+          "split": {
+            "main": 0.3,
+            "projection": 0.20000000000000004,
+            "readout": 0.4999999999999999
+          },
+          "score": 1.569999337604885,
+          "quality": {
+            "main_path_min": 0.9470623731613159,
+            "projection_min": 1.4971086978912354,
+            "fc_score": 2.2300143241882324,
+            "route_min": 0.9470623731613159,
+            "total_dead_outputs": 3
+          }
+        },
+        {
+          "split": {
+            "main": 0.3,
+            "projection": 0.25000000000000006,
+            "readout": 0.4499999999999999
+          },
+          "score": 1.5642872672579662,
+          "quality": {
+            "main_path_min": 0.9470623731613159,
+            "projection_min": 1.67006254196167,
+            "fc_score": 2.1365303993225098,
+            "route_min": 0.9470623731613159,
+            "total_dead_outputs": 3
+          }
+        },
+        {
+          "split": {
+            "main": 0.35,
+            "projection": 0.20000000000000004,
+            "readout": 0.44999999999999996
+          },
+          "score": 1.5603937527680138,
+          "quality": {
+            "main_path_min": 0.9470623731613159,
+            "projection_min": 1.4971086978912354,
+            "fc_score": 2.1365303993225098,
+            "route_min": 0.9470623731613159,
+            "total_dead_outputs": 2
+          }
+        },
+        {
+          "split": {
+            "main": 0.3,
+            "projection": 0.15000000000000002,
+            "readout": 0.5499999999999999
+          },
+          "score": 1.5596366339605825,
+          "quality": {
+            "main_path_min": 0.9470623731613159,
+            "projection_min": 1.2791962623596191,
+            "fc_score": 2.3155012130737305,
+            "route_min": 0.9470623731613159,
+            "total_dead_outputs": 3
+          }
+        },
+        {
+          "split": {
+            "main": 0.35,
+            "projection": 0.25000000000000006,
+            "readout": 0.39999999999999997
+          },
+          "score": 1.5534838297856748,
+          "quality": {
+            "main_path_min": 0.9470623731613159,
+            "projection_min": 1.67006254196167,
+            "fc_score": 2.033397674560547,
+            "route_min": 0.9470623731613159,
+            "total_dead_outputs": 2
+          }
+        },
+        {
+          "split": {
+            "main": 0.3,
+            "projection": 0.30000000000000004,
+            "readout": 0.3999999999999999
+          },
+          "score": 1.5514838297856748,
+          "quality": {
+            "main_path_min": 0.9470623731613159,
+            "projection_min": 1.8225311040878296,
+            "fc_score": 2.033397674560547,
+            "route_min": 0.9470623731613159,
+            "total_dead_outputs": 3
+          }
+        },
+        {
+          "split": {
+            "main": 0.35,
+            "projection": 0.15000000000000002,
+            "readout": 0.5
+          },
+          "score": 1.5510238431216665,
+          "quality": {
+            "main_path_min": 0.9470623731613159,
+            "projection_min": 1.2791962623596191,
+            "fc_score": 2.2300143241882324,
+            "route_min": 0.9470623731613159,
+            "total_dead_outputs": 2
+          }
+        },
+        {
+          "split": {
+            "main": 0.39999999999999997,
+            "projection": 0.20000000000000004,
+            "readout": 0.4
+          },
+          "score": 1.5475903152957224,
+          "quality": {
+            "main_path_min": 0.9470623731613159,
+            "projection_min": 1.4971086978912354,
+            "fc_score": 2.033397674560547,
+            "route_min": 0.9470623731613159,
+            "total_dead_outputs": 2
+          }
+        }
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "seed": 255,
+      "method": "magnitude",
+      "dense_accuracy": 0.5998,
+      "before_accuracy": 0.01,
+      "after_accuracy": 0.0715,
+      "route_quality": {
+        "main_path_min": 0.0,
+        "projection_min": 0.5846832599490881,
+        "fc_score": 3.0633909702301025,
+        "route_min": 0.0,
+        "total_dead_outputs": 541
+      }
+    },
+    {
+      "seed": 255,
+      "method": "plain_reserve",
+      "dense_accuracy": 0.5998,
+      "before_accuracy": 0.01,
+      "after_accuracy": 0.0926,
+      "route_quality": {
+        "main_path_min": 1.1929750442504883,
+        "projection_min": 1.149384617805481,
+        "fc_score": 1.0986123085021973,
+        "route_min": 1.0986123085021973,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "seed": 255,
+      "method": "predicted_route_split",
+      "dense_accuracy": 0.5998,
+      "before_accuracy": 0.01,
+      "after_accuracy": 0.0867,
+      "route_quality": {
+        "main_path_min": 0.9470623731613159,
+        "projection_min": 1.4971086978912354,
+        "fc_score": 2.2300143241882324,
+        "route_min": 0.9470623731613159,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "seed": 256,
+      "method": "magnitude",
+      "dense_accuracy": 0.5953,
+      "before_accuracy": 0.01,
+      "after_accuracy": 0.0703,
+      "route_quality": {
+        "main_path_min": 0.0,
+        "projection_min": 0.7099940394982696,
+        "fc_score": 3.0511670112609863,
+        "route_min": 0.0,
+        "total_dead_outputs": 543
+      }
+    },
+    {
+      "seed": 256,
+      "method": "plain_reserve",
+      "dense_accuracy": 0.5953,
+      "before_accuracy": 0.0112,
+      "after_accuracy": 0.0867,
+      "route_quality": {
+        "main_path_min": 1.1786550283432007,
+        "projection_min": 1.154322862625122,
+        "fc_score": 1.0919232368469238,
+        "route_min": 1.0919232368469238,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "seed": 256,
+      "method": "predicted_route_split",
+      "dense_accuracy": 0.5953,
+      "before_accuracy": 0.01,
+      "after_accuracy": 0.1094,
+      "route_quality": {
+        "main_path_min": 0.9470623731613159,
+        "projection_min": 1.4971086978912354,
+        "fc_score": 2.2300143241882324,
+        "route_min": 0.9470623731613159,
+        "total_dead_outputs": 3
+      }
+    }
+  ]
+}

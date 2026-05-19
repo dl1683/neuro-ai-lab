@@ -1,0 +1,85 @@
+{
+  "experiment": "04_tinyimagenet_resnet18_pretrained_feature_viability_99pct",
+  "setup": "TinyImageNet-200 pretrained ResNet-18 99% sparsity test for magnitude-first feature-subspace preservation plus minimal liveness repair.",
+  "device": "cuda",
+  "gpu_name": "NVIDIA GeForce RTX 5090 Laptop GPU",
+  "seed": 275,
+  "train_subset": 12000,
+  "val_subset": 3000,
+  "sparsity": 0.99,
+  "reserve": 0.6,
+  "dense_epochs": 4,
+  "finetune_epochs": 2,
+  "dense_accuracy": 0.595,
+  "summary": {
+    "magnitude": {
+      "after_mean": 0.012,
+      "projection_min_mean": 1.793445646762848,
+      "fc_score_mean": 4.319685935974121,
+      "main_path_min_mean": 0.8540657609701157,
+      "dead_outputs_mean": 365
+    },
+    "plain_reserve": {
+      "after_mean": 0.008666666666666666,
+      "projection_min_mean": 2.677107572555542,
+      "fc_score_mean": 2.6779346466064453,
+      "main_path_min_mean": 2.681262254714966,
+      "dead_outputs_mean": 0,
+      "after_delta_mean": -0.003333333333333334,
+      "after_wins": 0
+    },
+    "feature_viability_repair": {
+      "after_mean": 0.014333333333333333,
+      "projection_min_mean": 1.9210500717163086,
+      "fc_score_mean": 4.316620826721191,
+      "main_path_min_mean": 1.5495975804515183,
+      "dead_outputs_mean": 4,
+      "after_delta_mean": 0.002333333333333333,
+      "after_wins": 1
+    }
+  },
+  "rows": [
+    {
+      "seed": 275,
+      "method": "magnitude",
+      "dense_accuracy": 0.595,
+      "before_accuracy": 0.007333333333333333,
+      "after_accuracy": 0.012,
+      "route_quality": {
+        "main_path_min": 0.8540657609701157,
+        "projection_min": 1.793445646762848,
+        "fc_score": 4.319685935974121,
+        "route_min": 0.8540657609701157,
+        "total_dead_outputs": 365
+      }
+    },
+    {
+      "seed": 275,
+      "method": "plain_reserve",
+      "dense_accuracy": 0.595,
+      "before_accuracy": 0.005,
+      "after_accuracy": 0.008666666666666666,
+      "route_quality": {
+        "main_path_min": 2.681262254714966,
+        "projection_min": 2.677107572555542,
+        "fc_score": 2.6779346466064453,
+        "route_min": 2.677107572555542,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "seed": 275,
+      "method": "feature_viability_repair",
+      "dense_accuracy": 0.595,
+      "before_accuracy": 0.005,
+      "after_accuracy": 0.014333333333333333,
+      "route_quality": {
+        "main_path_min": 1.5495975804515183,
+        "projection_min": 1.9210500717163086,
+        "fc_score": 4.316620826721191,
+        "route_min": 1.5495975804515183,
+        "total_dead_outputs": 4
+      }
+    }
+  ]
+}

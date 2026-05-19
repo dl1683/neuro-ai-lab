@@ -1,0 +1,258 @@
+{
+  "experiment": "04_cifar10_tiny_vit_feature_route_margin_selector_v2_90pct_strong_replicate",
+  "setup": "Fresh replicate of the full-train TinyViT CIFAR-10 90% sparsity V2 feature-route selector. Uses the same 20 dense epochs and 5 masked fine-tune epochs as the first strong V2 pilot.",
+  "device": "cuda",
+  "gpu_name": "NVIDIA GeForce RTX 5090 Laptop GPU",
+  "seeds": [
+    300
+  ],
+  "sparsity": 0.9,
+  "dense_accuracy_mean": 0.7275,
+  "summary": {
+    "magnitude": {
+      "after_mean": 0.1382,
+      "after_std": 0.0,
+      "centered_cls_cosine_mean": 0.01883828639984131,
+      "dead_outputs_mean": 78.0,
+      "mlp_down_dead_outputs_mean": 74.0,
+      "attn_out_dead_outputs_mean": 2.0
+    },
+    "global_synflow": {
+      "after_mean": 0.1424,
+      "after_std": 0.0,
+      "centered_cls_cosine_mean": 0.024792466312646866,
+      "dead_outputs_mean": 1663.0,
+      "mlp_down_dead_outputs_mean": 87.0,
+      "attn_out_dead_outputs_mean": 72.0,
+      "after_delta_mean": 0.004200000000000009,
+      "after_wins": 1
+    },
+    "minimal_liveness_repair": {
+      "after_mean": 0.1459,
+      "after_std": 0.0,
+      "centered_cls_cosine_mean": 0.019813943654298782,
+      "dead_outputs_mean": 0.0,
+      "mlp_down_dead_outputs_mean": 0.0,
+      "attn_out_dead_outputs_mean": 0.0,
+      "after_delta_mean": 0.007700000000000012,
+      "after_wins": 1
+    },
+    "attn_mlp_readout_repair": {
+      "after_mean": 0.1403,
+      "after_std": 0.0,
+      "centered_cls_cosine_mean": 0.018148645758628845,
+      "dead_outputs_mean": 2.0,
+      "mlp_down_dead_outputs_mean": 0.0,
+      "attn_out_dead_outputs_mean": 0.0,
+      "after_delta_mean": 0.0021000000000000185,
+      "after_wins": 1
+    },
+    "all_route_liveness_floor": {
+      "after_mean": 0.1484,
+      "after_std": 0.0,
+      "centered_cls_cosine_mean": 0.019813943654298782,
+      "dead_outputs_mean": 0.0,
+      "mlp_down_dead_outputs_mean": 0.0,
+      "attn_out_dead_outputs_mean": 0.0,
+      "after_delta_mean": 0.010200000000000015,
+      "after_wins": 1
+    },
+    "feature_route_margin_policy": {
+      "after_mean": 0.1382,
+      "after_std": 0.0,
+      "centered_cls_cosine_mean": 0.01883828639984131,
+      "dead_outputs_mean": 78.0,
+      "mlp_down_dead_outputs_mean": 74.0,
+      "attn_out_dead_outputs_mean": 2.0,
+      "after_delta_mean": 0.0,
+      "after_wins": 0
+    }
+  },
+  "decisions": [
+    {
+      "seed": 300,
+      "selected_method": "magnitude",
+      "reason": "magnitude_trainable_capacity_guardrail",
+      "ranked_candidates": [
+        {
+          "method": "global_synflow",
+          "centered_cls_cosine_mean": 0.024792466312646866,
+          "route_dead": 159
+        },
+        {
+          "method": "minimal_liveness_repair",
+          "centered_cls_cosine_mean": 0.019813943654298782,
+          "route_dead": 0
+        },
+        {
+          "method": "all_route_liveness_floor",
+          "centered_cls_cosine_mean": 0.019813943654298782,
+          "route_dead": 0
+        },
+        {
+          "method": "magnitude",
+          "centered_cls_cosine_mean": 0.01883828639984131,
+          "route_dead": 76
+        },
+        {
+          "method": "attn_mlp_readout_repair",
+          "centered_cls_cosine_mean": 0.018148645758628845,
+          "route_dead": 0
+        }
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "seed": 300,
+      "method": "magnitude",
+      "dense_accuracy": 0.7275,
+      "before_accuracy": 0.1435,
+      "after_accuracy": 0.1382,
+      "feature_alignment": {
+        "cls_cosine_mean": 0.00901944749057293,
+        "cls_cosine_std": 0.1428842544555664,
+        "centered_cls_cosine_mean": 0.01883828639984131,
+        "feature_samples": 2048
+      },
+      "route_quality": {
+        "total_dead_outputs": 78,
+        "mlp_down_dead_outputs": 74,
+        "mlp_down_min": 0.0,
+        "mlp_down_mean": 2.185546875,
+        "attn_out_dead_outputs": 2,
+        "attn_out_min": 0.0,
+        "attn_out_mean": 6.369140625,
+        "head_dead_outputs": 0,
+        "head_min": 16.0,
+        "head_mean": 29.200000762939453
+      }
+    },
+    {
+      "seed": 300,
+      "method": "global_synflow",
+      "dense_accuracy": 0.7275,
+      "before_accuracy": 0.1343,
+      "after_accuracy": 0.1424,
+      "feature_alignment": {
+        "cls_cosine_mean": 0.01536126434803009,
+        "cls_cosine_std": 0.11028312891721725,
+        "centered_cls_cosine_mean": 0.024792466312646866,
+        "feature_samples": 2048
+      },
+      "route_quality": {
+        "total_dead_outputs": 1663,
+        "mlp_down_dead_outputs": 87,
+        "mlp_down_min": 0.0,
+        "mlp_down_mean": 18.484375,
+        "attn_out_dead_outputs": 72,
+        "attn_out_min": 0.0,
+        "attn_out_mean": 28.681640625,
+        "head_dead_outputs": 0,
+        "head_min": 94.0,
+        "head_mean": 104.20000457763672
+      }
+    },
+    {
+      "seed": 300,
+      "method": "minimal_liveness_repair",
+      "dense_accuracy": 0.7275,
+      "before_accuracy": 0.1458,
+      "after_accuracy": 0.1459,
+      "feature_alignment": {
+        "cls_cosine_mean": 0.009540006518363953,
+        "cls_cosine_std": 0.14356152713298798,
+        "centered_cls_cosine_mean": 0.019813943654298782,
+        "feature_samples": 2048
+      },
+      "route_quality": {
+        "total_dead_outputs": 0,
+        "mlp_down_dead_outputs": 0,
+        "mlp_down_min": 1.0,
+        "mlp_down_mean": 2.326171875,
+        "attn_out_dead_outputs": 0,
+        "attn_out_min": 1.0,
+        "attn_out_mean": 6.357421875,
+        "head_dead_outputs": 0,
+        "head_min": 16.0,
+        "head_mean": 29.200000762939453
+      }
+    },
+    {
+      "seed": 300,
+      "method": "attn_mlp_readout_repair",
+      "dense_accuracy": 0.7275,
+      "before_accuracy": 0.1427,
+      "after_accuracy": 0.1403,
+      "feature_alignment": {
+        "cls_cosine_mean": 0.007283671759068966,
+        "cls_cosine_std": 0.14310750365257263,
+        "centered_cls_cosine_mean": 0.018148645758628845,
+        "feature_samples": 2048
+      },
+      "route_quality": {
+        "total_dead_outputs": 2,
+        "mlp_down_dead_outputs": 0,
+        "mlp_down_min": 1.0,
+        "mlp_down_mean": 2.326171875,
+        "attn_out_dead_outputs": 0,
+        "attn_out_min": 1.0,
+        "attn_out_mean": 6.359375,
+        "head_dead_outputs": 0,
+        "head_min": 16.0,
+        "head_mean": 29.200000762939453
+      }
+    },
+    {
+      "seed": 300,
+      "method": "all_route_liveness_floor",
+      "dense_accuracy": 0.7275,
+      "before_accuracy": 0.1458,
+      "after_accuracy": 0.1484,
+      "feature_alignment": {
+        "cls_cosine_mean": 0.009540006518363953,
+        "cls_cosine_std": 0.14356152713298798,
+        "centered_cls_cosine_mean": 0.019813943654298782,
+        "feature_samples": 2048
+      },
+      "route_quality": {
+        "total_dead_outputs": 0,
+        "mlp_down_dead_outputs": 0,
+        "mlp_down_min": 1.0,
+        "mlp_down_mean": 2.326171875,
+        "attn_out_dead_outputs": 0,
+        "attn_out_min": 1.0,
+        "attn_out_mean": 6.357421875,
+        "head_dead_outputs": 0,
+        "head_min": 16.0,
+        "head_mean": 29.200000762939453
+      }
+    },
+    {
+      "seed": 300,
+      "method": "feature_route_margin_policy",
+      "dense_accuracy": 0.7275,
+      "before_accuracy": 0.1435,
+      "after_accuracy": 0.1382,
+      "feature_alignment": {
+        "cls_cosine_mean": 0.00901944749057293,
+        "cls_cosine_std": 0.1428842544555664,
+        "centered_cls_cosine_mean": 0.01883828639984131,
+        "feature_samples": 2048
+      },
+      "route_quality": {
+        "total_dead_outputs": 78,
+        "mlp_down_dead_outputs": 74,
+        "mlp_down_min": 0.0,
+        "mlp_down_mean": 2.185546875,
+        "attn_out_dead_outputs": 2,
+        "attn_out_min": 0.0,
+        "attn_out_mean": 6.369140625,
+        "head_dead_outputs": 0,
+        "head_min": 16.0,
+        "head_mean": 29.200000762939453
+      },
+      "policy_source_method": "magnitude"
+    }
+  ]
+}

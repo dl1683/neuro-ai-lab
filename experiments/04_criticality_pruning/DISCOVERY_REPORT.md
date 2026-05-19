@@ -614,3 +614,42 @@ A synthesis artifact now aggregates the Fashion-MNIST CNN and CIFAR-10 CNN SynFl
 See `experiments/04_criticality_pruning/SYNFLOW_PATHOLOGY_SYNTHESIS.md` and `results/04_criticality_pruning/synflow_pathology_synthesis.json`.
 
 A reusable guardrail module was added at `shared/pruning_diagnostics.py` so future pruning methods can report dense-bridge collapse before fine-tuning.
+
+## Multi-cut capacity pruning: first constructive result
+
+A new multi-cut capacity experiment turns the SynFlow pathology into a constructive method prototype.
+
+Setup: CIFAR-10 CNN, 20k train subset, 5k test subset, CUDA, four seeds, `98%` and `99%` sparsity.
+
+Key result:
+
+- At `98%`, global SynFlow stays at chance (`9.76%` after FT); multi-cut capacity reaches `40.09%`, though magnitude remains higher at `44.05%`.
+- At `99%`, global SynFlow stays at chance (`9.76%` after FT); multi-cut capacity reaches `33.41%`, slightly above magnitude at `32.62%`.
+- Multi-cut capacity eliminates dense bridge death (`0.0` dead `fc1` units) while preserving the same global parameter budget.
+
+Interpretation: this is the first result supporting the constructive path-capacity thesis. The method is not mature, but preserving capacity across multiple cuts can convert an unrecoverable sparse circuit into a trainable one, and can beat magnitude at the harsher `99%` cliff in this run.
+
+See `experiments/04_criticality_pruning/CIFAR10_CNN_MULTICUT_CAPACITY_PRUNING.md`.
+
+## Adaptive capacity pruning update
+
+A less hand-tuned Path-Capacity method now exists. It predicts global SynFlow cutsets from score distributions, reserves `55%` of the keep budget across critical cuts by output-unit count, and fills the rest by SynFlow saliency.
+
+CIFAR-10 CNN result, four seeds:
+
+- `98%`: adaptive capacity recovers SynFlow from `9.76%` to `41.70%` after FT, but trails magnitude at `44.11%`.
+- `99%`: adaptive capacity recovers SynFlow from `9.76%` to `34.65%` after FT, beating magnitude at `32.83%` on mean.
+- In both cases, adaptive capacity eliminates dense-bridge death: `0.0` dead `fc1` units.
+
+This is now the strongest constructive result because it is less hand-set than the earlier multi-cut floor method and directly implements the circuit-viability thesis.
+
+See `experiments/04_criticality_pruning/CIFAR10_CNN_ADAPTIVE_CAPACITY_PRUNING.md`.
+
+## Risk-adaptive allocator failed to beat fixed reserve
+
+A predictor-only allocator based on dead-output risk was tested. It prevented `fc1` death but underperformed the fixed `0.55` reserve:
+
+- `98%`: risk-adaptive after FT `39.49%`, fixed capacity `41.55%`, magnitude `43.70%`.
+- `99%`: risk-adaptive after FT `32.22%`, fixed capacity `33.17%`, magnitude `32.61%`.
+
+This sharpens the next step: a real cut-capacity predictor must include score mass concentration and route quality, not just dead-output counts.

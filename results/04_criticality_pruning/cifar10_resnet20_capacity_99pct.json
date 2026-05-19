@@ -1,0 +1,216 @@
+{
+  "experiment": "04_cifar10_resnet20_capacity_99pct",
+  "setup": "CIFAR-10 ResNet-20-style transfer check for path-capacity pruning at 99% sparsity.",
+  "device": "cuda",
+  "gpu_name": "NVIDIA GeForce RTX 5090 Laptop GPU",
+  "seeds": [
+    225,
+    226
+  ],
+  "sparsity": 0.99,
+  "reserve": 0.6,
+  "summary": {
+    "magnitude": {
+      "after_mean": 0.2848,
+      "after_std": 0.01100000000000001,
+      "projection_min_mean": 2.348376750946045,
+      "fc_score_mean": 3.1711487770080566,
+      "main_path_min_mean": 0.0011965811718255281,
+      "dead_outputs_mean": 339.0
+    },
+    "global_synflow": {
+      "after_mean": 0.0999,
+      "after_std": 0.000899999999999998,
+      "projection_min_mean": 0.0,
+      "fc_score_mean": 3.9169269800186157,
+      "main_path_min_mean": 0.0,
+      "dead_outputs_mean": 666.5,
+      "after_delta_mean": -0.1849,
+      "after_wins": 0
+    },
+    "reserve_0.60": {
+      "after_mean": 0.3241,
+      "after_std": 0.020699999999999996,
+      "projection_min_mean": 1.1738240718841553,
+      "fc_score_mean": 3.7232693433761597,
+      "main_path_min_mean": 1.1929638385772705,
+      "dead_outputs_mean": 0.0,
+      "after_delta_mean": 0.0393,
+      "after_wins": 2
+    },
+    "tuned_40_35_25": {
+      "after_mean": 0.2992,
+      "after_std": 0.015600000000000003,
+      "projection_min_mean": 1.9346866607666016,
+      "fc_score_mean": 3.778459668159485,
+      "main_path_min_mean": 0.8715334832668304,
+      "dead_outputs_mean": 0.0,
+      "after_delta_mean": 0.014400000000000024,
+      "after_wins": 2
+    }
+  },
+  "paired_deltas": [
+    {
+      "method": "global_synflow",
+      "after_delta_mean": -0.1849,
+      "after_delta_std": 0.010100000000000012,
+      "after_wins": 0,
+      "paired_rows": [
+        {
+          "seed": 225,
+          "after_delta": -0.195
+        },
+        {
+          "seed": 226,
+          "after_delta": -0.17479999999999998
+        }
+      ]
+    },
+    {
+      "method": "reserve_0.60",
+      "after_delta_mean": 0.0393,
+      "after_delta_std": 0.009699999999999986,
+      "after_wins": 2,
+      "paired_rows": [
+        {
+          "seed": 225,
+          "after_delta": 0.04899999999999999
+        },
+        {
+          "seed": 226,
+          "after_delta": 0.029600000000000015
+        }
+      ]
+    },
+    {
+      "method": "tuned_40_35_25",
+      "after_delta_mean": 0.014400000000000024,
+      "after_delta_std": 0.004599999999999993,
+      "after_wins": 2,
+      "paired_rows": [
+        {
+          "seed": 225,
+          "after_delta": 0.019000000000000017
+        },
+        {
+          "seed": 226,
+          "after_delta": 0.009800000000000031
+        }
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "seed": 225,
+      "method": "magnitude",
+      "dense_accuracy": 0.5594,
+      "before_accuracy": 0.1022,
+      "after_accuracy": 0.2958,
+      "route_quality": {
+        "main_path_min": 0.001431548036634922,
+        "projection_min": 2.354346990585327,
+        "fc_score": 3.1354942321777344,
+        "route_min": 0.001431548036634922,
+        "total_dead_outputs": 328
+      }
+    },
+    {
+      "seed": 225,
+      "method": "global_synflow",
+      "dense_accuracy": 0.5594,
+      "before_accuracy": 0.1024,
+      "after_accuracy": 0.1008,
+      "route_quality": {
+        "main_path_min": 0.0,
+        "projection_min": 0.0,
+        "fc_score": 3.9039909839630127,
+        "route_min": 0.0,
+        "total_dead_outputs": 667
+      }
+    },
+    {
+      "seed": 225,
+      "method": "reserve_0.60",
+      "dense_accuracy": 0.5594,
+      "before_accuracy": 0.1024,
+      "after_accuracy": 0.3448,
+      "route_quality": {
+        "main_path_min": 1.1882244348526,
+        "projection_min": 1.1786550283432007,
+        "fc_score": 3.7184383869171143,
+        "route_min": 1.1786550283432007,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "seed": 225,
+      "method": "tuned_40_35_25",
+      "dense_accuracy": 0.5594,
+      "before_accuracy": 0.1024,
+      "after_accuracy": 0.3148,
+      "route_quality": {
+        "main_path_min": 0.8780695199966431,
+        "projection_min": 1.9346866607666016,
+        "fc_score": 3.7704594135284424,
+        "route_min": 0.8780695199966431,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "seed": 226,
+      "method": "magnitude",
+      "dense_accuracy": 0.5114,
+      "before_accuracy": 0.0988,
+      "after_accuracy": 0.2738,
+      "route_quality": {
+        "main_path_min": 0.0009616143070161343,
+        "projection_min": 2.3424065113067627,
+        "fc_score": 3.206803321838379,
+        "route_min": 0.0009616143070161343,
+        "total_dead_outputs": 350
+      }
+    },
+    {
+      "seed": 226,
+      "method": "global_synflow",
+      "dense_accuracy": 0.5114,
+      "before_accuracy": 0.1014,
+      "after_accuracy": 0.099,
+      "route_quality": {
+        "main_path_min": 0.0,
+        "projection_min": 0.0,
+        "fc_score": 3.9298629760742188,
+        "route_min": 0.0,
+        "total_dead_outputs": 666
+      }
+    },
+    {
+      "seed": 226,
+      "method": "reserve_0.60",
+      "dense_accuracy": 0.5114,
+      "before_accuracy": 0.1014,
+      "after_accuracy": 0.3034,
+      "route_quality": {
+        "main_path_min": 1.197703242301941,
+        "projection_min": 1.1689931154251099,
+        "fc_score": 3.728100299835205,
+        "route_min": 1.1689931154251099,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "seed": 226,
+      "method": "tuned_40_35_25",
+      "dense_accuracy": 0.5114,
+      "before_accuracy": 0.102,
+      "after_accuracy": 0.2836,
+      "route_quality": {
+        "main_path_min": 0.8649974465370178,
+        "projection_min": 1.9346866607666016,
+        "fc_score": 3.7864599227905273,
+        "route_min": 0.8649974465370178,
+        "total_dead_outputs": 0
+      }
+    }
+  ]
+}

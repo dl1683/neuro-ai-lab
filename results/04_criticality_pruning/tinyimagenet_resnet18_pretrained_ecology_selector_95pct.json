@@ -1,0 +1,141 @@
+{
+  "experiment": "04_tinyimagenet_resnet18_pretrained_ecology_selector_95pct",
+  "setup": "TinyImageNet-200 external-proxy subset stress test using an ImageNet-pretrained ResNet-18 adapted to 200 classes, 95% sparsity, and the fixed ecology-aware selector.",
+  "device": "cuda",
+  "gpu_name": "NVIDIA GeForce RTX 5090 Laptop GPU",
+  "seed": 273,
+  "train_subset": 12000,
+  "val_subset": 3000,
+  "sparsity": 0.95,
+  "reserve": 0.6,
+  "dense_epochs": 4,
+  "finetune_epochs": 2,
+  "dense_accuracy": 0.6076666666666667,
+  "summary": {
+    "magnitude": {
+      "after_mean": 0.15233333333333332,
+      "projection_min_mean": 3.116635322570801,
+      "fc_score_mean": 5.32029914855957,
+      "main_path_min_mean": 3.6182284355163574,
+      "dead_outputs_mean": 10
+    },
+    "plain_reserve": {
+      "after_mean": 0.03966666666666667,
+      "projection_min_mean": 4.174387454986572,
+      "fc_score_mean": 5.529885292053223,
+      "main_path_min_mean": 4.228514671325684,
+      "dead_outputs_mean": 0,
+      "after_delta_mean": -0.11266666666666665,
+      "after_wins": 0
+    },
+    "predicted_route_split": {
+      "after_mean": 0.035333333333333335,
+      "projection_min_mean": 4.174387454986572,
+      "fc_score_mean": 6.0487895011901855,
+      "main_path_min_mean": 3.884218215942383,
+      "dead_outputs_mean": 0,
+      "after_delta_mean": -0.11699999999999999,
+      "after_wins": 0
+    },
+    "ecology_policy": {
+      "after_mean": 0.03966666666666667,
+      "projection_min_mean": 4.174387454986572,
+      "fc_score_mean": 5.529885292053223,
+      "main_path_min_mean": 4.228514671325684,
+      "dead_outputs_mean": 0,
+      "after_delta_mean": -0.11266666666666665,
+      "after_wins": 0
+    }
+  },
+  "decision": {
+    "selected_method": "plain_reserve",
+    "selected_split": null,
+    "plain_readout_ratio": 1.0393936764909912,
+    "readout_ratio_threshold": 0.66,
+    "best_split": {
+      "main": 0.5499999999999999,
+      "projection": 0.20000000000000004,
+      "readout": 0.25
+    },
+    "plain_quality": {
+      "main_path_min": 4.228514671325684,
+      "projection_min": 4.174387454986572,
+      "fc_score": 5.529885292053223,
+      "route_min": 4.174387454986572,
+      "total_dead_outputs": 0
+    },
+    "magnitude_quality": {
+      "main_path_min": 3.6182284355163574,
+      "projection_min": 3.116635322570801,
+      "fc_score": 5.32029914855957,
+      "route_min": 3.116635322570801,
+      "total_dead_outputs": 10
+    },
+    "best_split_quality": {
+      "main_path_min": 3.884218215942383,
+      "projection_min": 4.174387454986572,
+      "fc_score": 6.0487895011901855,
+      "route_min": 3.884218215942383,
+      "total_dead_outputs": 0
+    }
+  },
+  "rows": [
+    {
+      "seed": 273,
+      "method": "magnitude",
+      "dense_accuracy": 0.6076666666666667,
+      "before_accuracy": 0.004666666666666667,
+      "after_accuracy": 0.15233333333333332,
+      "route_quality": {
+        "main_path_min": 3.6182284355163574,
+        "projection_min": 3.116635322570801,
+        "fc_score": 5.32029914855957,
+        "route_min": 3.116635322570801,
+        "total_dead_outputs": 10
+      }
+    },
+    {
+      "seed": 273,
+      "method": "plain_reserve",
+      "dense_accuracy": 0.6076666666666667,
+      "before_accuracy": 0.005,
+      "after_accuracy": 0.03966666666666667,
+      "route_quality": {
+        "main_path_min": 4.228514671325684,
+        "projection_min": 4.174387454986572,
+        "fc_score": 5.529885292053223,
+        "route_min": 4.174387454986572,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "seed": 273,
+      "method": "predicted_route_split",
+      "dense_accuracy": 0.6076666666666667,
+      "before_accuracy": 0.005666666666666667,
+      "after_accuracy": 0.035333333333333335,
+      "route_quality": {
+        "main_path_min": 3.884218215942383,
+        "projection_min": 4.174387454986572,
+        "fc_score": 6.0487895011901855,
+        "route_min": 3.884218215942383,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "seed": 273,
+      "method": "ecology_policy",
+      "dense_accuracy": 0.6076666666666667,
+      "before_accuracy": 0.005,
+      "after_accuracy": 0.03966666666666667,
+      "route_quality": {
+        "main_path_min": 4.228514671325684,
+        "projection_min": 4.174387454986572,
+        "fc_score": 5.529885292053223,
+        "route_min": 4.174387454986572,
+        "total_dead_outputs": 0
+      },
+      "policy_source_method": "plain_reserve"
+    }
+  ]
+}

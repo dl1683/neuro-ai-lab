@@ -1,0 +1,286 @@
+{
+  "experiment": "04_cifar10_deep_tiny_resnet_ecology_selector_99pct_policy",
+  "setup": "Policy projection of the DeepTinyResNet ecology selector, using the already evaluated method chosen by the pre-finetune selector instead of duplicate stochastic fine-tuning.",
+  "device": "cuda",
+  "gpu_name": "NVIDIA GeForce RTX 5090 Laptop GPU",
+  "seeds": [
+    267,
+    268
+  ],
+  "sparsity": 0.99,
+  "reserve": 0.6,
+  "summary": {
+    "magnitude": {
+      "after_mean": 0.2721,
+      "after_std": 0.014300000000000007,
+      "projection_min_mean": 2.300373077392578,
+      "fc_score_mean": 3.164905071258545,
+      "main_path_min_mean": 0.0002422529214527458,
+      "dead_outputs_mean": 311.0
+    },
+    "plain_reserve": {
+      "after_mean": 0.315,
+      "after_std": 0.009000000000000008,
+      "projection_min_mean": 1.1087624430656433,
+      "fc_score_mean": 3.266865372657776,
+      "main_path_min_mean": 1.1590446829795837,
+      "dead_outputs_mean": 1.0,
+      "after_delta_mean": 0.04290000000000002,
+      "after_wins": 2
+    },
+    "predicted_route_split": {
+      "after_mean": 0.3005,
+      "after_std": 0.0015000000000000013,
+      "projection_min_mean": 1.319668173789978,
+      "fc_score_mean": 3.590019702911377,
+      "main_path_min_mean": 0.9972571432590485,
+      "dead_outputs_mean": 0.0,
+      "after_delta_mean": 0.02840000000000001,
+      "after_wins": 2
+    },
+    "ecology_policy": {
+      "after_mean": 0.315,
+      "after_std": 0.009000000000000008,
+      "projection_min_mean": 1.1087624430656433,
+      "fc_score_mean": 3.266865372657776,
+      "main_path_min_mean": 1.1590446829795837,
+      "dead_outputs_mean": 1.0,
+      "after_delta_mean": 0.04290000000000002,
+      "after_wins": 2
+    }
+  },
+  "paired_deltas": [
+    {
+      "method": "plain_reserve",
+      "after_delta_mean": 0.04290000000000002,
+      "after_delta_std": 0.023300000000000015,
+      "after_wins": 2,
+      "paired_rows": [
+        {
+          "seed": 267,
+          "after_delta": 0.019600000000000006
+        },
+        {
+          "seed": 268,
+          "after_delta": 0.06620000000000004
+        }
+      ]
+    },
+    {
+      "method": "predicted_route_split",
+      "after_delta_mean": 0.02840000000000001,
+      "after_delta_std": 0.01580000000000001,
+      "after_wins": 2,
+      "paired_rows": [
+        {
+          "seed": 267,
+          "after_delta": 0.0126
+        },
+        {
+          "seed": 268,
+          "after_delta": 0.04420000000000002
+        }
+      ]
+    },
+    {
+      "method": "ecology_policy",
+      "after_delta_mean": 0.04290000000000002,
+      "after_delta_std": 0.023300000000000015,
+      "after_wins": 2,
+      "paired_rows": [
+        {
+          "seed": 267,
+          "after_delta": 0.019600000000000006
+        },
+        {
+          "seed": 268,
+          "after_delta": 0.06620000000000004
+        }
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "seed": 267,
+      "selected_method": "plain_reserve",
+      "selected_split": null,
+      "plain_readout_ratio": 1.0088070339994728,
+      "readout_ratio_threshold": 0.66,
+      "best_split": {
+        "main": 0.5499999999999999,
+        "projection": 0.25000000000000006,
+        "readout": 0.2
+      },
+      "plain_quality": {
+        "main_path_min": 1.1786550283432007,
+        "projection_min": 1.12938392162323,
+        "fc_score": 3.226844072341919,
+        "route_min": 1.12938392162323,
+        "total_dead_outputs": 1
+      },
+      "magnitude_quality": {
+        "main_path_min": 0.0002422529214527458,
+        "projection_min": 2.3363823890686035,
+        "fc_score": 3.1986732482910156,
+        "route_min": 0.0002422529214527458,
+        "total_dead_outputs": 310
+      },
+      "best_split_quality": {
+        "main_path_min": 1.005902886390686,
+        "projection_min": 1.3217558860778809,
+        "fc_score": 3.6189932823181152,
+        "route_min": 1.005902886390686,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "seed": 268,
+      "selected_method": "plain_reserve",
+      "selected_split": null,
+      "plain_readout_ratio": 1.0561297013463855,
+      "readout_ratio_threshold": 0.66,
+      "best_split": {
+        "main": 0.5499999999999999,
+        "projection": 0.25000000000000006,
+        "readout": 0.2
+      },
+      "plain_quality": {
+        "main_path_min": 1.1394343376159668,
+        "projection_min": 1.0881409645080566,
+        "fc_score": 3.306886672973633,
+        "route_min": 1.0881409645080566,
+        "total_dead_outputs": 1
+      },
+      "magnitude_quality": {
+        "main_path_min": 0.0002422529214527458,
+        "projection_min": 2.2643637657165527,
+        "fc_score": 3.131136894226074,
+        "route_min": 0.0002422529214527458,
+        "total_dead_outputs": 312
+      },
+      "best_split_quality": {
+        "main_path_min": 0.9886114001274109,
+        "projection_min": 1.3175804615020752,
+        "fc_score": 3.5610461235046387,
+        "route_min": 0.9886114001274109,
+        "total_dead_outputs": 0
+      }
+    }
+  ],
+  "rows": [
+    {
+      "seed": 267,
+      "method": "magnitude",
+      "dense_accuracy": 0.5958,
+      "before_accuracy": 0.1024,
+      "after_accuracy": 0.2864,
+      "route_quality": {
+        "main_path_min": 0.0002422529214527458,
+        "projection_min": 2.3363823890686035,
+        "fc_score": 3.1986732482910156,
+        "route_min": 0.0002422529214527458,
+        "total_dead_outputs": 310
+      }
+    },
+    {
+      "seed": 267,
+      "method": "plain_reserve",
+      "dense_accuracy": 0.5958,
+      "before_accuracy": 0.1024,
+      "after_accuracy": 0.306,
+      "route_quality": {
+        "main_path_min": 1.1786550283432007,
+        "projection_min": 1.12938392162323,
+        "fc_score": 3.226844072341919,
+        "route_min": 1.12938392162323,
+        "total_dead_outputs": 1
+      }
+    },
+    {
+      "seed": 267,
+      "method": "predicted_route_split",
+      "dense_accuracy": 0.5958,
+      "before_accuracy": 0.1024,
+      "after_accuracy": 0.299,
+      "route_quality": {
+        "main_path_min": 1.005902886390686,
+        "projection_min": 1.3217558860778809,
+        "fc_score": 3.6189932823181152,
+        "route_min": 1.005902886390686,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "seed": 268,
+      "method": "magnitude",
+      "dense_accuracy": 0.5754,
+      "before_accuracy": 0.0988,
+      "after_accuracy": 0.2578,
+      "route_quality": {
+        "main_path_min": 0.0002422529214527458,
+        "projection_min": 2.2643637657165527,
+        "fc_score": 3.131136894226074,
+        "route_min": 0.0002422529214527458,
+        "total_dead_outputs": 312
+      }
+    },
+    {
+      "seed": 268,
+      "method": "plain_reserve",
+      "dense_accuracy": 0.5754,
+      "before_accuracy": 0.0976,
+      "after_accuracy": 0.324,
+      "route_quality": {
+        "main_path_min": 1.1394343376159668,
+        "projection_min": 1.0881409645080566,
+        "fc_score": 3.306886672973633,
+        "route_min": 1.0881409645080566,
+        "total_dead_outputs": 1
+      }
+    },
+    {
+      "seed": 268,
+      "method": "predicted_route_split",
+      "dense_accuracy": 0.5754,
+      "before_accuracy": 0.1066,
+      "after_accuracy": 0.302,
+      "route_quality": {
+        "main_path_min": 0.9886114001274109,
+        "projection_min": 1.3175804615020752,
+        "fc_score": 3.5610461235046387,
+        "route_min": 0.9886114001274109,
+        "total_dead_outputs": 0
+      }
+    },
+    {
+      "seed": 267,
+      "method": "ecology_policy",
+      "dense_accuracy": 0.5958,
+      "before_accuracy": 0.1024,
+      "after_accuracy": 0.306,
+      "route_quality": {
+        "main_path_min": 1.1786550283432007,
+        "projection_min": 1.12938392162323,
+        "fc_score": 3.226844072341919,
+        "route_min": 1.12938392162323,
+        "total_dead_outputs": 1
+      },
+      "policy_source_method": "plain_reserve"
+    },
+    {
+      "seed": 268,
+      "method": "ecology_policy",
+      "dense_accuracy": 0.5754,
+      "before_accuracy": 0.0976,
+      "after_accuracy": 0.324,
+      "route_quality": {
+        "main_path_min": 1.1394343376159668,
+        "projection_min": 1.0881409645080566,
+        "fc_score": 3.306886672973633,
+        "route_min": 1.0881409645080566,
+        "total_dead_outputs": 1
+      },
+      "policy_source_method": "plain_reserve"
+    }
+  ]
+}

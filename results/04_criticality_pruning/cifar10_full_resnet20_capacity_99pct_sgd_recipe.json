@@ -1,0 +1,164 @@
+{
+  "experiment": "04_cifar10_full_resnet20_capacity_99pct_sgd_recipe",
+  "setup": "Full CIFAR-10 train/test ResNet-20-style path-capacity pruning at 99% sparsity with 20 dense SGD/cosine epochs and 5 masked fine-tune epochs.",
+  "device": "cuda",
+  "gpu_name": "NVIDIA GeForce RTX 5090 Laptop GPU",
+  "seeds": [
+    241,
+    242
+  ],
+  "sparsity": 0.99,
+  "reserve": 0.6,
+  "dense_epochs": 20,
+  "finetune_epochs": 5,
+  "summary": {
+    "magnitude": {
+      "after_mean": 0.42895,
+      "after_std": 0.0019500000000000073,
+      "projection_min_mean": 1.3545407187193632,
+      "fc_score_mean": 3.73409104347229,
+      "main_path_min_mean": 0.0,
+      "dead_outputs_mean": 356.0
+    },
+    "global_synflow": {
+      "after_mean": 0.1,
+      "after_std": 0.0,
+      "projection_min_mean": 0.0,
+      "fc_score_mean": 3.785273313522339,
+      "main_path_min_mean": 0.0,
+      "dead_outputs_mean": 646.0,
+      "after_delta_mean": -0.32894999999999996,
+      "after_wins": 0
+    },
+    "reserve_0.60": {
+      "after_mean": 0.5137499999999999,
+      "after_std": 0.015949999999999964,
+      "projection_min_mean": 1.171273648738861,
+      "fc_score_mean": 3.3118865489959717,
+      "main_path_min_mean": 1.2254436612129211,
+      "dead_outputs_mean": 1.0,
+      "after_delta_mean": 0.08479999999999999,
+      "after_wins": 2
+    }
+  },
+  "paired_deltas": [
+    {
+      "method": "global_synflow",
+      "after_delta_mean": -0.32894999999999996,
+      "after_delta_std": 0.0019500000000000073,
+      "after_wins": 0,
+      "paired_rows": [
+        {
+          "seed": 241,
+          "after_delta": -0.32699999999999996
+        },
+        {
+          "seed": 242,
+          "after_delta": -0.33089999999999997
+        }
+      ]
+    },
+    {
+      "method": "reserve_0.60",
+      "after_delta_mean": 0.08479999999999999,
+      "after_delta_std": 0.01789999999999997,
+      "after_wins": 2,
+      "paired_rows": [
+        {
+          "seed": 241,
+          "after_delta": 0.10269999999999996
+        },
+        {
+          "seed": 242,
+          "after_delta": 0.06690000000000002
+        }
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "seed": 241,
+      "method": "magnitude",
+      "dense_accuracy": 0.8823,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.427,
+      "route_quality": {
+        "main_path_min": 0.0,
+        "projection_min": 1.3505115769803524,
+        "fc_score": 3.732896327972412,
+        "route_min": 0.0,
+        "total_dead_outputs": 363
+      }
+    },
+    {
+      "seed": 241,
+      "method": "global_synflow",
+      "dense_accuracy": 0.8823,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.1,
+      "route_quality": {
+        "main_path_min": 0.0,
+        "projection_min": 0.0,
+        "fc_score": 3.7954893112182617,
+        "route_min": 0.0,
+        "total_dead_outputs": 644
+      }
+    },
+    {
+      "seed": 241,
+      "method": "reserve_0.60",
+      "dense_accuracy": 0.8823,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.5297,
+      "route_quality": {
+        "main_path_min": 1.2070930004119873,
+        "projection_min": 1.1882244348526,
+        "fc_score": 3.2809112071990967,
+        "route_min": 1.1882244348526,
+        "total_dead_outputs": 2
+      }
+    },
+    {
+      "seed": 242,
+      "method": "magnitude",
+      "dense_accuracy": 0.8811,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.4309,
+      "route_quality": {
+        "main_path_min": 0.0,
+        "projection_min": 1.358569860458374,
+        "fc_score": 3.735285758972168,
+        "route_min": 0.0,
+        "total_dead_outputs": 349
+      }
+    },
+    {
+      "seed": 242,
+      "method": "global_synflow",
+      "dense_accuracy": 0.8811,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.1,
+      "route_quality": {
+        "main_path_min": 0.0,
+        "projection_min": 0.0,
+        "fc_score": 3.775057315826416,
+        "route_min": 0.0,
+        "total_dead_outputs": 648
+      }
+    },
+    {
+      "seed": 242,
+      "method": "reserve_0.60",
+      "dense_accuracy": 0.8811,
+      "before_accuracy": 0.1,
+      "after_accuracy": 0.4978,
+      "route_quality": {
+        "main_path_min": 1.243794322013855,
+        "projection_min": 1.154322862625122,
+        "fc_score": 3.3428618907928467,
+        "route_min": 1.154322862625122,
+        "total_dead_outputs": 0
+      }
+    }
+  ]
+}

@@ -252,3 +252,14 @@ The strongest current artifact is `experiments/04_criticality_pruning/SYNFLOW_PA
 - Layerwise SynFlow partially repairs allocation but still averages `-22.21` points vs magnitude.
 
 Added `shared/pruning_diagnostics.py` to catch this class of collapse directly.
+
+## Constructive path-capacity result
+
+The first multi-cut capacity method is now in the repo:
+
+- `shared/path_capacity_pruning.py`
+- `experiments/04_criticality_pruning/cifar10_cnn_path_capacity_pruning.py`
+- `experiments/04_criticality_pruning/cifar10_cnn_multicut_capacity_pruning.py`
+- `experiments/04_criticality_pruning/CIFAR10_CNN_MULTICUT_CAPACITY_PRUNING.md`
+
+The important result is at `99%` sparsity on CIFAR-10 CNN: multi-cut capacity turns SynFlow from chance (`9.76%`) into a trainable mask (`33.41%` after FT), slightly above magnitude (`32.62%`) in this four-seed run. This is early, but it is the first constructive evidence for the circuit-viability thesis.
