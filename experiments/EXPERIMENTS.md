@@ -77,7 +77,10 @@ Framework where AI generation happens in continuous embedding space via iterativ
 - `proofs/information_bottleneck.md` — Corrected DPI derivation. Advantage is process (parallel refinement, no premature commitment), not raw capacity.
 - `proofs/spectral_contraction.md` — Spectral norm, contraction bounds, basin size analysis. Non-normal Jacobian caveats.
 - `proofs/finite_step_convergence.md` — T=10 sufficiency depends on rho. rho<0.8 gives 89%+ reduction; rho>0.9 may need more steps.
-- **Codex review:** `proofs/codex_proof_review.md` — MODERATE overall. CE-to-margin conversion, temperature->0 MI, and non-normal Jacobian issues fixed.
+- `proofs/fixed_point_existence.md` — Fixed-point existence via IFT (rho<1 bootstraps local existence/uniqueness), training-guaranteed approximate fixed points, context-dependence and bifurcation risks.
+- `proofs/nonnormal_stability.md` — Non-normal Jacobian analysis: pseudospectrum, Kreiss constant, singular-value vs spectral-radius bounds for finite-T dynamics. Links UESD to forward Euler stability theory. Explains why D5 (not D6) is the right empirical test for finite-step stability.
+- **Codex review R1:** `proofs/codex_proof_review.md` — MODERATE overall. CE-to-margin conversion, temperature->0 MI, and non-normal Jacobian issues fixed.
+- **Codex review R2:** `proofs/codex_proof_review_r2.md` — Pending (reviews all 6 proofs including new additions).
 
 ### Design Documents
 - `design_revision_r3.md` — LOCKED build spec. 2 experiments, 2 tracks, 6 diagnostics.

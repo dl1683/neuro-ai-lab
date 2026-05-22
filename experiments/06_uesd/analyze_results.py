@@ -234,6 +234,22 @@ def decision_table(exp_a, exp_b):
     elif e1_rev > ar_acc:
         print(f"\n  UNEXPECTED WIN: UESD > AR ({e1_rev:.4f} vs {ar_acc:.4f}) — validate carefully")
 
+    # Exp C dynamics necessity
+    exp_c = load_results("exp_c_sort")
+    if exp_c:
+        enc_sort = exp_c.get("encoder_only", {}).get("eval", {}).get("token_accuracy", {}).get("token_acc", 0)
+        e1_sort = exp_c.get("track_a_e1", {}).get("eval", {}).get("token_accuracy", {}).get("token_acc", 0)
+        print(f"\n--- Exp C: Dynamics Necessity (Sort) ---")
+        if enc_sort < 0.80 and e1_sort >= 0.80:
+            print(f"  DYNAMICS NECESSARY: encoder-only={enc_sort:.4f} < 0.80, UESD={e1_sort:.4f}")
+            print(f"  The encoder-only confound from Exp A/B is resolved.")
+        elif enc_sort >= 0.80:
+            print(f"  DYNAMICS NOT YET PROVEN NECESSARY: encoder-only={enc_sort:.4f} on sort")
+            print(f"  Need harder tasks to separate dynamics contribution.")
+        else:
+            print(f"  BOTH STRUGGLE: encoder-only={enc_sort:.4f}, UESD={e1_sort:.4f}")
+            print(f"  Sort may be too hard at current scale.")
+
 
 def summarize_exp_c():
     r = load_results("exp_c_sort")
@@ -280,6 +296,16 @@ def summarize_exp_c():
             margin = ev.get("decoder_margin", {}).get("mean_margin", 0)
             rho = ev.get("spectral_radius", {}).get("mean_rho", 0)
             print(f"  {lam:>6.1f} {acc:>7.4f} {wa:>8.4f} {conv:>7.4f} {margin:>8.4f} {rho:>7.4f}")
+
+    # Update trajectory (per-step residual norms)
+    for key, label in [("track_a_e1", "E1"), ("track_b_e5_lam0.1", "E5 lam=0.1"),
+                       ("track_b_e5_lam1.0", "E5 lam=1.0")]:
+        if key in r:
+            traj = r[key].get("eval", {}).get("update_trajectory", {})
+            if traj:
+                vals = [traj.get(f"step_{i+1}", 0) for i in range(10)]
+                print(f"\n  {label} convergence trajectory:")
+                print(f"    " + " -> ".join(f"{v:.4f}" for v in vals))
 
     if "gates" in r:
         print("\n--- Gates ---")

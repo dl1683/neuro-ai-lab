@@ -295,6 +295,11 @@ def run_all_diagnostics(model, src_ids, target_ids, T, config=None):
 
     results = {}
 
+    # Per-step update norms (trajectory from unroll)
+    results["update_trajectory"] = {
+        f"step_{i+1}": n.item() for i, n in enumerate(update_norms)
+    }
+
     # D1: Token Accuracy
     results["token_accuracy"] = token_accuracy(logits, target_ids)
 
