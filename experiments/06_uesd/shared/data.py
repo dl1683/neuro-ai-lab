@@ -19,10 +19,57 @@ def generate_sort_batch(batch_size: int, seq_len: int, vocab_size: int):
     return input_ids, target_ids
 
 
+def generate_addition_batch(batch_size: int, seq_len: int, vocab_size: int):
+    """Multi-digit addition: input is [a0,b0, a1,b1, ...], output is sum digits.
+
+    Input: interleaved pairs (a_i, b_i) for i = 0..L/2-1, most-significant first.
+    Output: L/2 digits of (A + B) mod base^(L/2), most-significant first.
+    Carry propagation goes right-to-left — not solvable by position-wise mapping.
+    Output length = seq_len (padded with 0 if seq_len is odd).
+    """
+    half = seq_len // 2
+    a = torch.randint(0, vocab_size, (batch_size, half))
+    b = torch.randint(0, vocab_size, (batch_size, half))
+    input_ids = torch.zeros(batch_size, seq_len, dtype=torch.long)
+    input_ids[:, 0::2] = a[:, :seq_len // 2 + seq_len % 2]
+    input_ids[:, 1::2] = b[:, :seq_len // 2]
+
+    carry = torch.zeros(batch_size, dtype=torch.long)
+    result = torch.zeros(batch_size, half, dtype=torch.long)
+    for i in range(half - 1, -1, -1):
+        s = a[:, i] + b[:, i] + carry
+        result[:, i] = s % vocab_size
+        carry = s // vocab_size
+
+    target_ids = torch.zeros(batch_size, seq_len, dtype=torch.long)
+    target_ids[:, :half] = result
+    return input_ids, target_ids
+
+
+def generate_dedup_batch(batch_size: int, seq_len: int, vocab_size: int):
+    """Deduplicate + sort: output unique sorted elements, padded with 0.
+
+    Non-bijective mapping: multiple inputs can map to the same output.
+    Requires counting/grouping operations, not just routing.
+    """
+    input_ids = torch.randint(1, vocab_size, (batch_size, seq_len))
+    target_list = []
+    for i in range(batch_size):
+        unique_sorted = input_ids[i].unique(sorted=True)
+        padded = torch.zeros(seq_len, dtype=torch.long)
+        n = min(len(unique_sorted), seq_len)
+        padded[:n] = unique_sorted[:n]
+        target_list.append(padded)
+    target_ids = torch.stack(target_list)
+    return input_ids, target_ids
+
+
 _TASKS = {
     "copy": generate_copy_batch,
     "reversal": generate_reversal_batch,
     "sort": generate_sort_batch,
+    "addition": generate_addition_batch,
+    "dedup": generate_dedup_batch,
 }
 
 
