@@ -1,0 +1,193 @@
+{
+  "timestamp": "2026-05-22T20:52:58.490773+00:00",
+  "device": "cuda",
+  "purpose": "D3b: Validate trajectory Lyapunov via eps sweep, autograd check, shuffled controls",
+  "autograd_checks": [
+    {
+      "example_idx": 0,
+      "relative_frobenius_error": 0.024915428832173347,
+      "top5_sigma_fd": [
+        3.528331995010376,
+        2.2855710983276367,
+        2.2624080181121826,
+        2.1239309310913086,
+        2.0816643238067627
+      ],
+      "top5_sigma_ag": [
+        3.5233583450317383,
+        2.2840287685394287,
+        2.2578647136688232,
+        2.1247596740722656,
+        2.0779879093170166
+      ],
+      "sv1_alignment": 1.000312089920044
+    },
+    {
+      "example_idx": 1,
+      "relative_frobenius_error": 0.025669878348708153,
+      "top5_sigma_fd": [
+        3.288034439086914,
+        2.1265668869018555,
+        2.110522747039795,
+        1.9832128286361694,
+        1.9555386304855347
+      ],
+      "top5_sigma_ag": [
+        3.2819831371307373,
+        2.1227078437805176,
+        2.102755308151245,
+        1.9818434715270996,
+        1.9530892372131348
+      ],
+      "sv1_alignment": 1.0002394914627075
+    },
+    {
+      "example_idx": 2,
+      "relative_frobenius_error": 0.026675723493099213,
+      "top5_sigma_fd": [
+        3.5442848205566406,
+        2.244309902191162,
+        2.164388656616211,
+        2.1139676570892334,
+        2.003005266189575
+      ],
+      "top5_sigma_ag": [
+        3.5396981239318848,
+        2.2420036792755127,
+        2.1577231884002686,
+        2.107283353805542,
+        2.00120210647583
+      ],
+      "sv1_alignment": 1.0001429319381714
+    },
+    {
+      "example_idx": 3,
+      "relative_frobenius_error": 0.025900861248373985,
+      "top5_sigma_fd": [
+        3.3492698669433594,
+        2.1853768825531006,
+        2.0830447673797607,
+        1.9648913145065308,
+        1.9291640520095825
+      ],
+      "top5_sigma_ag": [
+        3.346101760864258,
+        2.1843812465667725,
+        2.0783233642578125,
+        1.9616082906723022,
+        1.9279073476791382
+      ],
+      "sv1_alignment": 1.000204086303711
+    }
+  ],
+  "eps_sweep": {
+    "1e-03": {
+      "eps": 0.001,
+      "avg_lyapunov": 0.19536089647893665,
+      "avg_ordered_cum_sigma": 7.073994398117065,
+      "avg_shuffled_cum_sigma": 7.797365128993988,
+      "ordered_vs_shuffled_ratio": 0.9072288242361364,
+      "avg_sv_alignment": 0.6856926007377397,
+      "avg_conservatism_product": 4082.409916230066,
+      "avg_conservatism_max_sigma": 21134011.722229093
+    },
+    "3e-04": {
+      "eps": 0.0003,
+      "avg_lyapunov": 0.19454001525405457,
+      "avg_ordered_cum_sigma": 7.009793758392334,
+      "avg_shuffled_cum_sigma": 7.524417400360107,
+      "ordered_vs_shuffled_ratio": 0.9316061809724772,
+      "avg_sv_alignment": 0.7363888520436982,
+      "avg_conservatism_product": 3894.7299393140624,
+      "avg_conservatism_max_sigma": 2788613.8792410437
+    },
+    "1e-04": {
+      "eps": 0.0001,
+      "avg_lyapunov": 0.19548679984299103,
+      "avg_ordered_cum_sigma": 7.118012726306915,
+      "avg_shuffled_cum_sigma": 7.8729026317596436,
+      "ordered_vs_shuffled_ratio": 0.9041154272113733,
+      "avg_sv_alignment": 0.6792474331062598,
+      "avg_conservatism_product": 5112.32601970468,
+      "avg_conservatism_max_sigma": 2628764.209993576
+    },
+    "3e-05": {
+      "eps": 3e-05,
+      "avg_lyapunov": 0.19740799164250838,
+      "avg_ordered_cum_sigma": 7.22288590669632,
+      "avg_shuffled_cum_sigma": 7.687948167324066,
+      "ordered_vs_shuffled_ratio": 0.9395076227745146,
+      "avg_sv_alignment": 0.6642033866115121,
+      "avg_conservatism_product": 7210.266759588962,
+      "avg_conservatism_max_sigma": 9770979.748351233
+    },
+    "1e-05": {
+      "eps": 1e-05,
+      "avg_lyapunov": 0.20946859819165498,
+      "avg_ordered_cum_sigma": 8.16005563735962,
+      "avg_shuffled_cum_sigma": 8.92743968963623,
+      "ordered_vs_shuffled_ratio": 0.9140420905707759,
+      "avg_sv_alignment": 0.37298506462765446,
+      "avg_conservatism_product": 8320.06975520237,
+      "avg_conservatism_max_sigma": 2167448.751452903
+    }
+  },
+  "shuffled_controls": [
+    {
+      "ordered": 5.997158527374268,
+      "shuffled_mean": 6.553629398345947,
+      "shuffled_std": 0.31010056077804143,
+      "shuffled_min": 6.141613960266113,
+      "shuffled_max": 6.9483323097229
+    },
+    {
+      "ordered": 6.161725044250488,
+      "shuffled_mean": 6.432105255126953,
+      "shuffled_std": 0.18677138929137121,
+      "shuffled_min": 6.211094856262207,
+      "shuffled_max": 6.743025302886963
+    },
+    {
+      "ordered": 6.6384758949279785,
+      "shuffled_mean": 7.230781936645508,
+      "shuffled_std": 0.3044650991927333,
+      "shuffled_min": 6.736218452453613,
+      "shuffled_max": 7.820140361785889
+    },
+    {
+      "ordered": 7.160754203796387,
+      "shuffled_mean": 7.9085533618927,
+      "shuffled_std": 0.26078954441579716,
+      "shuffled_min": 7.575070858001709,
+      "shuffled_max": 8.545690536499023
+    },
+    {
+      "ordered": 7.170194625854492,
+      "shuffled_mean": 7.351476955413818,
+      "shuffled_std": 0.17584371468413182,
+      "shuffled_min": 7.046571731567383,
+      "shuffled_max": 7.558920383453369
+    },
+    {
+      "ordered": 6.182723522186279,
+      "shuffled_mean": 6.557890176773071,
+      "shuffled_std": 0.23026156059780792,
+      "shuffled_min": 6.331201076507568,
+      "shuffled_max": 7.110116004943848
+    },
+    {
+      "ordered": 7.784487724304199,
+      "shuffled_mean": 8.508814334869385,
+      "shuffled_std": 0.4036535382513645,
+      "shuffled_min": 8.023919105529785,
+      "shuffled_max": 9.330918312072754
+    },
+    {
+      "ordered": 6.710033893585205,
+      "shuffled_mean": 7.461645030975342,
+      "shuffled_std": 0.30570639062330374,
+      "shuffled_min": 7.014070987701416,
+      "shuffled_max": 7.964224338531494
+    }
+  ]
+}
