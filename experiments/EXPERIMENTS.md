@@ -272,6 +272,11 @@ Framework where AI generation happens in continuous embedding space via iterativ
   5. **O/S RATIO DIAGNOSTIC.** Ordered/shuffled >1 (E5) = dynamics have learned directional structure (amplify in same direction per step). O/S <1 (CE-dynamics late training) = temporal ordering slightly hurts because model uses state-dependent diversity, not temporal structure.
   6. **THREE-PHASE REGIME IS CE-DYNAMICS-SPECIFIC.** The alignment dip→recovery pattern only occurs in CE-dynamics. E5 follows a monotonic path: high alignment throughout, continuous sigma compression. The SC loss prevents the "exploring" phase by penalizing dynamics that wander far from fixed points.
   7. **SC ACCELERATES CE TRANSITION.** E5 CE transition at step ~2000 vs CE-dynamics at step ~3000. SC pressure forces the model to find task-relevant fixed points faster.
+- **Codex D4 Review:** `experiments/06_uesd/results/codex_d4_review.md`
+  - Verdict: "useful pilot, overclaims as written." Single-seed (N=1) insufficient for "discovered" language.
+  - Key critique: alignment difference could be direct SC footprint, not independent mechanism. 4 diagnostic samples and 1 shuffle per trajectory too few.
+  - Rated multi-seed D4 as top priority (Impact 10/10). Random-matrix null second (9/8/8).
+  - Action: D5 launched with 5 seeds per track, 8 diagnostic samples, 5 shuffles, randomized selection.
 - **Wall time:** 2458s total (1193s CE-dynamics + 1265s E5)
 - **Artifacts:** `experiments/06_uesd/results/exp_d4_phase_dynamics.json`
 
