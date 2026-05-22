@@ -1,6 +1,6 @@
 """Diagnostic measurements for UESD experiments.
 
-Six diagnostics (D1-D6) that evaluate equilibrium quality, decoder
+Seven diagnostics (D1-D7) that evaluate equilibrium quality, decoder
 confidence, attractor structure, basin stability, and spectral
 properties of UESD models.  All functions take PyTorch tensors and
 return Python floats or dicts of floats.
@@ -257,12 +257,84 @@ def spectral_radius(model, state, context, n_iterations=10):
 
 
 # ---------------------------------------------------------------------------
+# D7: Non-Normality Ratio (σ_max / ρ)
+# ---------------------------------------------------------------------------
+
+
+@torch.no_grad()
+def sigma_max_ratio(model, state, context, n_samples=4):
+    """κ = σ_max(J) / ρ(J) via batched full-Jacobian finite differences.
+
+    Computes the full Jacobian ∂G/∂s at the converged state, then
+    extracts σ_max (largest singular value) and ρ (spectral radius)
+    to quantify non-normality.  See finite_step_convergence.md Theorem 4.
+
+    κ ≈ 1: normal — eigenvalue analysis reliable for finite-T bounds.
+    κ ∈ (1, 1.5): mildly non-normal — practical for T=10.
+    κ > 2: severely non-normal — transient growth even if ρ < 1.
+
+    Args:
+        model: UESDModel with dynamics_step(s, context).
+        state: s_T of shape (B, L, d_model).
+        context: encoded context of shape (B, L_in, d_model).
+        n_samples: number of batch examples to analyze.
+
+    Returns:
+        dict with sigma_max_mean, rho_eig_mean, kappa_mean, kappa_max.
+    """
+    B, L, d = state.shape
+    n = L * d
+
+    n_samples = min(n_samples, B)
+    indices = torch.randperm(B, device=state.device)[:n_samples]
+
+    eps = 1e-4
+    eye = torch.eye(n, device=state.device, dtype=state.dtype)
+    E = eye.reshape(n, L, d)
+
+    sigma_maxs = []
+    rhos_eig = []
+    kappas = []
+
+    for idx in indices:
+        s_i = state[idx]
+        c_i = context[idx]
+
+        s_rep = s_i.unsqueeze(0).expand(n, -1, -1)
+        c_rep = c_i.unsqueeze(0).expand(n, -1, -1)
+
+        G_plus, _ = model.dynamics_step(s_rep + eps * E, c_rep)
+        G_minus, _ = model.dynamics_step(s_rep - eps * E, c_rep)
+
+        J = ((G_plus - G_minus) / (2 * eps)).reshape(n, n).t()
+
+        sigma_max = torch.linalg.svdvals(J)[0].item()
+
+        eigvals = torch.linalg.eigvals(J)
+        rho = eigvals.abs().max().item()
+
+        kappa = sigma_max / max(rho, 1e-12)
+
+        sigma_maxs.append(sigma_max)
+        rhos_eig.append(rho)
+        kappas.append(kappa)
+
+    return {
+        "sigma_max_mean": sum(sigma_maxs) / len(sigma_maxs),
+        "sigma_max_max": max(sigma_maxs),
+        "rho_eig_mean": sum(rhos_eig) / len(rhos_eig),
+        "kappa_mean": sum(kappas) / len(kappas),
+        "kappa_max": max(kappas),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Convenience: run all diagnostics
 # ---------------------------------------------------------------------------
 
 
 def run_all_diagnostics(model, src_ids, target_ids, T, config=None):
-    """Run D1-D6 and return a combined dict.
+    """Run D1-D7 and return a combined dict.
 
     Args:
         model: UESDModel instance.
@@ -271,7 +343,7 @@ def run_all_diagnostics(model, src_ids, target_ids, T, config=None):
         T: number of dynamics steps.
         config: optional dict with overrides for diagnostic parameters
                 (keys: 'residual_threshold', 'sigma_frac', 'extra_steps',
-                 'n_power_iterations').
+                 'n_power_iterations', 'compute_d7', 'd7_n_samples').
 
     Returns:
         dict mapping diagnostic names to their result dicts.
@@ -281,6 +353,8 @@ def run_all_diagnostics(model, src_ids, target_ids, T, config=None):
         "sigma_frac": 0.1,
         "extra_steps": 10,
         "n_power_iterations": 10,
+        "compute_d7": False,
+        "d7_n_samples": 4,
     }
     if config:
         cfg.update(config)
@@ -329,5 +403,12 @@ def run_all_diagnostics(model, src_ids, target_ids, T, config=None):
         model, state, context,
         n_iterations=cfg["n_power_iterations"],
     )
+
+    # D7: Non-Normality Ratio (opt-in, computes full Jacobian)
+    if cfg["compute_d7"]:
+        results["sigma_max_ratio"] = sigma_max_ratio(
+            model, state, context,
+            n_samples=cfg["d7_n_samples"],
+        )
 
     return results

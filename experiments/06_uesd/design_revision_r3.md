@@ -124,6 +124,14 @@ Estimate spectral radius of Jacobian dG/ds at s_T via 10 steps
 of power iteration.
 GATE: rho < 1.0 (locally contractive). REPORT: mean rho over test set.
 
+### D7: Non-Normality Ratio (σ_max / ρ)
+Compute full Jacobian dG/ds at s_T via batched finite differences,
+extract σ_max (largest singular value) and ρ (spectral radius).
+κ = σ_max / ρ quantifies non-normality severity.
+GATE: κ < 1.5 (mild non-normality, finite-T bounds reliable).
+REPORT: mean κ, σ_max, and comparison with D6 ρ.
+See: finite_step_convergence.md Theorem 4.
+
 ## Experiment A: Copy Smoke Test
 
 ### Purpose

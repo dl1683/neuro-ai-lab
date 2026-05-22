@@ -6,6 +6,7 @@ from .diagnostics import (
     wrong_attractor_rate,
     basin_perturbation,
     spectral_radius,
+    sigma_max_ratio,
     run_all_diagnostics,
 )
 from .model import (
