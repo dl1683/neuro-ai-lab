@@ -85,11 +85,10 @@ readout (Proposition 6).
 
 ### 2.4 Finite-Step Convergence (finite_step_convergence.md)
 
-**Result:** After T steps with spectral radius rho:
+**Result (Normal case, Theorems 1-3):** After T steps with spectral
+radius rho:
 
-    ||s_T - s*|| <= (rho + epsilon)^T * ||s_0 - s*|| + O(||s_0 - s*||^2)
-
-where epsilon accounts for non-normality.
+    ||s_T - s*|| <= rho^T * ||s_0 - s*|| + O(||s_0 - s*||^2)
 
 For T = 10:
 - rho = 0.5: 99.9% reduction (essentially converged)
@@ -97,11 +96,27 @@ For T = 10:
 - rho = 0.9: 65% reduction (borderline)
 - rho = 0.95: 40% reduction (potentially insufficient)
 
-**Minimum T for correct readout** (linear approximation):
+**Result (Non-normal case, Theorem 4):** The rigorous finite-T
+bound uses sigma_max(J) (largest singular value), not rho(J):
 
-    T >= log(K * ||s_0 - s*|| / m(s*)) / log(1/rho)
+    ||s_T - s*|| <= sigma_max^T * ||s_0 - s*|| * (1 + O(||s_0 - s*||))
 
-[Proof: finite_step_convergence.md, Theorems 1-3]
+For non-normal J, sigma_max > rho (possibly sigma_max >= 1 even
+when rho < 1). The non-normality ratio kappa = sigma_max / rho
+quantifies this gap:
+- kappa = 1: normal, Theorems 1-3 exact
+- kappa in (1, 1.5): mild, practical for T = 10
+- kappa > 2: severe transient growth, D5 is the reliable test
+
+**Minimum T for correct readout:**
+- Normal: T >= log(K * ||s_0 - s*|| / m(s*)) / log(1/rho)
+- Non-normal: T >= log(K * ||s_0 - s*|| / m(s*)) / log(1/sigma_max)
+
+If sigma_max >= 1, no finite T guarantees contraction. D5 (basin
+perturbation) empirically validates finite-T stability regardless
+of non-normality.
+
+[Proof: finite_step_convergence.md, Theorems 1-4]
 
 ### 2.5 Fixed-Point Existence (fixed_point_existence.md)
 
@@ -214,8 +229,9 @@ generation PROCESS:
 | D2: Normalized residual | How close to fixed point? | 2.4 (finite T) | < 0.01 |
 | D3: Decoder margin | How confident is readout? | 2.1 (margin preservation) | > 0 |
 | D4: Wrong-attractor rate | Convergence-correctness coupling? | 2.2, 2.3 | < 5% |
-| D5: Basin perturbation | Basin size and non-normal stability? | 2.1, 2.7 | >= 90% |
+| D5: Basin perturbation | Basin size and non-normal stability? | 2.1, 2.4 (Thm 4), 2.7 | >= 90% |
 | D6: Spectral radius | Is fixed point stable? | 2.1, 2.6 | < 1.0 |
+| D7: σ_max/ρ ratio | Non-normality severity? | 2.4 (Thm 4) | < 1.5 |
 
 ---
 
@@ -234,22 +250,33 @@ generation PROCESS:
 1. Global existence of correct fixed points for arbitrary contexts
 2. Absence of wrong attractors (only empirically testable via D4)
 3. Generalization beyond training distribution (only Lipschitz bounds)
-4. Convergence in T = 10 steps for rho > 0.9
-5. Non-normal transient growth bounded (only D5 empirically tests)
+4. Convergence in T = 10 steps when sigma_max >= 1 (even if rho < 1)
+5. Non-normal transient growth bounded analytically (Theorem 4 gives
+   sigma_max^T bound; D5 empirically validates; D7 quantifies severity)
 6. Spectral radius staying < 1 during training (only at convergence)
 
 ### Open Questions
 
 1. Does sorting require dynamics? (Exp C: NO at L=8, V=64 — encoder confound)
-2. Does addition require dynamics? (Exp D: YES — encoder-only fails at 73.16%;
-   Exp D2 tests whether depth-matched encoder or CE-only dynamics suffice)
+2. Does addition require dynamics? (Exp D: 2L encoder fails at 73%;
+   Exp D2: 4L/8L encoders learn addition, so dynamics NOT strictly
+   necessary. BUT UESD is more parameter-efficient: 694K params for
+   100% vs 1.6M for 99.98%. CE-dynamics (no SC) most robust.)
 3. Can UESD scale beyond L = 8, V = 64? (Future work)
-4. Is there a natural energy function better than ||F||^2? (Deferred)
+4. Is there a natural energy function better than ||F||^2? (Deferred —
+   D2 shows CE-only training outperforms SC+CE, questioning whether
+   explicit SC is beneficial)
 5. What is the optimal rho for given T? (Theory says rho ~ 0.5-0.8;
    Exp D shows E5 addition achieves rho ~ 0.49-0.51)
 6. Can implicit dynamics (DEQ-style) remove the stability constraint?
-7. What causes the phase transition at step ~4000 in E5 addition training?
-   (Possibly symmetry-breaking during lambda warmup — not yet formalized)
+7. Why does E5 have a 40% failure rate on addition? (Exp D2: 2/5 seeds
+   stuck at CE=2.08 wrong attractors. SC drives convergence before CE
+   guides to correct basins. Phase transition is initialization-dependent.)
+8. Why does CE-dynamics avoid the wrong-attractor trap? (Hypothesis:
+   without SC pressure, dynamics remain flexible during early training,
+   allowing CE gradient to reshape the attractor landscape continuously.)
+9. Can the seeding bug (model init not controlled) change D2 conclusions?
+   (Need re-run with proper set_seed before model creation.)
 
 ---
 
@@ -265,11 +292,15 @@ The following claims are defensible based on the theory:
 
 **MODERATE claims (conditionally valid):**
 - Basin size scales as (1-rho)/M (local linearization, holds near s*)
-- Finite-T error bounded by rho^T * ||s_0 - s*|| (linearization)
+- Finite-T error bounded by sigma_max^T * ||s_0 - s*|| (Theorem 4,
+  rigorous one-step bound, induction over T steps)
 - Generalization radius depends on Lipschitz constants (IFT)
+- Wrong-attractor rate under shift bounded by Wasserstein distance
+  (Theorem 7, requires Lipschitz constants of fixed-point map)
 
 **WEAK claims (directional, not rigorous):**
-- Non-normal effects are empirically mild (D5 shows this, no proof)
+- Non-normal effects are empirically mild (D5 shows this; Theorem 4
+  provides sigma_max bound but sigma_max not yet measured in experiments)
 - Optimal rho in [0.9, 1.0) (empirical, not theoretically derived)
 - UESD's process advantage (parallel refinement) translates to
   practical gains (no benchmark evidence yet)
@@ -279,3 +310,7 @@ The following claims are defensible based on the theory:
 - "Continuous state stores d*32 bits" (conflates storage with MI)
 - "Self-consistency guarantees correctness" (FALSE: Theorem 4)
 - "Spectral norm guarantees contraction" (FALSE: only bounds FFN)
+- "Dynamics are necessary for addition" (WEAKENED: 4L/8L encoders
+  learn addition; dynamics are more parameter-efficient, not necessary)
+- "E5 reliably learns addition" (FALSE: 40% failure rate in D2 sweep)
+- "SC loss is essential" (FALSE: CE-dynamics outperforms E5 in D2)

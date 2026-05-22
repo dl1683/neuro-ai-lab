@@ -31,6 +31,11 @@ from shared.training import (
     train, evaluate_uesd, evaluate_encoder_only, count_params, set_seed,
 )
 
+# NOTE: set_seed must be called BEFORE model creation, not just before
+# training. The train() function calls set_seed internally, but that
+# only controls data generation and optimizer — not model initialization.
+# All model creation below is preceded by an explicit set_seed call.
+
 
 SEEDS = [42, 137, 256, 512, 1024]
 
@@ -91,6 +96,7 @@ def run():
     print("  CONTROL 1: UESD + Pure CE (no MSE, no SC)", flush=True)
     print("#" * 70, flush=True)
     config = build_config(seed=42)
+    set_seed(42)
     model = UESDModel(
         config["vocab_size"], config["d_model"], config["n_heads"],
         config["d_ff"], config["n_enc_layers"], config["max_len"],
@@ -119,6 +125,7 @@ def run():
         print(f"  CONTROL 2: Encoder-Only {n_layers}L", flush=True)
         print("#" * 70, flush=True)
         config = build_config(seed=42)
+        set_seed(42)
         model = DeepEncoderOnly(
             config["vocab_size"], config["d_model"], config["n_heads"],
             config["d_ff"], n_layers, config["max_len"],
@@ -153,6 +160,7 @@ def run():
             config = build_config(seed=seed)
             print(f"  {model_type} seed={seed}...", end=" ", flush=True)
 
+            set_seed(seed)
             if model_type == "e5":
                 model = UESDModel(
                     config["vocab_size"], config["d_model"], config["n_heads"],

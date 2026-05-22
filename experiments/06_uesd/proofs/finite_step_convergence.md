@@ -159,18 +159,126 @@ m(s*) > 0 and K * ||s_T - s*|| < m(s*)).
 
 ---
 
-## Caveat: Non-Normal Transient Growth
+## Theorem 4: Non-Normal Finite-T Stability (σ_max Bound)
 
-As noted in spectral_contraction.md, non-normal Jacobians can cause
-||J^k|| >> rho(J)^k for small k. The Kreiss constant
+**Motivation.** Theorems 1-3 use ρ(J) + ε as the convergence rate,
+where ε accounts for non-normality but is left unquantified. For
+non-normal Jacobians (J^H J ≠ J J^H), the relevant quantity is
+σ_max(J) = ||J||_2 (the largest singular value), not ρ(J). This
+theorem provides the rigorous finite-T bound.
 
-    K(J) = sup_k ||J^k|| / rho(J)^k
+**Setup.** Let J = dG/ds|_{s*} with:
+- σ_max = σ_max(J) (largest singular value)
+- ρ = ρ(J) (spectral radius)
+- κ = σ_max / ρ (non-normality ratio; κ = 1 for normal J)
+- M = sup_{s ∈ B(s*,r)} ||d²G/ds²|| (second-derivative bound)
+- K = Lipschitz constant of the margin function m
 
-measures this amplification. For normal matrices K(J) = 1 (no transient
-growth). For highly non-normal J, K(J) can be large, meaning the
-effective convergence rate is slower than rho^T for the first few steps.
+**Statement.** For s_0 in a neighborhood of s* where ||s_0 - s*|| < r
+with r ≤ (1 - σ_max) / M when σ_max < 1:
+
+(a) **One-step bound (exact, no approximation):**
+
+    ||s_{t+1} - s*|| ≤ σ_max · ||s_t - s*|| + (M/2) · ||s_t - s*||²
+
+Proof: s_{t+1} - s* = G(s_t, c) - G(s*, c) = J(s_t - s*) + R(s_t, s*)
+where ||R(s_t, s*)|| ≤ (M/2)||s_t - s*||² by Taylor remainder. Then
+||J(s_t - s*)|| ≤ ||J|| · ||s_t - s*|| = σ_max · ||s_t - s*||. □
+
+(b) **T-step bound:** If σ_max < 1 and ||s_0 - s*|| < 2(1 - σ_max)/M:
+
+    ||s_T - s*|| ≤ σ_max^T · ||s_0 - s*||
+                    + (M/2) · ||s_0 - s*||² · σ_max^{T-1} · (1 - σ_max^T) / (1 - σ_max)
+
+The leading term σ_max^T · ||s_0 - s*|| dominates when the quadratic
+remainder is small. This simplifies to:
+
+    ||s_T - s*|| ≤ σ_max^T · ||s_0 - s*|| · (1 + O(||s_0 - s*||))
+
+(c) **Readout preservation under non-normality:** Readout is correct
+at step T if:
+
+    m(s*) > K · σ_max^T · ||s_0 - s*|| · (1 + (M · ||s_0 - s*||) / (2(1 - σ_max)))
+
+Compare to the normal case (Theorem 2) where σ_max = ρ.
+
+(d) **When σ_max ≥ 1 but ρ < 1 (transient growth regime):**
+
+σ_max^T grows initially. Asymptotic contraction requires ρ < 1, but
+finite-T behavior is governed by σ_max:
+
+    ||s_T - s*|| ≤ σ_max^T · ||s_0 - s*||    (leading order)
+
+If σ_max = 1.05 and T = 10: amplification factor 1.63 (63% GROWTH).
+Correct readout requires m(s*) > 1.63 · K · ||s_0 - s*||.
+
+The crossover step T* where asymptotic contraction dominates:
+
+    T* ≈ log(κ) / log(σ_max / ρ)
+
+For T < T*, the dynamics amplify; for T > T*, they contract.
+
+**Minimum T for correct readout (non-normal case):**
+
+    T ≥ log(K · ||s_0 - s*|| / m(s*)) / log(1 / σ_max)
+
+Compare to Theorem 2: the denominator uses log(1/σ_max) instead of
+log(1/ρ). When κ > 1, σ_max > ρ, so log(1/σ_max) < log(1/ρ), and
+MORE steps are required.
+
+For concrete values: σ_max = 1.0, ρ = 0.9, κ = 1.11:
+- Theorem 2 (spectral): T ≥ log(400)/log(1/0.9) ≈ 57
+- Theorem 4 (singular): T = ∞ (σ_max = 1 never contracts!)
+
+This illustrates why the σ_max bound is strictly more conservative
+and correct: if σ_max ≥ 1, no amount of iteration guarantees
+contraction, even though ρ < 1 promises eventual convergence.
+
+---
+
+## Corollary: Non-Normality Ratio as Diagnostic (D7)
+
+**Definition.** The non-normality ratio is κ = σ_max(J) / ρ(J).
+
+**Interpretation:**
+- κ = 1.0: J is normal. σ_max = ρ. Theorems 1-3 are exact.
+- κ ∈ (1, 1.5): Mild non-normality. Finite-T bounds are within
+  50% of the spectral prediction. Practical for T = 10.
+- κ ∈ (1.5, 2): Moderate non-normality. The effective convergence
+  rate is significantly slower than ρ^T. May need T > 10.
+- κ > 2: Severe non-normality. Transient growth dominates for
+  practical T values. D5 basin perturbation is the reliable test.
+
+**Measurement.** σ_max(J) = sqrt(ρ(J^H J)) can be computed via
+power iteration on J^H J (requiring adjoint-vector products). In
+practice, use D5 (basin perturbation) as the empirical proxy: if
+perturbed states return to the same readout, σ_max^T is effectively
+bounded by the basin radius.
+
+**Relation to D5.** D5 stability at perturbation scale σ implies:
+
+    σ_max^T · σ · ||s_T|| < basin radius ≈ m(s*) / K
+
+So high D5 stability empirically upper-bounds σ_max^T even without
+computing it directly.
+
+---
+
+## Caveat: Kreiss Constant and Worst-Case Transient Growth
+
+The Kreiss constant K(J) = sup_{|z|>1} (|z|-1) · ||(zI-J)^{-1}||
+bounds worst-case transient growth:
+
+    sup_{k≥0} ||J^k|| / ρ(J)^k ≤ e · n · K(J)    (Kreiss theorem)
+
+where n = dim(J). For normal matrices K(J) = 1 (no transient
+growth). For highly non-normal J, K(J) can be large.
 
 Self-attention creates non-normal Jacobians (attention weights break
 symmetry). The practical test is D5 (basin perturbation): if perturbed
 states return to the same readout, the dynamics are empirically stable
 regardless of the Kreiss constant.
+
+**Key insight:** The σ_max bound (Theorem 4) is tighter than the
+Kreiss bound for T-step dynamics because it directly uses the
+one-step amplification factor rather than the worst-case over all k.

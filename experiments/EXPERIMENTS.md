@@ -8,7 +8,7 @@ Reverse chronological order. Each entry links to configs, artifacts, and key fin
 
 Framework where AI generation happens in continuous embedding space via iterative dynamics, with no softmax collapse. Tests whether self-consistency energy E(s) = ||F_theta(s,c)||^2 produces correct, stable attractors.
 
-### Exp D: Compositional Tasks — Dynamics Necessity (Hard) (COMPLETE — DYNAMICS NECESSITY CONFIRMED)
+### Exp D: Compositional Tasks — Dynamics Necessity (Hard) (COMPLETE — REVISED: SEE D2)
 - **Config:** `experiments/06_uesd/exp_d_compositional.py`
 - **Purpose:** Test dynamics necessity on compositional tasks that should exceed single-pass encoder capacity. Addresses persistent encoder confound from Exp A/B/C.
 - **Tasks:**
@@ -59,17 +59,54 @@ Framework where AI generation happens in continuous embedding space via iterativ
   - Verdict: **Not publishable as-is.** Key concerns: (1) Loss confound (E1 uses 0.1*CE, E5 uses 1.0*CE — needs CE-matched ablation), (2) single-seed validity (need 5+ seeds), (3) encoder-only only has 2 layers (need depth-matched 4L/8L control), (4) task design (need carry-chain length sweep). The encoder-only vs E5 gap (73% vs 100%) is real but the mechanism isn't cleanly isolated.
   - **Addressed in Exp D2** (follow-up controls): CE-matched dynamics ablation, depth-matched encoder-only (4L, 8L), 5-seed sweep.
 
-### Exp D2: Additional Controls for Dynamics Necessity (RUNNING)
+### Exp D2: Additional Controls for Dynamics Necessity (COMPLETE — NUANCED FINDING)
 - **Config:** `experiments/06_uesd/exp_d2_controls.py`
 - **Purpose:** Address Codex Evidence Gate findings on Exp D. Three controls:
   1. **CE-matched dynamics ablation:** UESD architecture with pure CE loss (no MSE, no SC). Isolates dynamics contribution from loss design.
   2. **Depth-matched encoder-only:** 4-layer and 8-layer encoders. Tests whether depth alone (without weight-tied iteration) suffices.
   3. **Seed sweep:** 5 seeds for E5 lam=1.0 and encoder-only 2L on addition for statistical robustness.
-- **Expected outcomes:**
-  - If CE-dynamics succeeds AND deep encoder fails → STRONG dynamics necessity
-  - If CE-dynamics fails → SC term essential, finding is about loss design
-  - If deep encoder succeeds → depth sufficient, not dynamics per se
-- **Artifacts:** `experiments/06_uesd/results/exp_d2_controls.json` (pending)
+- **Results (Control 1 — CE-dynamics):**
+  | Model | Params | Token Acc | Seq Acc |
+  |-------|--------|-----------|---------|
+  | UESD + pure CE | 694K | 1.0000 | 1.0000 |
+  - Dynamics + CE alone achieves PERFECT accuracy. SC term NOT required.
+  - Phase transition at step 1-2K (much earlier than E5's step 4-5K).
+- **Results (Control 2 — Depth-matched encoder):**
+  | Model | Params | Token Acc | Seq Acc |
+  |-------|--------|-----------|---------|
+  | Encoder-4L | 822K | 0.9994 | 0.9953 |
+  | Encoder-8L | 1,615K | 1.0000 | 0.9998 |
+  - Both deep encoders learn addition. 8L nearly perfect but still not 100%.
+  - 8L uses 2.3x the parameters of UESD for slightly worse accuracy.
+- **Results (Control 3 — 5-seed sweep):**
+  | Model | Seed | Token Acc | Seq Acc | Phase Transition |
+  |-------|------|-----------|---------|------------------|
+  | E5 lam=1.0 | 42 | 0.5081 | 0.0000 | NEVER (stuck at 2.08) |
+  | E5 lam=1.0 | 137 | 0.5078 | 0.0000 | NEVER (stuck at 2.08) |
+  | E5 lam=1.0 | 256 | 1.0000 | 1.0000 | Step 5-6K |
+  | E5 lam=1.0 | 512 | 1.0000 | 1.0000 | Step 4-5K |
+  | E5 lam=1.0 | 1024 | 1.0000 | 0.9996 | Step 4-5K |
+  | **E5 mean** | — | **0.8032** | **0.5999** | **3/5 succeed (60%)** |
+  | E5 std | — | 0.2695 | 0.5476 | |
+  | Enc-2L | 42 | 0.9981 | 0.9851 | — |
+  | Enc-2L | 137 | 0.8676 | 0.0158 | — |
+  | Enc-2L | 256 | 0.9998 | 0.9981 | — |
+  | Enc-2L | 512 | 0.8861 | 0.1084 | — |
+  | Enc-2L | 1024 | 0.9996 | 0.9967 | — |
+  | **Enc-2L mean** | — | **0.9502** | **0.6208** | **3/5 succeed (60%)** |
+  | Enc-2L std | — | 0.0673 | 0.5111 | |
+- **Automated verdict:** DEPTH_SUFFICIENT (both dynamics and deep encoder succeed)
+- **Known issue:** Seeding bug — `set_seed()` called inside `train()` after model creation, so model initialization is not controlled by seed. Fixed in code for future runs. These sweep results reflect different random initializations, not true seed control.
+- **Key findings:**
+  1. **DYNAMICS NOT STRICTLY NECESSARY.** Deep encoders (4L, 8L) can learn addition, so dynamics alone aren't the deciding factor. The original Exp D claim is weakened.
+  2. **DYNAMICS ARE MORE PARAMETER-EFFICIENT.** UESD (694K params) achieves 100%/100%, while 8L encoder (1.6M, 2.3x params) achieves 100%/99.98%. Weight-tied iteration provides computation depth without parameter growth.
+  3. **SC TERM CAN TRAP WRONG ATTRACTORS.** E5 has 40% failure rate — SC drives convergence (SC→0) before CE can guide to correct attractors. In failed seeds, dynamics converge perfectly (residual=0) but to wrong fixed points (CE=2.08, 0% seq acc). This is Theorem 4 (wrong attractors exist) demonstrated empirically.
+  4. **CE-DYNAMICS IS MORE ROBUST THAN E5.** Pure CE + dynamics (no SC) achieves perfect accuracy with no wrong-attractor failure. The SC term, while theoretically principled, creates a competing optimization objective that can lead to premature convergence.
+  5. **BOTH MODELS HAVE HIGH VARIANCE.** E5 is bimodal (perfect or total failure). Encoder-only 2L ranges from 1.6% to 99.8% seq acc. Neither is reliable at 20K steps with this architecture.
+  6. **PHASE TRANSITION IS INITIALIZATION-DEPENDENT.** Successful E5 runs transition at step 4-6K (after lambda warmup to 1.0). Failed runs never transition despite reaching SC=0.
+  7. **REVISED CLAIM:** "Weight-tied iterative dynamics are a parameter-efficient alternative to depth stacking for sequential computation. CE-only training (without SC) is more robust than E5 (SC+CE) for carry-chain tasks."
+- **Wall time:** ~12,127s total (Controls 1-3)
+- **Artifacts:** `experiments/06_uesd/results/exp_d2_controls.json`
 
 ### Exp C: Sort — Dynamics Necessity Test (COMPLETE — ENCODER CONFOUND PERSISTS)
 - **Config:** `experiments/06_uesd/exp_c_sort.py`

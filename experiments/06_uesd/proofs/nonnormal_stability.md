@@ -134,6 +134,10 @@ After T steps (without linearization update — using J at s*):
 This is TIGHTER than rho(J)^T when sigma_max > rho (non-normal),
 and IDENTICAL when J is normal.
 
+**Formal statement:** See finite_step_convergence.md, Theorem 4 for
+the rigorous version with quadratic remainder, readout preservation
+conditions, and the non-normality ratio κ = σ_max/ρ diagnostic.
+
 ---
 
 ## 4. Decomposing the UESD Jacobian
