@@ -141,44 +141,62 @@ at s_T, then there exists a true fixed point s* near s_T with:
 
     ||s* - s_T|| <= ||dF/ds|_{s_T}^{-1}|| * ||F(s_T, c)||
 
-### Bounding the True Fixed-Point Distance
+### Bounding the True Fixed-Point Distance (Kantorovich Form)
 
-Let A = dF/ds|_{s_T}. If A is non-singular with smallest singular
-value sigma_min(A) > 0, then ||A^{-1}|| = 1 / sigma_min(A), and:
+Let A = dF/ds|_{s_T}. Assume:
+- F is C^2 in a neighborhood of s_T
+- A is non-singular with beta = ||A^{-1}|| = 1 / sigma_min(A)
+- M = sup ||d^2F/ds^2|| in a neighborhood (second-derivative bound)
+- r_T = ||F(s_T, c)|| (the residual)
 
-    ||s* - s_T|| <= ||F(s_T, c)|| / sigma_min(A)
+**Theorem (Newton-Kantorovich).** If alpha = beta * M * r_T < 1/2,
+then there exists a unique fixed point s* (i.e., F(s*, c) = 0) in the
+ball B(s_T, r_+) where:
 
-For the UESD Jacobian, A = J - I where J has eigenvalues in the unit
-disk (rho < 1). The eigenvalues of A = J - I lie in the disk
-|z + 1| < 1, centered at -1. The closest eigenvalue to 0 satisfies:
+    r_+ = (1 - sqrt(1 - 2*alpha)) / (beta * M)
 
-    |lambda_min(A)| >= 1 - rho(J)   (by reverse triangle inequality
-    applied to the disk center -1, radius rho(J))
+and the distance satisfies:
 
-Wait — this is not quite right. The eigenvalues of J lie in the
-disk |z| < rho, so eigenvalues of A = J - I lie in |z + 1| < rho,
-which means |z| >= 1 - rho (if eigenvalues are real and in
-(-1-rho, -1+rho)). For the worst case:
+    ||s* - s_T|| <= r_+ <= 2 * beta * r_T / (1 + sqrt(1 - 2*alpha))
 
-    sigma_min(A) >= 1 - rho(J)
+For small alpha (well-conditioned case), r_+ ~ beta * r_T = r_T / sigma_min(A).
 
-(This is only tight for normal A. For non-normal A, singular values
-and eigenvalue moduli can differ significantly.)
+**Proof.** Standard Kantorovich theorem applied to the Newton map
+N(s) = s - A^{-1} F(s). The contraction condition ||I - A^{-1} dF/ds||
+< 1 holds in B(s_T, r_+) because ||dF/ds - A|| <= M * r_+ and
+M * beta * r_+ < 1.  QED.
 
-Therefore:
+**Non-normality caveat.** For non-normal A, the singular values
+and eigenvalue moduli can differ significantly. The naive bound
+sigma_min(A) >= 1 - rho(J) only holds for normal matrices. For
+non-normal A:
+
+    sigma_min(A) = 1 / ||A^{-1}||
+
+which must be estimated directly (e.g., via SVD or randomized
+methods). The bound beta = ||A^{-1}|| is the correct quantity,
+not 1/(1 - rho(J)).
+
+**Relation to prior bound.** The simpler bound
 
     ||s* - s_T|| <= ||F(s_T, c)|| / (1 - rho(J))
 
-### Numerical Example
+is a special case that holds when A is normal and rho(J) < 1
+(since sigma_min(A) = 1 - rho for normal matrices with eigenvalues
+in the real interval). For the general (non-normal) case, the
+Kantorovich form with explicit beta is more appropriate.
+
+### Numerical Example (Updated)
 
 With lambda_1 = 0.1, delta = 0.01 (training loss):
-- ||F(s_T, c)|| < sqrt(0.01 / 0.1) = sqrt(0.1) = 0.316
-- If rho = 0.95: ||s* - s_T|| <= 0.316 / 0.05 = 6.32
-- If rho = 0.5: ||s* - s_T|| <= 0.316 / 0.5 = 0.632
+- r_T = ||F(s_T, c)|| < sqrt(0.01 / 0.1) = sqrt(0.1) = 0.316
+- If sigma_min(A) = 0.05 (i.e., beta = 20): ||s* - s_T|| <= 6.32
+- If sigma_min(A) = 0.5 (i.e., beta = 2): ||s* - s_T|| <= 0.632
+- Kantorovich condition: need beta * M * r_T < 0.5
+  For beta = 20, r_T = 0.316: need M < 0.079
 
-The approximate fixed point from training is within a bounded
-distance of a true fixed point, with the bound inversely proportional
-to the contraction margin (1 - rho).
+The Kantorovich condition provides a verifiable certificate: if it
+holds, a unique nearby fixed point is guaranteed.
 
 ---
 

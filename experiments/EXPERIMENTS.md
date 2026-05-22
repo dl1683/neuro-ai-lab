@@ -55,6 +55,21 @@ Framework where AI generation happens in continuous embedding space via iterativ
   - **Conclusion: Addition is the first and only task where dynamics necessity is confirmed.** The sequential nature of carry propagation (right-to-left dependency chain) creates computational depth requirements that exceed single-pass encoder capacity.
 - **Wall time:** 8959s (addition: E1=1330, E5x2=2237, AR=232, Enc=122; dedup: E1=1055, E5x2=2228, AR=347, Enc=229)
 - **Artifacts:** `experiments/06_uesd/results/exp_d_compositional.json`
+- **Codex Evidence Gate review:** `experiments/06_uesd/results/codex_exp_d_review.md`
+  - Verdict: **Not publishable as-is.** Key concerns: (1) Loss confound (E1 uses 0.1*CE, E5 uses 1.0*CE — needs CE-matched ablation), (2) single-seed validity (need 5+ seeds), (3) encoder-only only has 2 layers (need depth-matched 4L/8L control), (4) task design (need carry-chain length sweep). The encoder-only vs E5 gap (73% vs 100%) is real but the mechanism isn't cleanly isolated.
+  - **Addressed in Exp D2** (follow-up controls): CE-matched dynamics ablation, depth-matched encoder-only (4L, 8L), 5-seed sweep.
+
+### Exp D2: Additional Controls for Dynamics Necessity (RUNNING)
+- **Config:** `experiments/06_uesd/exp_d2_controls.py`
+- **Purpose:** Address Codex Evidence Gate findings on Exp D. Three controls:
+  1. **CE-matched dynamics ablation:** UESD architecture with pure CE loss (no MSE, no SC). Isolates dynamics contribution from loss design.
+  2. **Depth-matched encoder-only:** 4-layer and 8-layer encoders. Tests whether depth alone (without weight-tied iteration) suffices.
+  3. **Seed sweep:** 5 seeds for E5 lam=1.0 and encoder-only 2L on addition for statistical robustness.
+- **Expected outcomes:**
+  - If CE-dynamics succeeds AND deep encoder fails → STRONG dynamics necessity
+  - If CE-dynamics fails → SC term essential, finding is about loss design
+  - If deep encoder succeeds → depth sufficient, not dynamics per se
+- **Artifacts:** `experiments/06_uesd/results/exp_d2_controls.json` (pending)
 
 ### Exp C: Sort — Dynamics Necessity Test (COMPLETE — ENCODER CONFOUND PERSISTS)
 - **Config:** `experiments/06_uesd/exp_c_sort.py`

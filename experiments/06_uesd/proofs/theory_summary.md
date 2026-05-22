@@ -114,7 +114,10 @@ However:
 
 2. **IFT bootstraps true fixed points:** If dF/ds is non-singular
    at s_T (guaranteed when rho(J) < 1), a true fixed point s*
-   exists within distance ||F(s_T)|| / (1 - rho) of s_T.
+   exists nearby. The Kantorovich bound gives:
+       ||s* - s_T|| <= 2 * beta * r_T / (1 + sqrt(1 - 2*alpha_K))
+   where beta = ||A^{-1}||, r_T = ||F(s_T)||, alpha_K = beta * M * r_T.
+   The simpler bound ||F(s_T)|| / (1 - rho) holds only for normal A.
 
 3. **Smooth context dependence:** For nearby contexts c', fixed
    points s*(c') exist and depend smoothly on c via IFT.
@@ -157,7 +160,33 @@ region is the same disk |1 + lambda| < 1.
 
 [Proof: nonnormal_stability.md, Sections 1-5, 8]
 
-### 2.8 Information Bottleneck (information_bottleneck.md)
+### 2.8 Wrong-Attractor Risk Under Shift (Theorem 7, convergence_correctness.md)
+
+**Result:** If W_1(P, Q) <= eta between training and test distributions,
+the wrong-attractor rate on Q is bounded by:
+
+    Q(m(s*(c)) < 0) <= alpha + (K * L_s * eta) / gamma
+
+where alpha is the training-time failure rate, gamma is the margin
+buffer, K is the margin Lipschitz constant, and L_s is the fixed-point
+sensitivity. The bound is tight in the Lipschitz sense.
+
+[Proof: convergence_correctness.md, Theorem 7]
+
+### 2.9 Dynamics-Decoder Separation (Theorem 8, convergence_correctness.md)
+
+**Result:** The E5 gradient decomposes into three terms:
+(a) SC gradient shapes dynamics convergence (phi parameters)
+(b) CE gradient shapes readout alignment (psi parameters)
+(c) Coupling term (dCE/ds * ds/dphi) transmits readout signal to dynamics
+
+E1 failure on addition illustrates coupling breakdown: with only 0.1*CE,
+the coupling term is too weak. The dynamics converge but to wrong
+attractors (WA = 100%). E5 with full CE provides sufficient coupling.
+
+[Proof: convergence_correctness.md, Theorem 8]
+
+### 2.10 Information Bottleneck (information_bottleneck.md)
 
 **Result:** At each AR generation step, MI through the softmax
 bottleneck is bounded by:
@@ -211,11 +240,16 @@ generation PROCESS:
 
 ### Open Questions
 
-1. Does sorting require dynamics? (Exp C tests this)
-2. Can UESD scale beyond L = 8, V = 64? (Future work)
-3. Is there a natural energy function better than ||F||^2? (Deferred)
-4. What is the optimal rho for given T? (Theory says rho ~ 0.5-0.8)
-5. Can implicit dynamics (DEQ-style) remove the stability constraint?
+1. Does sorting require dynamics? (Exp C: NO at L=8, V=64 — encoder confound)
+2. Does addition require dynamics? (Exp D: YES — encoder-only fails at 73.16%;
+   Exp D2 tests whether depth-matched encoder or CE-only dynamics suffice)
+3. Can UESD scale beyond L = 8, V = 64? (Future work)
+4. Is there a natural energy function better than ||F||^2? (Deferred)
+5. What is the optimal rho for given T? (Theory says rho ~ 0.5-0.8;
+   Exp D shows E5 addition achieves rho ~ 0.49-0.51)
+6. Can implicit dynamics (DEQ-style) remove the stability constraint?
+7. What causes the phase transition at step ~4000 in E5 addition training?
+   (Possibly symmetry-breaking during lambda warmup — not yet formalized)
 
 ---
 

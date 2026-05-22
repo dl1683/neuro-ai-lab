@@ -89,11 +89,21 @@ def _enc_only_step(model, src_ids, target_ids, **_kwargs):
     return loss, {"ce_loss": loss.item()}
 
 
+def _dynamics_ce_step(model, src_ids, target_ids, T, **_kwargs):
+    """Dynamics + CE only: no MSE, no SC. Tests whether dynamics alone help."""
+    logits = model(src_ids, T)
+    loss = F.cross_entropy(
+        logits.reshape(-1, logits.size(-1)), target_ids.reshape(-1)
+    )
+    return loss, {"ce_loss": loss.item()}
+
+
 _STEP_FNS = {
     "e1": _e1_step,
     "e5": _e5_step,
     "ar": _ar_step,
     "encoder_only": _enc_only_step,
+    "dynamics_ce": _dynamics_ce_step,
 }
 
 

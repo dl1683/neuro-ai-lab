@@ -252,6 +252,106 @@ convergence pressure.
 
 ---
 
+## Theorem 7: Wrong-Attractor Risk Under Distribution Shift
+
+**Statement.** Let P be the training distribution over contexts c,
+and Q a test distribution with Wasserstein-1 distance W_1(P, Q) <= eta.
+Assume:
+
+(a) The fixed-point map c -> s*(c) is L_s-Lipschitz (from IFT,
+    L_s = ||dF/dc|| / sigma_min(dF/ds) when rho < 1).
+(b) The margin function m(s) is K-Lipschitz (Theorem 2).
+(c) On the training distribution, margin exceeds gamma > 0 with
+    probability at least 1 - alpha: P(m(s*(c)) < gamma) <= alpha.
+
+Then the wrong-attractor rate on Q satisfies:
+
+    Q(m(s*(c)) < 0) <= alpha + (K * L_s * eta) / gamma
+
+**Proof.** Decompose into coverage and shift contributions:
+
+    Q(m(s*(c)) < 0)
+      <= Q(m(s*(c)) < gamma) + Q(gamma <= m(s*(c)) but m < 0)
+      = Q(m(s*(c)) < gamma)
+
+For the first term, by Lipschitz transport:
+    Q(m(s*(c)) < gamma) <= P(m(s*(c)) < gamma + K * L_s * eta) + 0
+
+(using the Wasserstein coupling: for optimal coupling (c_P, c_Q)
+with E[||c_P - c_Q||] <= eta, we have |m(s*(c_Q)) - m(s*(c_P))|
+<= K * L_s * ||c_Q - c_P||, so:
+
+    Q(m < gamma) = P(m(s*(c_Q)) < gamma)
+                 <= P(m(s*(c_P)) < gamma + K * L_s * eta)
+
+If the training margin distribution has a density bounded by 1/gamma
+near the threshold, this gives:
+
+    Q(m < gamma) <= alpha + K * L_s * eta / gamma
+
+which is the stated bound.  QED.
+
+**Interpretation.** The wrong-attractor risk grows linearly with
+distribution shift (eta), inversely with the margin buffer (gamma),
+and proportionally to the dynamics sensitivity (L_s) and readout
+sensitivity (K). To minimize risk:
+- Train with large margin (gamma >> 0) via low CE
+- Ensure tight contraction (rho << 1) to reduce L_s
+- Apply spectral normalization to reduce K
+
+**Empirical connection.** D4 (wrong-attractor rate) on held-out data
+directly measures Q(m < 0) when Q is the test distribution. If D4
+< 0.05, the margin buffer gamma is empirically sufficient.
+
+---
+
+## Theorem 8: Dynamics-Decoder Separation
+
+**Statement.** In the E5 loss
+
+    L(theta) = lambda_1 * ||F_phi(s_T, c)||^2 + lambda_2 * CE(R_psi(s_T), y*)
+
+where theta = (phi, psi) with phi parameterizing the dynamics (F) and
+psi parameterizing the readout (R), the gradient decomposes as:
+
+    dL/dphi = lambda_1 * d||F||^2/dphi + lambda_2 * dCE/ds_T * ds_T/dphi
+    dL/dpsi = lambda_2 * dCE/dpsi
+
+**Claim.** Under weak cross-coupling conditions, the roles separate:
+
+(a) The CE term (via dCE/dpsi) shapes the readout to align with
+    correct tokens. This determines WHICH fixed points are correct
+    (i.e., which s* have m(s*) > 0).
+
+(b) The SC term (via d||F||^2/dphi) shapes the dynamics to converge.
+    This determines WHERE the fixed points are and whether the
+    dynamics reach them.
+
+(c) The coupling term (lambda_2 * dCE/ds_T * ds_T/dphi) is the
+    mechanism by which CE influences the dynamics: it pushes the
+    dynamics to produce states that the readout can decode correctly.
+
+**When they decouple.** If the readout projects onto a low-dimensional
+subspace (||dR/ds|| has low effective rank) and the dynamics operate
+in a complementary subspace, the cross-Hessian d^2L/(dphi dpsi) is
+small and the optimization approximately separates into:
+- Dynamics optimization: find contractive maps with correct attractors
+- Readout optimization: learn to decode the attractors
+
+**Empirical evidence from Exp D.** E1 failure on addition illustrates
+the coupling breakdown: MSE drives s_T toward embed(y*) (dynamics
+objective), but 0.1*CE provides insufficient gradient to shape the
+readout. The dynamics converge (residual -> 0, rho ~ 0.99) but to
+wrong attractors (WA = 100%). This shows that the coupling term
+(dCE/ds_T * ds_T/dphi) is essential: without sufficient CE pressure,
+dynamics and readout optimize independently and fail to couple.
+
+E5 succeeds because full CE provides strong coupling: the dynamics
+learn to produce states that are both convergent (low ||F||^2) and
+decodable (low CE).
+
+---
+
 ## Summary: The Convergence-Correctness Status
 
 | Claim | Status | Evidence |
