@@ -97,21 +97,32 @@ _STEP_FNS = {
 }
 
 
+def set_seed(seed):
+    """Set random seed for reproducibility."""
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+
 def train(model, task, track, config, device="cuda"):
     """Train a model and return history.
 
     Args:
         model: nn.Module to train.
-        task: 'copy' or 'reversal'.
+        task: task name (e.g. 'copy', 'reversal', 'sort').
         track: 'e1', 'e5', 'ar', or 'encoder_only'.
         config: dict with keys:
             training_steps, batch_size, seq_len, vocab_size,
-            lr, T, lambda_1, warmup_steps, log_interval.
+            lr, T, lambda_1, warmup_steps, log_interval, seed.
         device: torch device string.
 
     Returns:
-        dict with 'history' (list of log dicts) and 'elapsed_s'.
+        dict with 'history' (list of log dicts), 'elapsed_s', and 'seed'.
     """
+    seed = config.get("seed", None)
+    if seed is not None:
+        set_seed(seed)
+
     step_fn = _STEP_FNS[track]
     model = model.to(device)
     model.train()
@@ -151,7 +162,10 @@ def train(model, task, track, config, device="cuda"):
 
     elapsed = time.time() - t0
     print(f"  Training complete in {elapsed:.1f}s", flush=True)
-    return {"history": history, "elapsed_s": elapsed}
+    result = {"history": history, "elapsed_s": elapsed}
+    if seed is not None:
+        result["seed"] = seed
+    return result
 
 
 def _log_line(step, total, entry, track):
