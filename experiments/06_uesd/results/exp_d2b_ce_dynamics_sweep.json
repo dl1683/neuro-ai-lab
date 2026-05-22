@@ -1,0 +1,156 @@
+{
+  "timestamp": "2026-05-22T14:12:41.105835+00:00",
+  "device": "cuda",
+  "purpose": "Properly-seeded sweep: CE-dynamics vs E5 vs encoder-only 2L on addition",
+  "seeding": "set_seed called BEFORE model creation (fixed from D2)",
+  "sweep_ce_dynamics": {
+    "seeds": [
+      42,
+      137,
+      256,
+      512,
+      1024
+    ],
+    "runs": [
+      {
+        "seed": 42,
+        "token_acc": 1.0,
+        "seq_acc": 1.0,
+        "train_final_loss": 0.005048668943345547,
+        "elapsed_s": 892.7672629356384
+      },
+      {
+        "seed": 137,
+        "token_acc": 0.9999625,
+        "seq_acc": 0.9997,
+        "train_final_loss": 0.0078123100101947784,
+        "elapsed_s": 894.0122501850128
+      },
+      {
+        "seed": 256,
+        "token_acc": 1.0,
+        "seq_acc": 1.0,
+        "train_final_loss": 0.003527420572936535,
+        "elapsed_s": 896.1021840572357
+      },
+      {
+        "seed": 512,
+        "token_acc": 1.0,
+        "seq_acc": 1.0,
+        "train_final_loss": 0.0042602200992405415,
+        "elapsed_s": 895.5321273803711
+      },
+      {
+        "seed": 1024,
+        "token_acc": 0.9999625,
+        "seq_acc": 0.9997,
+        "train_final_loss": 0.005920239258557558,
+        "elapsed_s": 903.2652909755707
+      }
+    ],
+    "token_acc_mean": 0.999985,
+    "token_acc_std": 2.053959590645667e-05,
+    "seq_acc_mean": 0.99988,
+    "seq_acc_std": 0.00016431676725153175
+  },
+  "sweep_e5": {
+    "seeds": [
+      42,
+      137,
+      256,
+      512,
+      1024
+    ],
+    "runs": [
+      {
+        "seed": 42,
+        "token_acc": 0.99995,
+        "seq_acc": 0.9996,
+        "train_final_loss": 0.019854500889778137,
+        "elapsed_s": 969.2237360477448
+      },
+      {
+        "seed": 137,
+        "token_acc": 1.0,
+        "seq_acc": 1.0,
+        "train_final_loss": 0.005621642805635929,
+        "elapsed_s": 971.0699203014374
+      },
+      {
+        "seed": 256,
+        "token_acc": 1.0,
+        "seq_acc": 1.0,
+        "train_final_loss": 0.00841001607477665,
+        "elapsed_s": 972.584406375885
+      },
+      {
+        "seed": 512,
+        "token_acc": 0.5073874996185302,
+        "seq_acc": 0.0,
+        "train_final_loss": 2.08050537109375,
+        "elapsed_s": 970.444103717804
+      },
+      {
+        "seed": 1024,
+        "token_acc": 1.0,
+        "seq_acc": 1.0,
+        "train_final_loss": 0.010427253320813179,
+        "elapsed_s": 974.6630334854126
+      }
+    ],
+    "token_acc_mean": 0.901467499923706,
+    "token_acc_std": 0.22029741837778036,
+    "seq_acc_mean": 0.79992,
+    "seq_acc_std": 0.4471689076847808
+  },
+  "sweep_enc_2L": {
+    "seeds": [
+      42,
+      137,
+      256,
+      512,
+      1024
+    ],
+    "runs": [
+      {
+        "seed": 42,
+        "token_acc": 0.9981250005722045,
+        "seq_acc": 0.9849999997138977,
+        "train_final_loss": 0.1669703871011734,
+        "elapsed_s": 110.35268664360046
+      },
+      {
+        "seed": 137,
+        "token_acc": 0.9981500001907349,
+        "seq_acc": 0.9851999999046326,
+        "train_final_loss": 0.09050732851028442,
+        "elapsed_s": 110.51891660690308
+      },
+      {
+        "seed": 256,
+        "token_acc": 0.9977124995231629,
+        "seq_acc": 0.9816999994277954,
+        "train_final_loss": 0.190599724650383,
+        "elapsed_s": 110.59307813644409
+      },
+      {
+        "seed": 512,
+        "token_acc": 0.9980625007629395,
+        "seq_acc": 0.9844999996185303,
+        "train_final_loss": 0.14179518818855286,
+        "elapsed_s": 109.82881736755371
+      },
+      {
+        "seed": 1024,
+        "token_acc": 0.6927250001907349,
+        "seq_acc": 0.0,
+        "train_final_loss": 1.2269014120101929,
+        "elapsed_s": 109.41433262825012
+      }
+    ],
+    "token_acc_mean": 0.9369550002479553,
+    "token_acc_std": 0.13652883415507963,
+    "seq_acc_mean": 0.7872799997329712,
+    "seq_acc_std": 0.44010515433136843
+  }
+}
