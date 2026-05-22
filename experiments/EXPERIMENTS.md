@@ -8,11 +8,39 @@ Reverse chronological order. Each entry links to configs, artifacts, and key fin
 
 Framework where AI generation happens in continuous embedding space via iterative dynamics, with no softmax collapse. Tests whether self-consistency energy E(s) = ||F_theta(s,c)||^2 produces correct, stable attractors.
 
-### Exp C: Sort — Dynamics Necessity Test (RUNNING)
+### Exp C: Sort — Dynamics Necessity Test (COMPLETE — ENCODER CONFOUND PERSISTS)
 - **Config:** `experiments/06_uesd/exp_c_sort.py`
 - **Purpose:** Test whether iterative dynamics add value on a task requiring data-dependent reordering. Sorting is not a fixed permutation like reversal — it requires computing element ranks via global comparison. Directly addresses encoder-only confound from Exp A/B.
-- **Models:** E1 UESD, E5 UESD (lambda_1 in {0.1, 1.0}), AR baseline, encoder-only ablation
-- **Gate:** E1 sort acc >= 80%, encoder-only acc < 80% (dynamics necessity), E5 wrong-attractor < 5%
+- **Models:** E1 UESD (694K), E5 UESD (694K) x2 lambdas, AR baseline (950K), encoder-only (425K)
+- **Architecture:** d=128, heads=4, d_ff=512, V=64, L=8, T=10 (same as Exp A/B)
+- **Results:**
+  | Model | Token Acc | Seq Acc | Margin | Mean Rho | Max Rho | WA Rate | Conv% | Basin |
+  |-------|-----------|---------|--------|----------|---------|---------|-------|-------|
+  | E1 (embed reg) | 1.0000 | 0.9999 | 8.10 | 0.998 | 1.045 | — | 0.0% | 0.9998 |
+  | E5 (lam=0.1) | 0.9999 | 0.9995 | 8.35 | 0.968 | 1.001 | 0.04% | 96.7% | 0.9943 |
+  | E5 (lam=1.0) | 0.9998 | 0.9986 | 8.28 | 0.973 | 0.992 | 0.14% | 100% | 0.9956 |
+  | AR baseline | 0.9998 | 0.9996 | — | — | — | — | — | — |
+  | Encoder-only | 0.9999 | 0.9991 | 7.73 | — | — | — | — | — |
+- **Gates:** Track A PASS (100%), E5 VIABLE (WA=0.04%), COMPETITIVE (gap=0.02%), **encoder CONCERN (99.99%)**
+- **Lambda sweep analysis (sort):**
+  - Lambda=0.1: Best accuracy (0.9999), lowest WA (0.04%), good convergence (96.7%), best rho (0.968). Selected as best_lambda by gate criteria.
+  - Lambda=1.0: Perfect convergence (100% converged_frac), all rho < 1 (max=0.992), but slightly higher WA (0.14%) and lower accuracy (0.9998). Lower self-consistency loss (SC=0.0068 vs 0.0495) but this came at cost of accuracy.
+  - E1 WARNING: Max spectral radius exceeds 1 (1.045) — some Jacobians are expansive. Despite this, token accuracy is near-perfect (1.0000). This confirms that rho>1 locally does not prevent correct readout when training coupling compensates.
+- **Key findings:**
+  1. **DYNAMICS NECESSITY NOT CONFIRMED.** Encoder-only achieves 99.99% token accuracy on sorting at L=8, V=64. Self-attention can apparently compute element ranks and produce sorted output in a single encoder pass at this scale.
+  2. Lambda=0.1 remains the best lambda across all three tasks (copy, reversal, sort). Consistent with Exp B finding.
+  3. Lambda=1.0 achieves perfect convergence (100%) with all rho < 1, confirming that higher SC pressure pushes toward genuine fixed points. But it trades accuracy for stability.
+  4. E1's max_rho > 1 is a new observation (1.045). E1 lacks SC pressure, so the dynamics can develop expansive regions. Works at this scale due to training coupling, but is a theoretical concern at larger T or scale.
+  5. All UESD variants and AR baseline solve sort comparably — no model has a clear advantage. The task is too easy at this scale.
+- **Encoder confound analysis (cumulative):**
+  - Copy: encoder-only 100% (expected — position-wise identity)
+  - Reversal: encoder-only 100% (bijective V→V mapping, solvable by attention)
+  - **Sort: encoder-only 99.99%** (attention computes pairwise comparisons → element ranks → sorted output)
+  - Conclusion: L=8, V=64 is small enough that self-attention can implement sorting networks in a single pass. Need tasks with **compositional structure** (carry propagation, deduplication) or **much longer sequences** where single-pass comparison is insufficient.
+- **Next steps:** Proceed to Exp D with harder tasks. Two generators already prepared in `shared/data.py`:
+  - `addition`: Multi-digit base-V addition with carry propagation (right-to-left dependency)
+  - `dedup`: Deduplicate + sort — non-bijective mapping requiring counting/grouping
+- **Wall time:** 3943s (E1: 934s, E5x2: 2541s, AR: 302s, Enc: 165s)
 - **Artifacts:** `experiments/06_uesd/results/exp_c_sort.json`
 
 ### Exp B: Reversal Main Test (COMPLETE - ALL GATES PASS)
