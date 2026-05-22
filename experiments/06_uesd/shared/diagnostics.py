@@ -329,6 +329,164 @@ def sigma_max_ratio(model, state, context, n_samples=4):
 
 
 # ---------------------------------------------------------------------------
+# D8: Trajectory Lyapunov Analysis (product Jacobian along dynamics path)
+# ---------------------------------------------------------------------------
+
+
+@torch.no_grad()
+def _full_jacobian(model, s_single, c_single, eps=1e-4):
+    """Compute full Jacobian dG/ds for a single example via finite differences.
+
+    Args:
+        model: UESDModel with dynamics_step(s, context).
+        s_single: state (L, d).
+        c_single: context (L_in, d).
+        eps: finite difference step.
+
+    Returns:
+        J: (n, n) Jacobian where n = L * d.
+    """
+    L, d = s_single.shape
+    n = L * d
+    eye = torch.eye(n, device=s_single.device, dtype=s_single.dtype)
+    E = eye.reshape(n, L, d)
+
+    s_rep = s_single.unsqueeze(0).expand(n, -1, -1)
+    c_rep = c_single.unsqueeze(0).expand(n, -1, -1)
+
+    G_plus, _ = model.dynamics_step(s_rep + eps * E, c_rep)
+    G_minus, _ = model.dynamics_step(s_rep - eps * E, c_rep)
+
+    J = ((G_plus - G_minus) / (2 * eps)).reshape(n, n).t()
+    return J
+
+
+@torch.no_grad()
+def trajectory_lyapunov(model, src_ids, T, n_samples=8):
+    """Compute product-Jacobian along the dynamics trajectory.
+
+    Measures how perturbations actually propagate through all T steps,
+    accounting for Jacobian rotation between steps. The Lyapunov exponent
+    lambda_max = (1/T) * log(sigma_max(P_T)) determines true trajectory
+    stability, which can differ dramatically from the per-step bound.
+
+    Args:
+        model: UESDModel instance.
+        src_ids: (B, seq_len) source token ids.
+        T: number of dynamics steps.
+        n_samples: examples to analyze.
+
+    Returns:
+        dict with per-step and cumulative spectral properties.
+    """
+    model.eval()
+    context = model.encode(src_ids)
+    B, L_out = src_ids.shape
+    s = model.init_state(B, L_out, src_ids.device)
+    _, _, d = s.shape
+    n = L_out * d
+
+    n_samples = min(n_samples, B)
+    indices = torch.randperm(B, device=src_ids.device)[:n_samples]
+
+    states = [s.clone()]
+    for _ in range(T):
+        s, _ = model.dynamics_step(s, context)
+        states.append(s.clone())
+
+    per_step_sigma = []
+    per_step_rho = []
+    per_step_kappa = []
+    cumulative_sigma = []
+    cumulative_rho = []
+    lyapunov_exponents = []
+    sv_alignment = []
+
+    for idx in indices:
+        c_i = context[idx]
+        product_J = None
+        prev_right_sv = None
+        step_data_sigma = []
+        step_data_rho = []
+        step_data_kappa = []
+        cum_sigma = []
+        cum_rho = []
+        alignments = []
+
+        for t in range(T):
+            s_t = states[t][idx]
+            J_t = _full_jacobian(model, s_t, c_i)
+
+            sm = torch.linalg.svdvals(J_t)[0].item()
+            eigvals = torch.linalg.eigvals(J_t)
+            rh = eigvals.abs().max().item()
+            kp = sm / max(rh, 1e-12)
+
+            step_data_sigma.append(sm)
+            step_data_rho.append(rh)
+            step_data_kappa.append(kp)
+
+            U, S, Vh = torch.linalg.svd(J_t)
+            right_sv = Vh[0]
+            if prev_right_sv is not None:
+                alignment = torch.dot(right_sv, prev_right_sv).abs().item()
+                alignments.append(alignment)
+            prev_right_sv = right_sv
+
+            if product_J is None:
+                product_J = J_t.clone()
+            else:
+                product_J = J_t @ product_J
+
+            prod_sm = torch.linalg.svdvals(product_J)[0].item()
+            prod_eigvals = torch.linalg.eigvals(product_J)
+            prod_rh = prod_eigvals.abs().max().item()
+            cum_sigma.append(prod_sm)
+            cum_rho.append(prod_rh)
+
+        per_step_sigma.append(step_data_sigma)
+        per_step_rho.append(step_data_rho)
+        per_step_kappa.append(step_data_kappa)
+        cumulative_sigma.append(cum_sigma)
+        cumulative_rho.append(cum_rho)
+        lyap = math.log(max(cum_sigma[-1], 1e-30)) / T
+        lyapunov_exponents.append(lyap)
+        sv_alignment.append(alignments)
+
+    def avg_list_of_lists(lol):
+        return [sum(x[i] for x in lol) / len(lol) for i in range(len(lol[0]))]
+
+    avg_per_step_sigma = avg_list_of_lists(per_step_sigma)
+    avg_per_step_kappa = avg_list_of_lists(per_step_kappa)
+    avg_cum_sigma = avg_list_of_lists(cumulative_sigma)
+    avg_cum_rho = avg_list_of_lists(cumulative_rho)
+    avg_alignment = avg_list_of_lists(sv_alignment) if sv_alignment[0] else []
+
+    mean_lyap = sum(lyapunov_exponents) / len(lyapunov_exponents)
+
+    theorem4_bound = avg_per_step_sigma[-1] ** T
+    actual_amplification = avg_cum_sigma[-1]
+    conservatism_ratio = theorem4_bound / max(actual_amplification, 1e-30)
+
+    n_expanding = sum(1 for s in avg_cum_sigma if s > 1.0)
+
+    return {
+        "lyapunov_max_mean": mean_lyap,
+        "lyapunov_all": lyapunov_exponents,
+        "theorem4_bound": theorem4_bound,
+        "actual_amplification": actual_amplification,
+        "conservatism_ratio": conservatism_ratio,
+        "per_step_sigma_max": avg_per_step_sigma,
+        "per_step_kappa": avg_per_step_kappa,
+        "cumulative_sigma_max": avg_cum_sigma,
+        "cumulative_rho": avg_cum_rho,
+        "sv_alignment": avg_alignment,
+        "n_expanding_steps": n_expanding,
+        "n_samples": n_samples,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Convenience: run all diagnostics
 # ---------------------------------------------------------------------------
 
