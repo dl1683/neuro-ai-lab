@@ -186,6 +186,39 @@ Framework where AI generation happens in continuous embedding space via iterativ
 - **Wall time:** ~3718s total (CE-dyn: ~1695s, E5: ~2023s)
 - **Artifacts:** `experiments/06_uesd/results/exp_d2c_stability_analysis.json`
 
+### Exp D3: Trajectory Lyapunov Analysis (COMPLETE — JACOBIAN ROTATION EXPLAINS STABILITY PARADOX)
+- **Config:** `experiments/06_uesd/exp_d3_trajectory_lyapunov.py`
+- **Purpose:** Explain why sigma_max > 1 yet basin stability > 99%. D2c showed Theorem 4 bounds overestimate instability by 3+ orders of magnitude. D3 measures the PRODUCT of Jacobians along the dynamics trajectory to compute true trajectory amplification and Lyapunov exponents. Key question: does Jacobian rotation between steps prevent the exponential blowup that per-step sigma_max > 1 would predict?
+- **Diagnostic:** `trajectory_lyapunov()` in shared/diagnostics.py. Computes full Jacobian dG/ds at each step t via central finite differences (eps=1e-4), then accumulates the matrix product P_t = J_t * J_{t-1} * ... * J_1. Measures: per-step sigma_max(J_t), cumulative sigma_max(P_t), Lyapunov exponent lambda_max = (1/T)*log(sigma_max(P_T)), and singular vector alignment cos(v_max(J_t), v_max(J_{t+1})).
+- **Seeds:** [42, 137] x [CE-dynamics, E5] = 4 runs, 16 trajectory samples each
+- **Results:**
+  | Track | Seed | lambda_max | Status | Thm 4 Bound | Actual Amp | Conservatism | D7 sigma_max | D7 kappa |
+  |-------|------|-----------|--------|-------------|------------|--------------|-------------|----------|
+  | CE-dynamics | 42 | 0.192 | UNSTABLE | 181x | 6.82x | 26.6x | 1.585 | 1.526 |
+  | CE-dynamics | 137 | 0.199 | UNSTABLE | 48.6x | 7.46x | 6.5x | 1.487 | 1.434 |
+  | E5 | 42 | 0.073 | UNSTABLE | 2,129x | 2.07x | 1,027x | 2.154 | 2.135 |
+  | E5 | 137 | 0.045 | UNSTABLE | 521x | 1.58x | 331x | 1.873 | 1.858 |
+- **Per-step sigma_max profiles:**
+  - CE-dynamics: DECREASING (3.5-5.5 early → 1.5-1.7 late). Early dynamics explore, late dynamics settle.
+  - E5: INCREASING (1.4-1.7 early → 2.0-2.5 late). SC convergence creates higher per-step amplification but aggressive rotation prevents blowup.
+- **Singular vector alignment (cos between consecutive Jacobian dominant singular vectors):**
+  - CE-dynamics: LOW early (0.34-0.71), HIGH late (0.80-0.96). Jacobians rotate heavily in early steps, align as dynamics converge.
+  - E5: VERY LOW early (0.11-0.40), MIXED late (0.40-0.86). More aggressive rotation throughout, especially E5 s=42 step 1→2: cos=0.105 (nearly orthogonal).
+- **Cumulative product behavior:**
+  - CE-dynamics: monotonically increasing (3.5 → 6.8-7.5x). Sub-exponential growth.
+  - E5: grows then SHRINKS. E5 s=137 cumulative sigma_max: 1.68 → 2.95 (peak at step 3) → 1.58 (step 10). The product Jacobian gets SMALLER despite every per-step sigma_max > 1.5. E5 s=42 also shrinks from 2.41 (step 7) to 2.07 (step 10).
+- **Key findings:**
+  1. **THEOREM 4 BOUND IS CONSERVATIVE BY UP TO 1,027x.** E5 seed=42: sigma_max^T predicts 2,129x amplification, actual trajectory amplification is 2.07x. The per-step bound ignores Jacobian rotation, which is the dominant stabilization mechanism. This is the largest gap between theory and experiment in the UESD program.
+  2. **JACOBIAN ROTATION IS THE STABILITY MECHANISM.** Singular vector alignment as low as 0.105 means consecutive Jacobians amplify in nearly orthogonal directions. When step t amplifies in direction v₁ but step t+1 amplifies in direction v₂ perpendicular to v₁, the step-t amplification is projected out. This prevents constructive compounding of per-step amplification.
+  3. **E5 IS MORE TRAJECTORY-STABLE DESPITE WORSE PER-STEP METRICS.** E5 has higher kappa (2.13 vs 1.53), higher sigma_max (2.15 vs 1.59), but LOWER trajectory amplification (1.6-2.1x vs 6.8-7.5x) and LOWER lambda_max (0.05-0.07 vs 0.19-0.20). SC loss forces convergence, which makes Jacobians rotate more aggressively, creating more effective damping through geometry rather than spectral contraction.
+  4. **CUMULATIVE PRODUCT CAN SHRINK (NON-MONOTONIC STABILITY).** E5 seed=137's cumulative sigma_max decreases from 2.95 to 1.58 over steps 3-10. Later Jacobians are oriented to REDUCE the dominant singular value of the accumulated product. This is impossible if Jacobians were aligned — it requires deliberate (learned) rotation.
+  5. **DYNAMICS SELF-ORGANIZE TO EDGE OF CHAOS.** All lambda_max values are small and positive (0.045-0.199). In complex systems theory, the boundary between stable (lambda < 0) and chaotic (lambda >> 0) is where computational capacity is maximized. The dynamics land near this boundary without explicit regularization toward it.
+  6. **TWO DISTINCT STABILITY REGIMES.** CE-dynamics: high early sigma_max (exploration) + alignment convergence (settling). E5: aggressive rotation throughout (geometric damping) + convergent trajectory. Both achieve practical stability but through different mechanisms.
+  7. **CONNECTS TO NON-NORMAL OPERATOR THEORY FROM FLUID DYNAMICS.** The transient growth/cancellation phenomenon is well-studied in hydrodynamic stability (Trefethen & Embree 2005) but essentially unexplored in neural network dynamics. Standard DEQ/fixed-point stability analysis uses per-step spectral properties — D3 shows this is the wrong level of analysis for iterative learned dynamics.
+- **Revised claim calibration:** "Theorem 4 bound is wildly conservative" → CONFIRMED with quantitative evidence. "Stability requires sigma_max < 1" → FALSE. Trajectory stability via Jacobian rotation is the actual mechanism, and it operates even when every per-step sigma_max >> 1.
+- **Wall time:** ~3858s total (4 training runs ~950s each + trajectory analysis ~15s each)
+- **Artifacts:** `experiments/06_uesd/results/exp_d3_trajectory_lyapunov.json`
+
 ### Exp D2d: Depth-Matched Encoder Multi-Seed Sweep (COMPLETE — CONFIRMS PARAMETER EFFICIENCY)
 - **Config:** `experiments/06_uesd/exp_d2d_depth_sweep.py`
 - **Purpose:** Multi-seed 4L/8L encoder baselines. D2 had single-run depth-matched encoders; Codex flagged as insufficient for parameter-efficiency claims.

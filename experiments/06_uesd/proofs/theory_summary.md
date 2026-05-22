@@ -232,6 +232,7 @@ generation PROCESS:
 | D5: Basin perturbation | Basin size and non-normal stability? | 2.1, 2.4 (Thm 4), 2.7 | >= 90% |
 | D6: Spectral radius | Is fixed point stable? | 2.1, 2.6 | < 1.0 |
 | D7: σ_max/ρ ratio | Non-normality severity? | 2.4 (Thm 4) | < 1.5 (CE-dyn: 1.45-1.57; E5: 1.85-2.12) |
+| D8: Trajectory Lyapunov | Product-Jacobian trajectory stability? | 2.4, 2.7 | lambda_max < 0 for stability; actual: 0.045-0.199 (edge of chaos) |
 
 ---
 
@@ -277,6 +278,15 @@ generation PROCESS:
    allowing CE gradient to reshape the attractor landscape continuously.)
 9. Can the seeding bug (model init not controlled) change D2 conclusions?
    (Need re-run with proper set_seed before model creation.)
+10. Can Jacobian rotation be controlled or optimized? (D3 shows it's
+    the dominant stabilization mechanism. Can a loss term explicitly
+    encourage rotation? Would that improve training stability?)
+11. Does edge-of-chaos self-organization persist at larger scale?
+    (D3: lambda_max in 0.045-0.199 at L=8 V=64. Does this hold at
+    L=16, L=32, or with harder tasks?)
+12. Can a tighter trajectory stability bound replace Theorem 4?
+    (D3 shows Theorem 4 is conservative by up to 1027x. A bound
+    accounting for Jacobian rotation would be far more useful.)
 
 ---
 
@@ -299,10 +309,16 @@ The following claims are defensible based on the theory:
   (Theorem 7, requires Lipschitz constants of fixed-point map)
 
 **WEAK claims (directional, not rigorous):**
-- Non-normal effects are empirically moderate (D2c: CE-dynamics kappa
-  1.45-1.57, E5 kappa 1.85-2.12; Theorem 4 sigma_max bound is wildly
-  conservative — predicts up to 2750x amplification but basin stability
-  is 99.7-100%). SC loss increases non-normality by 28-35%.
+- Non-normal effects are empirically moderate per-step but trajectory
+  stability is governed by Jacobian rotation, not per-step sigma_max.
+  D3 trajectory Lyapunov analysis: Theorem 4 bound conservative by
+  6.5-1,027x. Actual trajectory amplification 1.58-7.46x vs predicted
+  49-2,129x. Mechanism: singular vector alignment as low as 0.105
+  (nearly orthogonal consecutive Jacobians). E5 MORE trajectory-stable
+  (amp 1.6-2.1x) than CE-dynamics (amp 6.8-7.5x) despite worse per-step
+  metrics, because SC forces more aggressive Jacobian rotation.
+- Dynamics self-organize to edge of chaos (lambda_max in 0.045-0.199)
+  without explicit regularization toward this regime.
 - Optimal rho in [0.9, 1.0) (empirical, not theoretically derived)
 - UESD's process advantage (parallel refinement) translates to
   practical gains (no benchmark evidence yet)
