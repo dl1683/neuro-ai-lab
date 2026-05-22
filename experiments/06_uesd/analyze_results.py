@@ -326,10 +326,82 @@ def summarize_exp_c():
         print(f"  INCONCLUSIVE: Both struggle (Enc={enc_acc:.4f}, UESD={e1_acc:.4f})")
 
 
+def summarize_exp_d():
+    r = load_results("exp_d_compositional")
+    if not r:
+        print("\nExperiment D results not found.")
+        return
+
+    print_header("EXPERIMENT D: COMPOSITIONAL — DYNAMICS NECESSITY (HARD)")
+
+    print(f"\nDevice: {r.get('device', 'unknown')}")
+
+    for task in ["addition", "dedup"]:
+        e1_key = f"{task}_e1"
+        if e1_key not in r:
+            continue
+
+        print(f"\n--- {task.upper()} ---")
+        print(f"  {'Model':25s} {'Token Acc':>10s} {'Seq Acc':>10s}")
+        print(f"  {'-'*25} {'-'*10} {'-'*10}")
+
+        for key, label in [(f"{task}_e1", "E1 (embed reg)")]:
+            if key in r:
+                ta = r[key]["eval"]["token_accuracy"]
+                print(f"  {label:25s} {ta['token_acc']:>10.4f} {ta['seq_acc']:>10.4f}")
+
+        for lam in [0.1, 1.0]:
+            key = f"{task}_e5_lam{lam}"
+            if key in r:
+                ta = r[key]["eval"]["token_accuracy"]
+                print(f"  {'E5 (lam=' + str(lam) + ')':25s} {ta['token_acc']:>10.4f} {ta['seq_acc']:>10.4f}")
+
+        for key, label in [(f"{task}_ar", "AR baseline"), (f"{task}_enc", "Encoder-only")]:
+            if key in r:
+                ta = r[key]["eval"]["token_accuracy"]
+                print(f"  {label:25s} {ta['token_acc']:>10.4f} {ta['seq_acc']:>10.4f}")
+
+        # E5 diagnostics
+        print(f"\n  E5 Diagnostics:")
+        print(f"  {'Lambda':>6s} {'Acc':>7s} {'WA':>7s} {'Conv%':>7s} {'Margin':>8s} {'Rho':>7s}")
+        print(f"  {'-'*6} {'-'*7} {'-'*7} {'-'*7} {'-'*8} {'-'*7}")
+        for lam in [0.1, 1.0]:
+            key = f"{task}_e5_lam{lam}"
+            if key in r:
+                ev = r[key]["eval"]
+                acc = ev["token_accuracy"]["token_acc"]
+                wa = ev.get("wrong_attractor", {}).get("wrong_attractor_rate", 0)
+                conv = ev.get("wrong_attractor", {}).get("converged_frac", 0)
+                margin = ev.get("decoder_margin", {}).get("mean_margin", 0)
+                rho = ev.get("spectral_radius", {}).get("mean_rho", 0)
+                print(f"  {lam:>6.1f} {acc:>7.4f} {wa:>7.4f} {conv:>7.4f} {margin:>8.4f} {rho:>7.4f}")
+
+        # Gates
+        gates_key = f"{task}_gates"
+        if gates_key in r:
+            print(f"\n  Gates:")
+            for k, v in r[gates_key].items():
+                print(f"    {k}: {v}")
+
+    # Dynamics necessity summary
+    print("\n--- DYNAMICS NECESSITY SUMMARY ---")
+    for task in ["addition", "dedup"]:
+        gates = r.get(f"{task}_gates", {})
+        if not gates:
+            continue
+        enc_tok = gates.get("encoder_only_token_acc", "?")
+        enc_seq = gates.get("encoder_only_seq_acc", "?")
+        e1_eval = r.get(f"{task}_e1", {}).get("eval", {})
+        e1_tok = e1_eval.get("token_accuracy", {}).get("token_acc", 0)
+        verdict = gates.get("dynamics_necessity", gates.get("encoder_confound", "?"))
+        print(f"  {task.upper()}: UESD={e1_tok:.4f}, Enc-only={enc_tok} | {verdict}")
+
+
 if __name__ == "__main__":
     exp_a = load_results("exp_a_copy")
     exp_b = load_results("exp_b_reversal")
     exp_c = load_results("exp_c_sort")
+    exp_d = load_results("exp_d_compositional")
 
     if exp_a:
         summarize_exp_a()
@@ -341,5 +413,8 @@ if __name__ == "__main__":
 
     if exp_c:
         summarize_exp_c()
+
+    if exp_d:
+        summarize_exp_d()
 
     decision_table(exp_a, exp_b)
