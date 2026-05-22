@@ -1,0 +1,121 @@
+{
+  "experiment": "0_information_bottleneck",
+  "purpose": "Quantify the information bottleneck created by softmax collapse",
+  "derivation": {
+    "chain": "h_t -> z_t -> p_t -> x_t -> e_t",
+    "dpi_bounds": [
+      "I(h_t; e_t) <= I(h_t; x_t)  [DPI: sampling then embedding]",
+      "I(h_t; x_t) <= H(x_t)        [MI bounded by marginal entropy]",
+      "H(x_t) <= log2(V)            [V-ary categorical]"
+    ],
+    "conclusion": "I(h_t; e_t) <= log2(V) bits -- hard ceiling, model-independent",
+    "uesd_alternative": "I(s_t; s_{t+1}) -- no discrete bottleneck, bounded only by H(s_t)"
+  },
+  "configurations": [
+    {
+      "name": "UESD_POC",
+      "d": 128,
+      "V": 64,
+      "L": 8,
+      "softmax_bound_bits_per_step": 6.0,
+      "state_capacity_bits_float32": 4096.0,
+      "state_capacity_bits_conservative": 128.0,
+      "compression_ratio_float32": 682.6666666666666,
+      "compression_ratio_conservative": 21.333333333333332,
+      "ar_total_bandwidth_bits": 48.0,
+      "uesd_total_bandwidth_bits": 1024.0,
+      "bandwidth_ratio": 21.333333333333332,
+      "bridge_analysis": {
+        "bridge_capacity_bits": 6.0,
+        "required_capacity_bits": 128,
+        "capacity_deficit_bits": 122.0,
+        "deficit_ratio": 0.953125,
+        "analogy": "SynFlow allocates 0 weights to fc1 (100% deficit). Softmax allocates 6.0 bits to the token bridge (95.3% deficit)."
+      }
+    },
+    {
+      "name": "Small_LM",
+      "d": 768,
+      "V": 32000,
+      "L": 512,
+      "softmax_bound_bits_per_step": 14.965784284662087,
+      "state_capacity_bits_float32": 24576.0,
+      "state_capacity_bits_conservative": 768.0,
+      "compression_ratio_float32": 1642.1458129118625,
+      "compression_ratio_conservative": 51.317056653495705,
+      "ar_total_bandwidth_bits": 7662.4815537469885,
+      "uesd_total_bandwidth_bits": 393216.0,
+      "bandwidth_ratio": 51.317056653495705,
+      "bridge_analysis": {
+        "bridge_capacity_bits": 14.965784284662087,
+        "required_capacity_bits": 768,
+        "capacity_deficit_bits": 753.034215715338,
+        "deficit_ratio": 0.9805133017126796,
+        "analogy": "SynFlow allocates 0 weights to fc1 (100% deficit). Softmax allocates 15.0 bits to the token bridge (98.1% deficit)."
+      }
+    },
+    {
+      "name": "GPT2",
+      "d": 1024,
+      "V": 50257,
+      "L": 1024,
+      "softmax_bound_bits_per_step": 15.617036934287741,
+      "state_capacity_bits_float32": 32768.0,
+      "state_capacity_bits_conservative": 1024.0,
+      "compression_ratio_float32": 2098.2213295568718,
+      "compression_ratio_conservative": 65.56941654865224,
+      "ar_total_bandwidth_bits": 15991.845820710647,
+      "uesd_total_bandwidth_bits": 1048576.0,
+      "bandwidth_ratio": 65.56941654865224,
+      "bridge_analysis": {
+        "bridge_capacity_bits": 15.617036934287741,
+        "required_capacity_bits": 1024,
+        "capacity_deficit_bits": 1008.3829630657123,
+        "deficit_ratio": 0.9847489873688596,
+        "analogy": "SynFlow allocates 0 weights to fc1 (100% deficit). Softmax allocates 15.6 bits to the token bridge (98.5% deficit)."
+      }
+    },
+    {
+      "name": "LLaMA_7B",
+      "d": 4096,
+      "V": 32000,
+      "L": 4096,
+      "softmax_bound_bits_per_step": 14.965784284662087,
+      "state_capacity_bits_float32": 131072.0,
+      "state_capacity_bits_conservative": 4096.0,
+      "compression_ratio_float32": 8758.1110021966,
+      "compression_ratio_conservative": 273.69096881864374,
+      "ar_total_bandwidth_bits": 61299.85242997591,
+      "uesd_total_bandwidth_bits": 16777216.0,
+      "bandwidth_ratio": 273.69096881864374,
+      "bridge_analysis": {
+        "bridge_capacity_bits": 14.965784284662087,
+        "required_capacity_bits": 4096,
+        "capacity_deficit_bits": 4081.0342157153377,
+        "deficit_ratio": 0.9963462440711274,
+        "analogy": "SynFlow allocates 0 weights to fc1 (100% deficit). Softmax allocates 15.0 bits to the token bridge (99.6% deficit)."
+      }
+    },
+    {
+      "name": "GPT4_class",
+      "d": 8192,
+      "V": 128000,
+      "L": 8192,
+      "softmax_bound_bits_per_step": 16.96578428466209,
+      "state_capacity_bits_float32": 262144.0,
+      "state_capacity_bits_conservative": 8192.0,
+      "compression_ratio_float32": 15451.334026272583,
+      "compression_ratio_conservative": 482.8541883210182,
+      "ar_total_bandwidth_bits": 138983.70485995183,
+      "uesd_total_bandwidth_bits": 67108864.0,
+      "bandwidth_ratio": 482.8541883210182,
+      "bridge_analysis": {
+        "bridge_capacity_bits": 16.96578428466209,
+        "required_capacity_bits": 8192,
+        "capacity_deficit_bits": 8175.034215715338,
+        "deficit_ratio": 0.9979289814105637,
+        "analogy": "SynFlow allocates 0 weights to fc1 (100% deficit). Softmax allocates 17.0 bits to the token bridge (99.8% deficit)."
+      }
+    }
+  ]
+}
