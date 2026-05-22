@@ -235,9 +235,75 @@ def decision_table(exp_a, exp_b):
         print(f"\n  UNEXPECTED WIN: UESD > AR ({e1_rev:.4f} vs {ar_acc:.4f}) — validate carefully")
 
 
+def summarize_exp_c():
+    r = load_results("exp_c_sort")
+    if not r:
+        print("\nExperiment C results not found.")
+        return
+
+    print_header("EXPERIMENT C: SORT — DYNAMICS NECESSITY TEST")
+
+    print(f"\nDevice: {r.get('device', 'unknown')}")
+
+    print("\n--- Accuracy Comparison ---")
+    print(f"  {'Model':25s} {'Token Acc':>10s} {'Seq Acc':>10s}")
+    print(f"  {'-'*25} {'-'*10} {'-'*10}")
+
+    for key, label in [("track_a_e1", "E1 (embed reg)")]:
+        if key in r:
+            ta = r[key]["eval"]["token_accuracy"]
+            print(f"  {label:25s} {ta['token_acc']:>10.4f} {ta['seq_acc']:>10.4f}")
+
+    for lam in [0.1, 1.0]:
+        key = f"track_b_e5_lam{lam}"
+        if key in r:
+            ta = r[key]["eval"]["token_accuracy"]
+            print(f"  {'E5 (lam=' + str(lam) + ')':25s} {ta['token_acc']:>10.4f} {ta['seq_acc']:>10.4f}")
+
+    for key, label in [("ar_baseline", "AR baseline"), ("encoder_only", "Encoder-only")]:
+        if key in r:
+            ta = r[key]["eval"]["token_accuracy"]
+            print(f"  {label:25s} {ta['token_acc']:>10.4f} {ta['seq_acc']:>10.4f}")
+
+    # E5 diagnostics
+    print("\n--- E5 Lambda Sweep Diagnostics ---")
+    print(f"  {'Lambda':>6s} {'Acc':>7s} {'WA Rate':>8s} {'Conv%':>7s} {'Margin':>8s} {'Rho':>7s}")
+    print(f"  {'-'*6} {'-'*7} {'-'*8} {'-'*7} {'-'*8} {'-'*7}")
+
+    for lam in [0.1, 1.0]:
+        key = f"track_b_e5_lam{lam}"
+        if key in r:
+            ev = r[key]["eval"]
+            acc = ev["token_accuracy"]["token_acc"]
+            wa = ev.get("wrong_attractor", {}).get("wrong_attractor_rate", 0)
+            conv = ev.get("wrong_attractor", {}).get("converged_frac", 0)
+            margin = ev.get("decoder_margin", {}).get("mean_margin", 0)
+            rho = ev.get("spectral_radius", {}).get("mean_rho", 0)
+            print(f"  {lam:>6.1f} {acc:>7.4f} {wa:>8.4f} {conv:>7.4f} {margin:>8.4f} {rho:>7.4f}")
+
+    if "gates" in r:
+        print("\n--- Gates ---")
+        for k, v in r["gates"].items():
+            print(f"  {k}: {v}")
+
+    # Dynamics necessity verdict
+    enc_acc = r.get("encoder_only", {}).get("eval", {}).get("token_accuracy", {}).get("token_acc", 0)
+    e1_acc = r.get("track_a_e1", {}).get("eval", {}).get("token_accuracy", {}).get("token_acc", 0)
+    print("\n--- DYNAMICS NECESSITY ---")
+    if enc_acc < 0.80 and e1_acc >= 0.80:
+        print(f"  CONFIRMED: Encoder-only={enc_acc:.4f}, UESD={e1_acc:.4f}")
+        print(f"  Dynamics provide {e1_acc - enc_acc:+.4f} improvement over encoder-only")
+    elif enc_acc >= 0.80:
+        print(f"  NOT CONFIRMED: Encoder-only={enc_acc:.4f} still solves the task")
+        print(f"  Need harder tasks (longer sequences, compositional tasks)")
+    else:
+        print(f"  INCONCLUSIVE: Both struggle (Enc={enc_acc:.4f}, UESD={e1_acc:.4f})")
+
+
 if __name__ == "__main__":
     exp_a = load_results("exp_a_copy")
     exp_b = load_results("exp_b_reversal")
+    exp_c = load_results("exp_c_sort")
 
     if exp_a:
         summarize_exp_a()
@@ -246,5 +312,8 @@ if __name__ == "__main__":
 
     if exp_b:
         summarize_exp_b()
+
+    if exp_c:
+        summarize_exp_c()
 
     decision_table(exp_a, exp_b)

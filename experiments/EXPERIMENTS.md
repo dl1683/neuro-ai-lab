@@ -8,6 +8,13 @@ Reverse chronological order. Each entry links to configs, artifacts, and key fin
 
 Framework where AI generation happens in continuous embedding space via iterative dynamics, with no softmax collapse. Tests whether self-consistency energy E(s) = ||F_theta(s,c)||^2 produces correct, stable attractors.
 
+### Exp C: Sort — Dynamics Necessity Test (RUNNING)
+- **Config:** `experiments/06_uesd/exp_c_sort.py`
+- **Purpose:** Test whether iterative dynamics add value on a task requiring data-dependent reordering. Sorting is not a fixed permutation like reversal — it requires computing element ranks via global comparison. Directly addresses encoder-only confound from Exp A/B.
+- **Models:** E1 UESD, E5 UESD (lambda_1 in {0.1, 1.0}), AR baseline, encoder-only ablation
+- **Gate:** E1 sort acc >= 80%, encoder-only acc < 80% (dynamics necessity), E5 wrong-attractor < 5%
+- **Artifacts:** `experiments/06_uesd/results/exp_c_sort.json`
+
 ### Exp B: Reversal Main Test (COMPLETE - ALL GATES PASS)
 - **Config:** `experiments/06_uesd/exp_b_reversal.py`
 - **Purpose:** Core test — can dynamics solve non-trivial transformations? Lambda sweep for E5.
