@@ -138,7 +138,7 @@ def check_gates(results, task):
     if enc_acc > 0.80:
         gates["encoder_confound"] = f"CONCERN (encoder token_acc={enc_acc:.4f}, seq_acc={enc_seq:.4f})"
     else:
-        gates["dynamics_necessity"] = f"CONFIRMED (encoder={enc_acc:.4f}, UESD={e1_tok:.4f})"
+        gates["dynamics_necessity"] = f"CONFIRMED (encoder={enc_acc:.4f}, best_UESD={best_acc:.4f})"
 
     return gates
 

@@ -430,11 +430,17 @@ def summarize_exp_d():
         if not gates:
             continue
         enc_tok = gates.get("encoder_only_token_acc", "?")
-        enc_seq = gates.get("encoder_only_seq_acc", "?")
-        e1_eval = r.get(f"{task}_e1", {}).get("eval", {})
-        e1_tok = e1_eval.get("token_accuracy", {}).get("token_acc", 0)
+        best_tok = r.get(f"{task}_e1", {}).get("eval", {}).get("token_accuracy", {}).get("token_acc", 0)
+        best_label = "E1"
+        for lam in [0.1, 1.0]:
+            e5_key = f"{task}_e5_lam{lam}"
+            if e5_key in r:
+                e5_tok = r[e5_key]["eval"]["token_accuracy"]["token_acc"]
+                if e5_tok > best_tok:
+                    best_tok = e5_tok
+                    best_label = f"E5(lam={lam})"
         verdict = gates.get("dynamics_necessity", gates.get("encoder_confound", "?"))
-        print(f"  {task.upper()}: UESD={e1_tok:.4f}, Enc-only={enc_tok} | {verdict}")
+        print(f"  {task.upper()}: best_UESD={best_tok:.4f} [{best_label}], Enc-only={enc_tok} | {verdict}")
 
 
 if __name__ == "__main__":
