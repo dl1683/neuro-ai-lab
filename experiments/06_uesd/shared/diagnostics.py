@@ -464,18 +464,27 @@ def trajectory_lyapunov(model, src_ids, T, n_samples=8):
 
     mean_lyap = sum(lyapunov_exponents) / len(lyapunov_exponents)
 
-    theorem4_bound = avg_per_step_sigma[-1] ** T
     actual_amplification = avg_cum_sigma[-1]
-    conservatism_ratio = theorem4_bound / max(actual_amplification, 1e-30)
+
+    max_per_step = max(avg_per_step_sigma)
+    bound_max_sigma_T = max_per_step ** T
+    product_of_sigmas = 1.0
+    for s in avg_per_step_sigma:
+        product_of_sigmas *= s
+    bound_last_sigma_T = avg_per_step_sigma[-1] ** T
 
     n_expanding = sum(1 for s in avg_cum_sigma if s > 1.0)
 
     return {
         "lyapunov_max_mean": mean_lyap,
         "lyapunov_all": lyapunov_exponents,
-        "theorem4_bound": theorem4_bound,
         "actual_amplification": actual_amplification,
-        "conservatism_ratio": conservatism_ratio,
+        "bound_max_sigma_T": bound_max_sigma_T,
+        "bound_product_of_sigmas": product_of_sigmas,
+        "bound_last_sigma_T": bound_last_sigma_T,
+        "conservatism_max_sigma": bound_max_sigma_T / max(actual_amplification, 1e-30),
+        "conservatism_product": product_of_sigmas / max(actual_amplification, 1e-30),
+        "conservatism_last": bound_last_sigma_T / max(actual_amplification, 1e-30),
         "per_step_sigma_max": avg_per_step_sigma,
         "per_step_kappa": avg_per_step_kappa,
         "cumulative_sigma_max": avg_cum_sigma,

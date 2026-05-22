@@ -125,16 +125,18 @@ def run():
 
             lyap = traj["lyapunov_max_mean"]
             actual_amp = traj["actual_amplification"]
-            thm4_bound = traj["theorem4_bound"]
-            conservatism = traj["conservatism_ratio"]
             d7_kappa = d7["kappa_mean"]
             d7_sigma = d7["sigma_max_mean"]
 
             print(f"  D7 (single-point): sigma_max={d7_sigma:.4f}, kappa={d7_kappa:.4f}", flush=True)
             print(f"  Lyapunov max: {lyap:.6f} ({'STABLE' if lyap < 0 else 'UNSTABLE'})", flush=True)
-            print(f"  Theorem 4 bound: {thm4_bound:.2f}x", flush=True)
             print(f"  Actual amplification: {actual_amp:.4f}x", flush=True)
-            print(f"  Conservatism ratio: {conservatism:.1f}x", flush=True)
+            print(f"  Bounds: max_sigma^T={traj['bound_max_sigma_T']:.1f}x, "
+                  f"prod_sigmas={traj['bound_product_of_sigmas']:.1f}x, "
+                  f"last_sigma^T={traj['bound_last_sigma_T']:.1f}x", flush=True)
+            print(f"  Conservatism: max={traj['conservatism_max_sigma']:.1f}x, "
+                  f"prod={traj['conservatism_product']:.1f}x, "
+                  f"last={traj['conservatism_last']:.1f}x", flush=True)
 
             print("  Per-step sigma_max:", flush=True)
             for t, sm in enumerate(traj["per_step_sigma_max"]):
@@ -165,17 +167,20 @@ def run():
     print(f"\n{'=' * 70}", flush=True)
     print("D3 TRAJECTORY LYAPUNOV SUMMARY", flush=True)
     print(f"{'=' * 70}", flush=True)
-    print(f"{'track':15s} {'seed':>5s} {'lyap':>8s} {'status':>8s} {'thm4':>10s} {'actual':>8s} {'ratio':>8s} {'kappa':>6s}", flush=True)
-    print("-" * 70, flush=True)
+    print(f"{'track':15s} {'seed':>5s} {'lyap':>8s} {'status':>8s} {'actual':>8s} "
+          f"{'max_s^T':>10s} {'prod_s':>10s} {'c_max':>8s} {'c_prod':>8s} {'kappa':>6s}", flush=True)
+    print("-" * 90, flush=True)
     for r in runs:
         t = r["trajectory"]
         d = r["d7_single_point"]
         status = "STABLE" if t["lyapunov_max_mean"] < 0 else "UNSTABLE"
         print(f"{r['track']:15s} {r['seed']:5d} "
               f"{t['lyapunov_max_mean']:8.5f} {status:>8s} "
-              f"{t['theorem4_bound']:10.1f} {t['actual_amplification']:8.4f} "
-              f"{t['conservatism_ratio']:8.1f} {d['kappa_mean']:6.3f}", flush=True)
-    print(f"{'=' * 70}", flush=True)
+              f"{t['actual_amplification']:8.4f} "
+              f"{t['bound_max_sigma_T']:10.1f} {t['bound_product_of_sigmas']:10.1f} "
+              f"{t['conservatism_max_sigma']:8.1f} {t['conservatism_product']:8.1f} "
+              f"{d['kappa_mean']:6.3f}", flush=True)
+    print(f"{'=' * 90}", flush=True)
 
     out_dir = Path(__file__).parent / "results"
     out_dir.mkdir(exist_ok=True)
