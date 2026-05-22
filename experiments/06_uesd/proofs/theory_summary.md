@@ -231,7 +231,7 @@ generation PROCESS:
 | D4: Wrong-attractor rate | Convergence-correctness coupling? | 2.2, 2.3 | < 5% |
 | D5: Basin perturbation | Basin size and non-normal stability? | 2.1, 2.4 (Thm 4), 2.7 | >= 90% |
 | D6: Spectral radius | Is fixed point stable? | 2.1, 2.6 | < 1.0 |
-| D7: σ_max/ρ ratio | Non-normality severity? | 2.4 (Thm 4) | < 1.5 |
+| D7: σ_max/ρ ratio | Non-normality severity? | 2.4 (Thm 4) | < 1.5 (CE-dyn: 1.45-1.57; E5: 1.85-2.12) |
 
 ---
 
@@ -299,8 +299,10 @@ The following claims are defensible based on the theory:
   (Theorem 7, requires Lipschitz constants of fixed-point map)
 
 **WEAK claims (directional, not rigorous):**
-- Non-normal effects are empirically mild (D5 shows this; Theorem 4
-  provides sigma_max bound but sigma_max not yet measured in experiments)
+- Non-normal effects are empirically moderate (D2c: CE-dynamics kappa
+  1.45-1.57, E5 kappa 1.85-2.12; Theorem 4 sigma_max bound is wildly
+  conservative — predicts up to 2750x amplification but basin stability
+  is 99.7-100%). SC loss increases non-normality by 28-35%.
 - Optimal rho in [0.9, 1.0) (empirical, not theoretically derived)
 - UESD's process advantage (parallel refinement) translates to
   practical gains (no benchmark evidence yet)

@@ -81,7 +81,7 @@ def evaluate_full(model, config, device):
         state, _ = model.unroll(src, T)
         context = model.encode(src)
 
-    d7 = sigma_max_ratio(model, state, context, n_samples=8)
+    d7 = sigma_max_ratio(model, state, context, n_samples=32)
 
     # Average D1-D6 across batches
     averaged = {}
@@ -146,7 +146,7 @@ def run():
             basin = diag["basin_perturbation"]["stability_frac"]
 
             print(f"  tok={tok:.4f} seq={seq:.4f}", flush=True)
-            print(f"  ρ={rho:.4f} σ_max={sigma:.4f} κ={kappa:.4f}", flush=True)
+            print(f"  rho={rho:.4f} sigma_max={sigma:.4f} kappa={kappa:.4f}", flush=True)
             print(f"  WA={wa:.4f} basin={basin:.4f}", flush=True)
 
             run_data = {
@@ -164,7 +164,7 @@ def run():
     print(f"\n{'=' * 70}", flush=True)
     print("D2c STABILITY ANALYSIS RESULTS", flush=True)
     print(f"{'=' * 70}", flush=True)
-    print(f"{'track':15s} {'seed':>5s} {'tok':>6s} {'seq':>6s} {'ρ':>6s} {'σ_max':>6s} {'κ':>6s} {'WA':>6s} {'basin':>6s}", flush=True)
+    print(f"{'track':15s} {'seed':>5s} {'tok':>6s} {'seq':>6s} {'rho':>6s} {'s_max':>6s} {'kappa':>6s} {'WA':>6s} {'basin':>6s}", flush=True)
     print("-" * 70, flush=True)
     for r in runs:
         d = r["diagnostics"]
@@ -191,8 +191,8 @@ def run():
         elif kappa < 2.0:
             status = "MODERATE (finite-T may have transient growth)"
         else:
-            status = "SEVERE (σ_max bound needed, not ρ)"
-        print(f"  {r['track']} s={r['seed']}: κ={kappa:.3f} → {status} | seq={seq:.4f}", flush=True)
+            status = "SEVERE (sigma_max bound needed, not rho)"
+        print(f"  {r['track']} s={r['seed']}: kappa={kappa:.3f} -> {status} | seq={seq:.4f}", flush=True)
 
     out_dir = Path(__file__).parent / "results"
     out_dir.mkdir(exist_ok=True)

@@ -1,0 +1,167 @@
+{
+  "timestamp": "2026-05-22T17:57:33.728361+00:00",
+  "device": "cuda",
+  "purpose": "Full D1-D7 stability analysis: \u03c3_max/\u03c1 non-normality ratio on CE-dynamics vs E5",
+  "runs": [
+    {
+      "track": "dynamics_ce",
+      "seed": 42,
+      "train_final_loss": 0.005048668943345547,
+      "elapsed_s": 896.5294380187988,
+      "diagnostics": {
+        "token_accuracy": {
+          "token_acc": 1.0,
+          "seq_acc": 1.0
+        },
+        "normalized_residual": {
+          "mean": 0.3839041143655777,
+          "std": 0.00872785528190434
+        },
+        "decoder_margin": {
+          "mean_margin": 9.197993040084839,
+          "min_margin": 4.03636109828949,
+          "frac_positive": 1.0
+        },
+        "wrong_attractor": {
+          "wrong_attractor_rate": 0.0,
+          "converged_frac": 0.0,
+          "converged_correct_frac": 0.0
+        },
+        "basin_perturbation": {
+          "stability_frac": 0.99658203125
+        },
+        "spectral_radius": {
+          "mean_rho": 0.9978053867816925,
+          "max_rho": 1.0790859758853912
+        },
+        "sigma_max_ratio": {
+          "sigma_max_mean": 1.6332686804234982,
+          "sigma_max_max": 2.181795835494995,
+          "rho_eig_mean": 1.04230185598135,
+          "kappa_mean": 1.5679221952490539,
+          "kappa_max": 2.1024571397982026
+        }
+      }
+    },
+    {
+      "track": "dynamics_ce",
+      "seed": 137,
+      "train_final_loss": 0.0078123100101947784,
+      "elapsed_s": 798.1321499347687,
+      "diagnostics": {
+        "token_accuracy": {
+          "token_acc": 0.9998779296875,
+          "seq_acc": 0.9990234375
+        },
+        "normalized_residual": {
+          "mean": 0.4913797006011009,
+          "std": 0.009058108320459723
+        },
+        "decoder_margin": {
+          "mean_margin": 9.233996868133545,
+          "min_margin": 0.37730515003204346,
+          "frac_positive": 0.9998779296875
+        },
+        "wrong_attractor": {
+          "wrong_attractor_rate": 0.0,
+          "converged_frac": 0.0,
+          "converged_correct_frac": 0.0
+        },
+        "basin_perturbation": {
+          "stability_frac": 0.99951171875
+        },
+        "spectral_radius": {
+          "mean_rho": 1.0043563842773438,
+          "max_rho": 1.0358815789222717
+        },
+        "sigma_max_ratio": {
+          "sigma_max_mean": 1.511236485093832,
+          "sigma_max_max": 2.8092284202575684,
+          "rho_eig_mean": 1.0389796271920204,
+          "kappa_mean": 1.4512349369452873,
+          "kappa_max": 2.5798017061021565
+        }
+      }
+    },
+    {
+      "track": "e5",
+      "seed": 42,
+      "train_final_loss": 0.019854500889778137,
+      "elapsed_s": 962.1835556030273,
+      "diagnostics": {
+        "token_accuracy": {
+          "token_acc": 0.99993896484375,
+          "seq_acc": 0.99951171875
+        },
+        "normalized_residual": {
+          "mean": 0.002290767792146653,
+          "std": 0.0005734942242270336
+        },
+        "decoder_margin": {
+          "mean_margin": 8.960311889648438,
+          "min_margin": -0.034908294677734375,
+          "frac_positive": 0.99993896484375
+        },
+        "wrong_attractor": {
+          "wrong_attractor_rate": 0.0004892367906066536,
+          "converged_frac": 0.99951171875,
+          "converged_correct_frac": 0.9995107632093934
+        },
+        "basin_perturbation": {
+          "stability_frac": 0.99951171875
+        },
+        "spectral_radius": {
+          "mean_rho": 1.002646952867508,
+          "max_rho": 1.0381636023521423
+        },
+        "sigma_max_ratio": {
+          "sigma_max_mean": 2.146519124507904,
+          "sigma_max_max": 2.18229079246521,
+          "rho_eig_mean": 1.0131171569228172,
+          "kappa_mean": 2.118897515574108,
+          "kappa_max": 2.1636319798604178
+        }
+      }
+    },
+    {
+      "track": "e5",
+      "seed": 137,
+      "train_final_loss": 0.005621642805635929,
+      "elapsed_s": 1061.642285823822,
+      "diagnostics": {
+        "token_accuracy": {
+          "token_acc": 1.0,
+          "seq_acc": 1.0
+        },
+        "normalized_residual": {
+          "mean": 0.0014114602527115494,
+          "std": 0.00041677559056552127
+        },
+        "decoder_margin": {
+          "mean_margin": 9.363020658493042,
+          "min_margin": 5.962361812591553,
+          "frac_positive": 1.0
+        },
+        "wrong_attractor": {
+          "wrong_attractor_rate": 0.0,
+          "converged_frac": 1.0,
+          "converged_correct_frac": 1.0
+        },
+        "basin_perturbation": {
+          "stability_frac": 1.0
+        },
+        "spectral_radius": {
+          "mean_rho": 0.9977495819330215,
+          "max_rho": 1.025633692741394
+        },
+        "sigma_max_ratio": {
+          "sigma_max_mean": 1.8719722591340542,
+          "sigma_max_max": 1.8875454664230347,
+          "rho_eig_mean": 1.009325124323368,
+          "kappa_mean": 1.8547182683856298,
+          "kappa_max": 1.8766377060764579
+        }
+      }
+    }
+  ]
+}

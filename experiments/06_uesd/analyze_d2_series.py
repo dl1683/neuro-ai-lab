@@ -134,7 +134,7 @@ def combined_comparison(d2b, d2d):
         s = d2b["sweep_ce_dynamics"]
         successes = sum(1 for r in s["runs"] if r["seq_acc"] > 0.9)
         _, lo, hi = wilson_ci(successes, len(s["runs"]))
-        rows.append(("UESD CE-dyn", 694272, s["seq_acc_mean"], s["seq_acc_std"],
+        rows.append(("UESD CE-dyn", 694016, s["seq_acc_mean"], s["seq_acc_std"],
                       successes, len(s["runs"]), lo, hi))
 
     # E5 from D2b
@@ -142,7 +142,7 @@ def combined_comparison(d2b, d2d):
         s = d2b["sweep_e5"]
         successes = sum(1 for r in s["runs"] if r["seq_acc"] > 0.9)
         _, lo, hi = wilson_ci(successes, len(s["runs"]))
-        rows.append(("UESD E5", 694272, s["seq_acc_mean"], s["seq_acc_std"],
+        rows.append(("UESD E5", 694016, s["seq_acc_mean"], s["seq_acc_std"],
                       successes, len(s["runs"]), lo, hi))
 
     # Encoder-2L from D2b
@@ -150,7 +150,7 @@ def combined_comparison(d2b, d2d):
         s = d2b["sweep_enc_2L"]
         successes = sum(1 for r in s["runs"] if r["seq_acc"] > 0.9)
         _, lo, hi = wilson_ci(successes, len(s["runs"]))
-        rows.append(("Enc-2L", 430272, s["seq_acc_mean"], s["seq_acc_std"],
+        rows.append(("Enc-2L", 425344, s["seq_acc_mean"], s["seq_acc_std"],
                       successes, len(s["runs"]), lo, hi))
 
     # Depth-matched from D2d

@@ -1,0 +1,111 @@
+{
+  "timestamp": "2026-05-22T16:58:22.244283+00:00",
+  "device": "cuda",
+  "purpose": "Multi-seed depth-matched encoder sweep (4L/8L) for parameter-efficiency comparison",
+  "enc_4L": {
+    "n_layers": 4,
+    "params": 821888,
+    "seeds": [
+      42,
+      137,
+      256,
+      512,
+      1024
+    ],
+    "runs": [
+      {
+        "seed": 42,
+        "token_acc": 0.9999875,
+        "seq_acc": 0.9999,
+        "train_final_loss": 0.012227129191160202,
+        "elapsed_s": 176.12884497642517
+      },
+      {
+        "seed": 137,
+        "token_acc": 0.9999875,
+        "seq_acc": 0.9999,
+        "train_final_loss": 0.022588513791561127,
+        "elapsed_s": 177.9115595817566
+      },
+      {
+        "seed": 256,
+        "token_acc": 0.9998,
+        "seq_acc": 0.9984,
+        "train_final_loss": 0.1359657347202301,
+        "elapsed_s": 178.0862100124359
+      },
+      {
+        "seed": 512,
+        "token_acc": 0.9990500003814697,
+        "seq_acc": 0.9923999998092652,
+        "train_final_loss": 0.06985177099704742,
+        "elapsed_s": 178.23323369026184
+      },
+      {
+        "seed": 1024,
+        "token_acc": 0.981825,
+        "seq_acc": 0.8557,
+        "train_final_loss": 0.21333801746368408,
+        "elapsed_s": 178.69401693344116
+      }
+    ],
+    "token_acc_mean": 0.9961300000762939,
+    "token_acc_std": 0.008006074876738687,
+    "seq_acc_mean": 0.9692599999618531,
+    "seq_acc_std": 0.06355724189888354,
+    "success_rate": 0.8
+  },
+  "enc_8L": {
+    "n_layers": 8,
+    "params": 1614976,
+    "seeds": [
+      42,
+      137,
+      256,
+      512,
+      1024
+    ],
+    "runs": [
+      {
+        "seed": 42,
+        "token_acc": 0.9999875,
+        "seq_acc": 0.9999,
+        "train_final_loss": 0.008257844485342503,
+        "elapsed_s": 314.7463755607605
+      },
+      {
+        "seed": 137,
+        "token_acc": 1.0,
+        "seq_acc": 1.0,
+        "train_final_loss": 0.005084355361759663,
+        "elapsed_s": 313.9370856285095
+      },
+      {
+        "seed": 256,
+        "token_acc": 0.9999375,
+        "seq_acc": 0.9995,
+        "train_final_loss": 0.03392001986503601,
+        "elapsed_s": 313.651483297348
+      },
+      {
+        "seed": 512,
+        "token_acc": 0.999975,
+        "seq_acc": 0.9998,
+        "train_final_loss": 0.02878294326364994,
+        "elapsed_s": 315.2518615722656
+      },
+      {
+        "seed": 1024,
+        "token_acc": 1.0,
+        "seq_acc": 1.0,
+        "train_final_loss": 0.03010009601712227,
+        "elapsed_s": 314.1719608306885
+      }
+    ],
+    "token_acc_mean": 0.99998,
+    "token_acc_std": 2.5920551691650103e-05,
+    "seq_acc_mean": 0.9998400000000001,
+    "seq_acc_std": 0.00020736441353325438,
+    "success_rate": 1.0
+  }
+}
