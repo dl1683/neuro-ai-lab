@@ -218,6 +218,29 @@ Framework where AI generation happens in continuous embedding space via iterativ
 - **Revised claim calibration:** "Theorem 4 bound is wildly conservative" → CONFIRMED with quantitative evidence. "Stability requires sigma_max < 1" → FALSE. Trajectory stability via Jacobian rotation is the actual mechanism, and it operates even when every per-step sigma_max >> 1.
 - **Wall time:** ~3858s total (4 training runs ~950s each + trajectory analysis ~15s each)
 - **Artifacts:** `experiments/06_uesd/results/exp_d3_trajectory_lyapunov.json`
+- **Codex review:** `experiments/06_uesd/results/codex_d3_review.md`
+  - Found bug: Theorem 4 bound computed wrong quantity (last-step avg sigma^T, not product-of-sigmas). Fixed in D3b.
+  - "1027x" ratio inflated; core observation survives with corrected bounds.
+  - Edge-of-chaos framing oversold; prefer "near marginal tangent stability."
+  - Mandated: eps sweep, autograd check, shuffled-trajectory controls → D3b.
+
+### Exp D3b: Trajectory Lyapunov Validation (COMPLETE — FINDINGS VALIDATED WITH CORRECTIONS)
+- **Config:** `experiments/06_uesd/exp_d3b_validation.py`
+- **Purpose:** Codex-mandated validation of D3. Four tests: (1) autograd Jacobian check, (2) eps sweep 1e-3 to 1e-5, (3) shuffled-trajectory ablation (10 permutations per sample), (4) corrected conservatism bounds.
+- **Model:** CE-dynamics seed=42 (retrained from scratch)
+- **Results:**
+  1. **Autograd check:** Relative Frobenius error 2.5-2.7% (full 1024x1024 Jacobian). Dominant singular vector alignment: cos ≈ 1.000. sigma_1 differs by only 0.14%. **Finite-difference Jacobian is valid for spectral analysis.**
+  2. **Eps sweep (Lyapunov):** Values [0.195, 0.194, 0.196, 0.197, 0.210] across eps [1e-3 to 1e-5]. Range = 0.015. **PASS: Lyapunov exponent is eps-robust.**
+  3. **Eps sweep (alignment):** Values [0.686, 0.736, 0.679, 0.664, 0.373]. Drops at eps=1e-5 (float32 precision floor). Stable in practical range 3e-5 to 1e-3. **Alignment is valid at eps=1e-4 but not at 1e-5.**
+  4. **Shuffled trajectory test:** Ordered mean cum_sigma = 6.73x, shuffled mean = 7.25x. Ratio = 0.93. Ordered consistently lower than shuffled across all 8 samples. **Temporal ordering reduces amplification by ~7% vs random permutation.**
+  5. **Corrected conservatism:** Product-of-per-step-sigmas = 5,112x, actual product-Jacobian sigma = 7.12x. **Corrected conservatism ratio = 718x** (not 1,027x as originally reported). Max_sigma^T = 2.6M x (useless bound).
+- **Key findings:**
+  1. **JACOBIAN COMPUTATION VALIDATED.** Autograd confirms finite-difference accuracy. Spectral properties are robust to eps in practical range.
+  2. **ROTATION EFFECT IS REAL AND MASSIVE (718x).** Product of per-step sigmas (5,112x) vs actual product sigma (7.12x) = 718x conservatism. This gap IS the rotation effect: Jacobians amplify in diverse directions.
+  3. **ROTATION IS JACOBIAN DIVERSITY, NOT TEMPORAL STRUCTURE.** Shuffled trajectories show similar amplification to ordered (7.25x vs 6.73x). The ~7% advantage of correct ordering is modest. Most cancellation comes from Jacobians at different states being diverse in their amplification directions, regardless of sequence order.
+  4. **REVISED FRAMING:** "Learned temporal rotation" → "State-dependent Jacobian diversity." The dynamics visit states where Jacobians naturally point in different directions. This is a geometric property of the learned dynamics map, not a carefully choreographed temporal sequence.
+- **Wall time:** ~1080s (941s training + 139s validation)
+- **Artifacts:** `experiments/06_uesd/results/exp_d3b_validation.json`
 
 ### Exp D2d: Depth-Matched Encoder Multi-Seed Sweep (COMPLETE — CONFIRMS PARAMETER EFFICIENCY)
 - **Config:** `experiments/06_uesd/exp_d2d_depth_sweep.py`
