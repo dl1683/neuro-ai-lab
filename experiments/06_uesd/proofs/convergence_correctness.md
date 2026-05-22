@@ -50,6 +50,14 @@ small delta > 0. In a neighborhood of s*:
 So for ||s_0 - s*|| sufficiently small, the iterates contract
 geometrically at rate rho(J) + delta.  QED.
 
+**Caveat: non-normal Jacobians.** When J is non-normal (J^T J != J J^T),
+the constant C in the bound can be large — iterates may transiently
+GROW before eventually contracting. The pseudospectral radius or
+logarithmic norm gives tighter transient bounds, but rho(J) < 1 still
+guarantees eventual convergence. For UESD with T=10 fixed steps, the
+relevant question is whether T is large enough for transient growth
+to decay. See finite_step_convergence.md for the T-sufficiency analysis.
+
 **Consequence for UESD.** Gate D6 requires rho < 1.0. If satisfied,
 the UESD dynamics locally converge to the fixed point. This is necessary
 but not sufficient for correctness.
@@ -160,10 +168,10 @@ converges to L < delta on training example (c, y*), then:
 and in particular, if delta is small enough:
 
     (c) The residual r = ||F_theta(s_T, c)|| < sqrt(delta / lambda_1)
-    (d) The readout probability p(y* | s_T) > 1 - delta / lambda_2
-        (by properties of cross-entropy)
-    (e) The decoder margin m(s_T) > 0 when delta is sufficiently small
-        (since CE -> 0 implies the correct logit dominates)
+    (d) The readout probability p(y* | s_T) >= exp(-delta / lambda_2)
+    (e) The decoder margin m(s_T) > 0 when delta < lambda_2 * log(2)
+        (since CE < log(2) implies p(y*) > 0.5, which requires
+        the correct logit to dominate)
 
 **Proof.** Since L = lambda_1 * A + lambda_2 * B with A, B >= 0
 and lambda_1, lambda_2 > 0: L < delta implies A < delta/lambda_1

@@ -162,8 +162,10 @@ Model the softmax + sampling as an information channel:
     Channel output: x in {0, ..., V-1} (sampled token)
     Channel capacity: C = log_2(V) bits
 
-This is a V-ary symmetric channel with capacity log_2(V). The key
-properties:
+This is a V-ary discrete memoryless channel with capacity log_2(V)
+(not literally symmetric — the softmax concentrates probability, but
+the maximum entropy bound holds regardless of channel structure). The
+key properties:
 
 1. **Irreversible.** Once x is sampled, the logit distribution z is
    lost. You cannot recover z from x.
@@ -203,7 +205,7 @@ structure and the noise floor of the computation.
 
 | Quantity | AR | UESD |
 |----------|-----|------|
-| Information per step | <= log_2(V) bits | Unbounded (continuous) |
+| Information per step | <= log_2(V) bits | Depends on Jacobian (continuous, not hard-capped) |
 | Total output info | <= L * log_2(V) bits | <= L * log_2(V) bits (same) |
 | Intermediate state | Discrete token x_t | Continuous state s_t in R^{L*d} |
 | Error correction | Requires future tokens | Continuous refinement |

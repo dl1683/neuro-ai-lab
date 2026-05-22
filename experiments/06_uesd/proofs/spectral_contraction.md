@@ -83,13 +83,15 @@ For the full Jacobian J = I + dF/ds, we need rho(J) < 1. Since:
 
     rho(J) <= ||J|| = ||I + dF/ds|| <= 1 + ||dF/ds||
 
-This bound is useless (rho could be up to 1 + ||dF/ds||). But if the
-eigenvalues of dF/ds lie in Re(z) < 0 (the dynamics are dissipative),
-then rho(J) < 1.
+This bound is useless (rho could be up to 1 + ||dF/ds||). For rho(J) < 1,
+eigenvalues of dF/ds must lie in the open disk D(-1, 1) = {z : |z+1| < 1}.
+Re(z) < 0 alone is NOT sufficient — imaginary components must also be
+bounded so |1 + z| < 1 (as derived in the Key Insight above).
 
-The self-attention mechanism can create both dissipative and amplifying
-modes. Spectral normalization on the FFN helps but does not guarantee
-global contraction.
+The self-attention mechanism can create eigenvalues with arbitrary
+imaginary components. Spectral normalization on the FFN constrains
+the real axis but does not control imaginary parts from attention,
+so global contraction is not guaranteed.
 
 ---
 
