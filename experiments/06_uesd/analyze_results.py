@@ -250,6 +250,46 @@ def decision_table(exp_a, exp_b):
             print(f"  BOTH STRUGGLE: encoder-only={enc_sort:.4f}, UESD={e1_sort:.4f}")
             print(f"  Sort may be too hard at current scale.")
 
+    # Exp D dynamics necessity (compositional)
+    exp_d = load_results("exp_d_compositional")
+    if exp_d:
+        print(f"\n--- Exp D: Dynamics Necessity (Compositional) ---")
+        necessity_confirmed = False
+        for task in ["addition", "dedup"]:
+            enc_key = f"{task}_enc"
+            e1_key = f"{task}_e1"
+            if enc_key not in exp_d or e1_key not in exp_d:
+                continue
+            enc_tok = exp_d[enc_key]["eval"]["token_accuracy"]["token_acc"]
+            enc_seq = exp_d[enc_key]["eval"]["token_accuracy"]["seq_acc"]
+            best_uesd_tok = exp_d[e1_key]["eval"]["token_accuracy"]["token_acc"]
+            best_uesd_seq = exp_d[e1_key]["eval"]["token_accuracy"]["seq_acc"]
+            best_uesd_label = "E1"
+            for lam in [0.1, 1.0]:
+                e5_key = f"{task}_e5_lam{lam}"
+                if e5_key in exp_d:
+                    e5_tok = exp_d[e5_key]["eval"]["token_accuracy"]["token_acc"]
+                    e5_seq = exp_d[e5_key]["eval"]["token_accuracy"]["seq_acc"]
+                    if e5_tok > best_uesd_tok or (e5_tok == best_uesd_tok and e5_seq > best_uesd_seq):
+                        best_uesd_tok = e5_tok
+                        best_uesd_seq = e5_seq
+                        best_uesd_label = f"E5(lam={lam})"
+            if enc_tok < 0.80 and best_uesd_tok >= 0.80:
+                print(f"  {task.upper()}: DYNAMICS NECESSARY (enc={enc_tok:.4f}, best_UESD={best_uesd_tok:.4f} [{best_uesd_label}])")
+                necessity_confirmed = True
+            elif enc_seq < 0.50 and best_uesd_seq >= 0.50:
+                print(f"  {task.upper()}: DYNAMICS NECESSARY by seq_acc (enc_seq={enc_seq:.4f}, best_UESD_seq={best_uesd_seq:.4f} [{best_uesd_label}])")
+                necessity_confirmed = True
+            elif enc_tok >= 0.80:
+                print(f"  {task.upper()}: CONFOUND PERSISTS (enc={enc_tok:.4f}, seq={enc_seq:.4f})")
+            else:
+                print(f"  {task.upper()}: BOTH STRUGGLE (enc={enc_tok:.4f}, best_UESD={best_uesd_tok:.4f} [{best_uesd_label}])")
+        if necessity_confirmed:
+            print(f"\n  CONCLUSION: Dynamics necessity CONFIRMED on compositional tasks.")
+            print(f"  The encoder-only confound from Exp A/B/C is resolved.")
+        else:
+            print(f"\n  CONCLUSION: Dynamics necessity still not confirmed.")
+
 
 def summarize_exp_c():
     r = load_results("exp_c_sort")

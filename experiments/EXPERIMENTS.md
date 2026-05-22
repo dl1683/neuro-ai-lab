@@ -8,6 +8,54 @@ Reverse chronological order. Each entry links to configs, artifacts, and key fin
 
 Framework where AI generation happens in continuous embedding space via iterative dynamics, with no softmax collapse. Tests whether self-consistency energy E(s) = ||F_theta(s,c)||^2 produces correct, stable attractors.
 
+### Exp D: Compositional Tasks — Dynamics Necessity (Hard) (COMPLETE — DYNAMICS NECESSITY CONFIRMED)
+- **Config:** `experiments/06_uesd/exp_d_compositional.py`
+- **Purpose:** Test dynamics necessity on compositional tasks that should exceed single-pass encoder capacity. Addresses persistent encoder confound from Exp A/B/C.
+- **Tasks:**
+  1. **Addition** (base-64 multi-digit): Input interleaves digit pairs `[a0,b0,a1,b1,...]`, output is A+B mod base^half. Carry propagation goes right-to-left — requires O(L) sequential computation. At L=8, carry chains up to 4 deep should exceed 2-layer encoder depth.
+  2. **Dedup** (deduplicate + sort): Input has repeated elements (values 1 to V-1), output is unique sorted values + zero padding. Non-bijective mapping requiring counting/grouping, not position-wise routing.
+- **Models per task:** E1 UESD (694K), E5 UESD (694K) x2 lambdas {0.1, 1.0}, AR baseline (950K), encoder-only (425K)
+- **Architecture:** d=128, heads=4, d_ff=512, V=64, L=8, T=10 (same as Exp A/B/C)
+- **Gate:** UESD acc >= 80%, encoder-only acc < 80% (dynamics necessity), E5 WA < 5%
+- **Note:** Addition output is half-length + zero padding → token accuracy inflated by trivial zeros. Use seq_acc as primary metric.
+- **Results (Addition):**
+  | Model | Token Acc | Seq Acc | Margin | Mean Rho | Max Rho | WA Rate | Conv% | Basin |
+  |-------|-----------|---------|--------|----------|---------|---------|-------|-------|
+  | E1 (embed reg) | 0.5077 | 0.0000 | 6.07 | 0.993 | 1.008 | 1.00 | 100% | 1.0 |
+  | E5 (lam=0.1) | 1.0000 | 1.0000 | 9.37 | 0.991 | 1.003 | 0.00% | 99.98% | 1.0 |
+  | E5 (lam=1.0) | 1.0000 | 1.0000 | 9.30 | 0.998 | 1.009 | 0.00% | 100% | 1.0 |
+  | AR baseline | 1.0000 | 0.9998 | — | — | — | — | — | — |
+  | Encoder-only | 0.7316 | 0.0011 | 4.79 | — | — | — | — | — |
+- **Results (Dedup):**
+  | Model | Token Acc | Seq Acc | Margin | Mean Rho | Max Rho | WA Rate | Conv% | Basin |
+  |-------|-----------|---------|--------|----------|---------|---------|-------|-------|
+  | E1 (embed reg) | 0.9997 | 0.9983 | 7.74 | 1.065 | 1.709 | — | 0.0% | 0.966 |
+  | E5 (lam=0.1) | 0.9993 | 0.9959 | 8.19 | 0.972 | 0.996 | 0.00% | 72.2% | 0.988 |
+  | E5 (lam=1.0) | 0.9997 | 0.9980 | 8.28 | 0.981 | 0.993 | 0.19% | 99.96% | 0.994 |
+  | AR baseline | 0.9997 | 0.9996 | — | — | — | — | — | — |
+  | Encoder-only | 0.9923 | 0.9570 | 6.23 | — | — | — | — | — |
+- **Gates (Addition):** Track A INVESTIGATE (E1 fails), **E5 VIABLE (WA=0.00%)**, COMPETITIVE (gap=0.00%), **DYNAMICS NECESSITY CONFIRMED** (encoder=73.16% < 80%, E5=100%)
+- **Gates (Dedup):** Track A PASS, E5 VIABLE (WA=0.19%), COMPETITIVE (gap=0.00%), encoder CONCERN (99.23% token, 95.70% seq)
+- **Key findings:**
+  1. **DYNAMICS NECESSITY CONFIRMED ON ADDITION.** This is the critical result of the entire UESD experiment series. Encoder-only achieves only 73.16% token accuracy (0.11% seq accuracy) on base-64 addition, while E5 achieves 100%/100%. Carry propagation requires sequential computation depth that exceeds 2-layer encoder capacity. The iterative dynamics (T=10 steps) provide the additional computation depth needed.
+  2. **E1 fundamentally fails on addition.** CE stuck at exactly 2.08 = ln(64)/2 for all 20K steps despite MSE→0.0002. The 0.1*CE coefficient provides insufficient gradient to learn carry-dependent token mappings. The dynamics converge to fixed points (MSE→0) but those fixed points don't decode to correct tokens. This is a structural limitation of the E1 loss design.
+  3. **Phase transition at step ~4000.** Both E5 lambdas show a dramatic CE drop from 2.08 to <0.02 around step 4000 (during lambda warmup). This is a genuine learning phase transition — the model suddenly discovers carry propagation after sufficient SC pressure builds.
+  4. **E5 matches AR on addition.** E5 achieves 100% seq accuracy vs AR's 99.98% — E5 is competitive or slightly better. The parallel dynamics (all positions simultaneously) match the sequential AR approach.
+  5. **Dedup: encoder confound persists.** Encoder-only achieves 99.23% token accuracy on dedup at L=8 V=64. Self-attention can implement counting/grouping for short sequences. However, encoder-only seq_acc is lower (95.70%) suggesting it struggles with some edge cases.
+  6. **E1 works on dedup but not addition.** Unlike addition's carry chain, dedup doesn't require sequential depth — the MSE+0.1*CE loss provides sufficient gradient for learning. E1 dedup: 99.97% token, 99.83% seq.
+  7. **E1 dedup has rho > 1 (mean=1.065, max=1.709).** Highly expansive dynamics without SC pressure. Works at this scale due to training coupling but is a theoretical concern. Contrast with E5 lam=0.1 on dedup: rho=0.972 (contractive).
+  8. **E5 lam=0.1 dedup convergence concern.** Only 72.17% of examples converge (residual < threshold), but converged_correct_frac=1.0 — all converged examples are correct. SC=0.073 at step 20K is still relatively high. More training or higher lambda may help.
+  9. **Lambda selection: 1.0 selected for both tasks** by gate criteria (acc, conv_frac, -rho). Lambda=1.0 achieves higher convergence fraction (100% vs 99.98% on addition, 99.96% vs 72.17% on dedup) at cost of slightly higher rho. Lambda=0.1 gives better contraction (lower rho) but lower convergence fraction, especially on dedup.
+- **Encoder confound analysis (cumulative across all experiments):**
+  - Copy: encoder-only 100% (trivial — position-wise identity)
+  - Reversal: encoder-only 100% (bijective V→V mapping, solvable by attention)
+  - Sort: encoder-only 99.99% (attention computes pairwise comparisons → element ranks)
+  - **Addition: encoder-only 73.16% (FAILS — carry propagation requires O(L) sequential depth)**
+  - Dedup: encoder-only 99.23% (attention can implement counting/grouping at this scale)
+  - **Conclusion: Addition is the first and only task where dynamics necessity is confirmed.** The sequential nature of carry propagation (right-to-left dependency chain) creates computational depth requirements that exceed single-pass encoder capacity.
+- **Wall time:** 8959s (addition: E1=1330, E5x2=2237, AR=232, Enc=122; dedup: E1=1055, E5x2=2228, AR=347, Enc=229)
+- **Artifacts:** `experiments/06_uesd/results/exp_d_compositional.json`
+
 ### Exp C: Sort — Dynamics Necessity Test (COMPLETE — ENCODER CONFOUND PERSISTS)
 - **Config:** `experiments/06_uesd/exp_c_sort.py`
 - **Purpose:** Test whether iterative dynamics add value on a task requiring data-dependent reordering. Sorting is not a fixed permutation like reversal — it requires computing element ranks via global comparison. Directly addresses encoder-only confound from Exp A/B.
