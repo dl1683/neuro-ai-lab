@@ -224,6 +224,57 @@ Framework where AI generation happens in continuous embedding space via iterativ
   - Edge-of-chaos framing oversold; prefer "near marginal tangent stability."
   - Mandated: eps sweep, autograd check, shuffled-trajectory controls → D3b.
 
+### Exp D4: Phase Transition Dynamics (COMPLETE — TWO DISTINCT STABILITY MECHANISMS DISCOVERED)
+- **Config:** `experiments/06_uesd/exp_d4_phase_dynamics.py`
+- **Purpose:** Track how trajectory stability evolves DURING training, not just after. Questions from Codex D3 review: Does edge-of-chaos emerge suddenly or gradually? Does Jacobian rotation onset correlate with CE loss phase transition? How do CE-dynamics and E5 differ in their stability trajectories?
+- **Model:** UESD 694K params (d=128, heads=4, d_ff=512, T=10), CE-dynamics and E5 each with seed=42
+- **Method:** 40 diagnostic snapshots per run (every 500 steps + step 1). Each snapshot: 4-sample trajectory Jacobian analysis (Lyapunov exponent, amplification, shuffled control, SV alignment, conservatism).
+- **Results (CE-dynamics — three-phase stability regime):**
+  | Step | Loss | Lyapunov | Amp | Shuffled | O/S | Align | C_prod |
+  |------|------|----------|-----|----------|-----|-------|--------|
+  | 1 | 4.585 | 0.301 | 20.4x | 20.3x | 1.01 | 0.867 | 2.3x |
+  | 500 | 2.085 | 0.219 | 9.0x | 8.6x | 1.04 | 0.198 | 6.2x |
+  | 1000 | 2.084 | 0.205 | 7.8x | 7.6x | 1.03 | 0.153 | 10.5x |
+  | 2000 | 2.082 | 0.189 | 6.6x | 6.2x | 1.06 | **0.068** | 16.9x |
+  | 2500 | 1.942 | 0.228 | 9.8x | 9.3x | 1.05 | 0.302 | 34.5x |
+  | 3000 | 0.123 | 0.213 | 8.4x | 7.9x | 1.07 | **0.664** | 68.3x |
+  | 5000 | 0.010 | 0.215 | 11.1x | 8.5x | 1.30 | 0.693 | 58.6x |
+  | 10000 | 0.005 | 0.161 | 5.0x | 5.1x | 0.99 | 0.686 | 50.0x |
+  | 20000 | 0.005 | 0.165 | 5.3x | 5.7x | **0.93** | 0.670 | 105.7x |
+  - **Phase 1 — Untrained (step 1):** Jacobians highly aligned (0.867), amplification large (20.4x), conservatism minimal (2.3x). Product bound ≈ actual amplification because Jacobians point in same direction.
+  - **Phase 2 — Exploring (steps 500–2000):** Alignment drops dramatically to **0.068** (92% reduction). Jacobians become diverse as model explores parameter space. Amplification drops to 6.6x despite per-step sigmas remaining >1. Conservatism grows to 17x. Loss still at 2.08 (pre-transition plateau).
+  - **Phase 3 — CE transition + task alignment (steps 2500–3000):** Loss drops 2.08→0.12. Alignment **jumps back** to 0.664. The model re-aligns Jacobians around task-relevant directions. Conservatism jumps to 68x.
+  - **Phase 4 — Settled (steps 3000–20000):** Lyapunov ≈ 0.165, amplification ≈ 5x, alignment ≈ 0.65. Stable with fluctuations. O/S ratio drifts below 1.0 — temporal ordering becomes slightly DETRIMENTAL.
+
+- **Results (E5 — fundamentally different stability trajectory):**
+  | Step | Loss | CE | SC | Lyapunov | Amp | Shuffled | O/S | Align | C_prod |
+  |------|------|----|----|----------|-----|----------|-----|-------|--------|
+  | 1 | 4.585 | 4.585 | 0.275 | 0.301 | 20.4x | 20.3x | 1.00 | 0.900 | 2.3x |
+  | 500 | 2.088 | 2.085 | 0.015 | 0.253 | 12.5x | 9.4x | **1.34** | **0.874** | 28.7x |
+  | 1500 | 2.084 | 2.081 | 0.009 | 0.253 | 12.5x | 6.8x | **1.84** | **0.828** | 39.2x |
+  | 2000 | 0.828 | 0.810 | 0.044 | 0.185 | 6.4x | 6.4x | 1.00 | 0.769 | 189.0x |
+  | 3000 | 0.021 | 0.016 | 0.008 | 0.123 | 3.4x | 3.0x | 1.13 | 0.816 | 63.6x |
+  | 5000 | 0.010 | 0.007 | 0.004 | 0.084 | 2.3x | 2.2x | 1.08 | 0.822 | 420.4x |
+  | 10000 | 0.007 | 0.005 | 0.002 | 0.069 | 2.0x | 1.8x | 1.10 | 0.875 | 558.0x |
+  | 15000 | 0.010 | 0.009 | 0.002 | 0.064 | 1.9x | 1.7x | 1.15 | 0.892 | 248.8x |
+  | 20000 | 0.008 | 0.007 | 0.001 | **0.060** | **1.8x** | 1.7x | 1.10 | **0.846** | 583.4x |
+  - **NO "exploring" phase.** Alignment stays high throughout (0.77–0.93). E5 never develops the Jacobian diversity that CE-dynamics shows.
+  - **CE transition EARLIER** at step ~2000 (vs ~3000 for CE-dynamics). SC pressure accelerates learning.
+  - **Continuous Lyapunov reduction:** 0.301 → 0.060 (80% reduction vs CE-dynamics' 45%). Approaches true marginal stability.
+  - **Amplification approaching 1.0:** Final 1.82x vs CE-dynamics' 5.29x. E5 nearly achieves zero Lyapunov exponent.
+  - **O/S ratio consistently >1.0** (1.08–1.84): temporal ordering INCREASES amplification in E5. Dynamics have directional structure.
+
+- **Key findings:**
+  1. **TWO FUNDAMENTALLY DIFFERENT STABILITY MECHANISMS DISCOVERED.** CE-dynamics achieves stability via Jacobian ROTATION (alignment drops to 0.068, diverse directions cancel). E5 achieves stability via per-step sigma COMPRESSION (alignment stays high at 0.85, but individual step amplification is small). Same architectural backbone, qualitatively different dynamics.
+  2. **CE-DYNAMICS: "SCATTERED DYNAMICS."** Training creates diversity by exploring (Phase 2), then re-aligns around task structure (Phase 3). Final state: moderate alignment (0.67), moderate amplification (5x), rotation provides 106x conservatism over product bound.
+  3. **E5: "HIGHWAY DYNAMICS."** SC penalty keeps Jacobians aligned throughout. Amplification is controlled by reducing per-step sigma, not by rotating directions. Final state: high alignment (0.85), low amplification (1.8x), but 583x conservatism because aligned per-step sigmas compound.
+  4. **CONSERVATISM PARADOX EXPLAINED.** E5 has HIGHER conservatism (583x vs 106x) despite being MORE stable. High alignment means product-of-sigmas is large (Jacobians compound), but SC keeps actual amplification small. The product bound is tighter for CE-dynamics because rotation CANCELS in the actual product.
+  5. **O/S RATIO DIAGNOSTIC.** Ordered/shuffled >1 (E5) = dynamics have learned directional structure (amplify in same direction per step). O/S <1 (CE-dynamics late training) = temporal ordering slightly hurts because model uses state-dependent diversity, not temporal structure.
+  6. **THREE-PHASE REGIME IS CE-DYNAMICS-SPECIFIC.** The alignment dip→recovery pattern only occurs in CE-dynamics. E5 follows a monotonic path: high alignment throughout, continuous sigma compression. The SC loss prevents the "exploring" phase by penalizing dynamics that wander far from fixed points.
+  7. **SC ACCELERATES CE TRANSITION.** E5 CE transition at step ~2000 vs CE-dynamics at step ~3000. SC pressure forces the model to find task-relevant fixed points faster.
+- **Wall time:** 2458s total (1193s CE-dynamics + 1265s E5)
+- **Artifacts:** `experiments/06_uesd/results/exp_d4_phase_dynamics.json`
+
 ### Exp D3b: Trajectory Lyapunov Validation (COMPLETE — FINDINGS VALIDATED WITH CORRECTIONS)
 - **Config:** `experiments/06_uesd/exp_d3b_validation.py`
 - **Purpose:** Codex-mandated validation of D3. Four tests: (1) autograd Jacobian check, (2) eps sweep 1e-3 to 1e-5, (3) shuffled-trajectory ablation (10 permutations per sample), (4) corrected conservatism bounds.

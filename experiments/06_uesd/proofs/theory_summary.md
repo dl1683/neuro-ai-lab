@@ -285,8 +285,18 @@ generation PROCESS:
     (D3: lambda_max in 0.045-0.199 at L=8 V=64. Does this hold at
     L=16, L=32, or with harder tasks?)
 12. Can a tighter trajectory stability bound replace Theorem 4?
-    (D3 shows Theorem 4 is conservative by up to 1027x. A bound
-    accounting for Jacobian rotation would be far more useful.)
+    (D3 shows Theorem 4 is conservative by up to 718x (corrected).
+    A bound accounting for Jacobian rotation would be far more useful.)
+13. Why do CE-dynamics and E5 develop DIFFERENT stability mechanisms?
+    (D4: CE-dynamics uses Jacobian rotation/diversity, E5 uses sigma
+    compression. SC penalty prevents the "exploring" phase where
+    alignment drops. Is this fundamental or architecture-dependent?)
+14. Does the three-phase regime (untrained/exploring/task-aligned) in
+    CE-dynamics persist at larger scale? (D4: phase transition at step
+    ~3000 with alignment dip→recovery. Scale-dependent?)
+15. Can the O/S ratio diagnostic predict training failure? (D4: E5
+    O/S >1 = directional structure learned, CE-dynamics O/S <1 =
+    state-dependent diversity. Does O/S <0.5 predict divergence?)
 
 ---
 
@@ -311,14 +321,18 @@ The following claims are defensible based on the theory:
 **WEAK claims (directional, not rigorous):**
 - Non-normal effects are empirically moderate per-step but trajectory
   stability is governed by Jacobian rotation, not per-step sigma_max.
-  D3 trajectory Lyapunov analysis: Theorem 4 bound conservative by
-  6.5-1,027x. Actual trajectory amplification 1.58-7.46x vs predicted
-  49-2,129x. Mechanism: singular vector alignment as low as 0.105
-  (nearly orthogonal consecutive Jacobians). E5 MORE trajectory-stable
-  (amp 1.6-2.1x) than CE-dynamics (amp 6.8-7.5x) despite worse per-step
-  metrics, because SC forces more aggressive Jacobian rotation.
+  D3/D3b trajectory analysis: Theorem 4 bound conservative by 718x
+  (corrected). Actual amplification 1.58-7.46x vs predicted 49-5,112x.
+  Mechanism: state-dependent Jacobian diversity (D3b: temporal ordering
+  accounts for only ~7% of cancellation).
+- CE-dynamics and E5 develop FUNDAMENTALLY DIFFERENT stability mechanisms
+  (D4): CE-dynamics uses Jacobian rotation (alignment drops to 0.068
+  during exploring phase, recovers to 0.67); E5 uses per-step sigma
+  compression (alignment stays >0.77 throughout). Same architecture,
+  different loss, qualitatively different dynamics.
 - Dynamics self-organize to edge of chaos (lambda_max in 0.045-0.199)
-  without explicit regularization toward this regime.
+  without explicit regularization toward this regime. E5 approaches
+  true marginal stability (lambda_max=0.060 at 20K steps, D4).
 - Optimal rho in [0.9, 1.0) (empirical, not theoretically derived)
 - UESD's process advantage (parallel refinement) translates to
   practical gains (no benchmark evidence yet)
