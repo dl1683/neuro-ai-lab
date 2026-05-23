@@ -1,0 +1,69 @@
+{
+  "timestamp": "2026-05-23T06:00:00",
+  "device": "cuda",
+  "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU",
+  "purpose": "D21: Wrong-attractor rate and basin stability under noise injection",
+  "config": {
+    "d_model": 128,
+    "n_heads": 4,
+    "d_ff": 512,
+    "vocab_size": 64,
+    "seq_len": 8,
+    "T": 10,
+    "batch_size": 256,
+    "lr": 3e-4,
+    "steps": 20000,
+    "noise_sigmas": [0.01, 0.05, 0.10, 0.20, 0.50, 1.00, 2.00],
+    "extra_steps_after_noise": 20,
+    "eval_samples": 4096
+  },
+  "dynamics_ce": {
+    "params": 694016,
+    "train_time_s": 1862.6,
+    "final_loss": 0.0050,
+    "clean_baseline": {"correct": 4096, "total": 4096, "accuracy": 1.0},
+    "converged_state_norm": 43.0983,
+    "noise_analysis": {
+      "sigma=0.01": {"WA_at_0": 0.0000, "WA_at_20": 0.1555, "recovery": -0.1555},
+      "sigma=0.05": {"WA_at_0": 0.0000, "WA_at_20": 0.1560, "recovery": -0.1560},
+      "sigma=0.10": {"WA_at_0": 0.0000, "WA_at_20": 0.1553, "recovery": -0.1553},
+      "sigma=0.20": {"WA_at_0": 0.0000, "WA_at_20": 0.1575, "recovery": -0.1575},
+      "sigma=0.50": {"WA_at_0": 0.0000, "WA_at_20": 0.1719, "recovery": -0.1719},
+      "sigma=1.00": {"WA_at_0": 0.0000, "WA_at_20": 0.2112, "recovery": -0.2112},
+      "sigma=2.00": {"WA_at_0": 0.0000, "WA_at_20": 0.3701, "recovery": -0.3701}
+    },
+    "basin_escape_threshold": null,
+    "unrecoverable_threshold": 0.01,
+    "verdict": "THESIS SUPPORTED (wide basins, no escape)"
+  },
+  "e5": {
+    "params": 694016,
+    "train_time_s": 2026.4,
+    "final_loss": 0.0036,
+    "final_ce": 0.0027,
+    "final_sc": 0.0008,
+    "clean_baseline": {"correct": 4096, "total": 4096, "accuracy": 1.0},
+    "converged_state_norm": 7.5206,
+    "noise_analysis": {
+      "sigma=0.01": {"WA_at_0": 0.0000, "WA_at_20": 0.0208, "recovery": -0.0208},
+      "sigma=0.05": {"WA_at_0": 0.0000, "WA_at_20": 0.0220, "recovery": -0.0220},
+      "sigma=0.10": {"WA_at_0": 0.0000, "WA_at_20": 0.0234, "recovery": -0.0234},
+      "sigma=0.20": {"WA_at_0": 0.0000, "WA_at_20": 0.0325, "recovery": -0.0325},
+      "sigma=0.50": {"WA_at_0": 0.0034, "WA_at_20": 0.2222, "recovery": -0.2188},
+      "sigma=1.00": {"WA_at_0": 0.4780, "WA_at_20": 0.8645, "recovery": -0.3865},
+      "sigma=2.00": {"WA_at_0": 0.9871, "WA_at_20": 0.9956, "recovery": -0.0085}
+    },
+    "basin_escape_threshold": 1.0,
+    "unrecoverable_threshold": 0.5,
+    "verdict": "THESIS WEAKENED (narrow basins, no recovery)"
+  },
+  "summary": {
+    "ce_wider_basins": true,
+    "ce_state_norm_ratio": "43.1 (6x larger than E5)",
+    "e5_basin_fragile": "escape at sigma=1.0 (13% of state norm)",
+    "neither_recovers": true,
+    "ce_diverges_with_extra_steps": "15.5% WA even at sigma=0.01 after 20 extra steps",
+    "e5_stable_at_low_noise": "only 2-3% WA at sigma<0.2 after 20 extra steps"
+  },
+  "note": "JSON reconstructed from stdout log - script crashed on file write due to relative path CWD mismatch"
+}

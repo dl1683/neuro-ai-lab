@@ -1,0 +1,92 @@
+{
+  "timestamp": "2026-05-23T06:00:00",
+  "device": "cuda",
+  "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU",
+  "purpose": "D19: Step ablation falsification test - does T=1 match T=10?",
+  "config": {
+    "d_model": 128,
+    "n_heads": 4,
+    "d_ff": 512,
+    "vocab_size": 64,
+    "seq_len": 8,
+    "T": 10,
+    "batch_size": 256,
+    "lr": 3e-4,
+    "steps": 20000,
+    "eval_T_values": [1, 2, 3, 4, 5, 6, 7, 8, 10, 15, 20, 32],
+    "recovery_steps": [1, 2, 5, 10, 20]
+  },
+  "dynamics_ce": {
+    "params": 694016,
+    "train_time_s": 1851.1,
+    "final_loss": 0.0050,
+    "baseline_T10": {"tok_acc": 1.0, "seq_acc": 1.0},
+    "step_ablation": {
+      "T=1":  {"tok_acc": 0.3478, "seq_acc": 0.0146, "c0": 0.011, "c1": 0.016, "c2": 0.016, "c3": 0.012},
+      "T=2":  {"tok_acc": 0.8198, "seq_acc": 0.4561, "c0": 0.575, "c1": 0.473, "c2": 0.434, "c3": 0.420},
+      "T=3":  {"tok_acc": 0.9785, "seq_acc": 0.9202, "c0": 0.956, "c1": 0.921, "c2": 0.916, "c3": 0.920},
+      "T=4":  {"tok_acc": 0.9966, "seq_acc": 0.9863, "c0": 0.989, "c1": 0.990, "c2": 0.984, "c3": 0.982},
+      "T=5":  {"tok_acc": 0.9998, "seq_acc": 0.9993, "c0": 1.000, "c1": 0.999, "c2": 0.998, "c3": 1.000},
+      "T=6":  {"tok_acc": 0.9998, "seq_acc": 0.9993, "c0": 1.000, "c1": 0.999, "c2": 0.999, "c3": 0.998},
+      "T=7":  {"tok_acc": 0.9999, "seq_acc": 0.9998, "c0": 1.000, "c1": 1.000, "c2": 1.000, "c3": 1.000},
+      "T=8":  {"tok_acc": 1.0000, "seq_acc": 1.0000, "c0": 1.000, "c1": 1.000, "c2": 1.000, "c3": 1.000},
+      "T=10": {"tok_acc": 1.0000, "seq_acc": 1.0000, "c0": 1.000, "c1": 1.000, "c2": 1.000, "c3": 1.000},
+      "T=15": {"tok_acc": 1.0000, "seq_acc": 1.0000, "c0": 1.000, "c1": 1.000, "c2": 1.000, "c3": 1.000},
+      "T=20": {"tok_acc": 0.9995, "seq_acc": 0.9980, "c0": 0.996, "c1": 0.997, "c2": 0.999, "c3": 1.000},
+      "T=32": {"tok_acc": 0.9400, "seq_acc": 0.7795, "c0": 0.792, "c1": 0.796, "c2": 0.756, "c3": 0.819}
+    },
+    "corruption_recovery": {
+      "+1": 0.0286,
+      "+2": 0.0461,
+      "+5": 0.0903,
+      "+10": 0.0730,
+      "+20": 0.0471
+    },
+    "falsification_ratio": 0.0146,
+    "verdict": "THESIS SUPPORTED"
+  },
+  "e5": {
+    "params": 694016,
+    "train_time_s": 2036.8,
+    "final_loss": 0.0036,
+    "final_ce": 0.0027,
+    "final_sc": 0.0008,
+    "baseline_T10": {"tok_acc": 1.0, "seq_acc": 1.0},
+    "step_ablation": {
+      "T=1":  {"tok_acc": 0.0662, "seq_acc": 0.0000, "c0": 0.000, "c1": 0.000, "c2": 0.000, "c3": 0.000},
+      "T=2":  {"tok_acc": 0.3211, "seq_acc": 0.0085, "c0": 0.007, "c1": 0.010, "c2": 0.006, "c3": 0.009},
+      "T=3":  {"tok_acc": 0.6977, "seq_acc": 0.2283, "c0": 0.188, "c1": 0.223, "c2": 0.220, "c3": 0.255},
+      "T=4":  {"tok_acc": 0.9690, "seq_acc": 0.8804, "c0": 0.905, "c1": 0.877, "c2": 0.891, "c3": 0.873},
+      "T=5":  {"tok_acc": 0.9996, "seq_acc": 0.9985, "c0": 0.996, "c1": 0.999, "c2": 0.999, "c3": 0.998},
+      "T=6":  {"tok_acc": 1.0000, "seq_acc": 1.0000, "c0": 1.000, "c1": 1.000, "c2": 1.000, "c3": 1.000},
+      "T=7":  {"tok_acc": 1.0000, "seq_acc": 1.0000, "c0": 1.000, "c1": 1.000, "c2": 1.000, "c3": 1.000},
+      "T=8":  {"tok_acc": 1.0000, "seq_acc": 1.0000, "c0": 1.000, "c1": 1.000, "c2": 1.000, "c3": 1.000},
+      "T=10": {"tok_acc": 1.0000, "seq_acc": 1.0000, "c0": 1.000, "c1": 1.000, "c2": 1.000, "c3": 1.000},
+      "T=15": {"tok_acc": 1.0000, "seq_acc": 1.0000, "c0": 1.000, "c1": 1.000, "c2": 1.000, "c3": 1.000},
+      "T=20": {"tok_acc": 1.0000, "seq_acc": 1.0000, "c0": 1.000, "c1": 1.000, "c2": 1.000, "c3": 1.000},
+      "T=32": {"tok_acc": 0.9895, "seq_acc": 0.9583, "c0": 0.960, "c1": 0.962, "c2": 0.961, "c3": 0.953}
+    },
+    "corruption_recovery": {
+      "+1": 0.0181,
+      "+2": 0.0234,
+      "+5": 0.0288,
+      "+10": 0.0547,
+      "+20": 0.0786
+    },
+    "falsification_ratio": 0.0000,
+    "verdict": "THESIS SUPPORTED"
+  },
+  "summary": {
+    "both_regimes_need_dynamics": true,
+    "ce_converges_faster": true,
+    "e5_more_stable_high_T": true,
+    "ce_T_half_performance": 2,
+    "e5_T_half_performance": 4,
+    "ce_T_saturate": 8,
+    "e5_T_saturate": 6,
+    "ce_T_degrade_onset": 20,
+    "e5_T_degrade_onset": 32,
+    "carry_position_dependence": "none (parallel convergence for both regimes)"
+  },
+  "note": "JSON reconstructed from stdout log - script crashed on file write due to relative path CWD mismatch"
+}

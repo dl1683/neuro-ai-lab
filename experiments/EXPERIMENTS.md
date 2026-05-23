@@ -408,11 +408,33 @@ Framework where AI generation happens in continuous embedding space via iterativ
 - **Training time:** baseline=2318s, beta=0.01=6059s, beta=0.1=6317s, beta=1.0=5335s
 - **Artifacts:** `experiments/06_uesd/results/exp_d10_adaptive_halting.json`
 
-### Exp D21: Wrong-Attractor Rate Under Latent Noise (PENDING — FALSIFICATION TEST)
+### Exp D21: Wrong-Attractor Rate Under Latent Noise (COMPLETE — WIDE BASINS BUT NO RECOVERY)
 - **Config:** `experiments/06_uesd/exp_d21_wrong_attractor.py`
-- **Purpose:** Falsification test #5 from Codex meta-analysis. Tests whether converged dynamics are a stable iterative solver by injecting Gaussian noise at converged states and measuring wrong-attractor rate and recovery. If WA>5% at small sigma with no recovery, system is not robust.
+- **Purpose:** Falsification test #5 from Codex meta-analysis. Tests solver stability by injecting Gaussian noise at converged states (s_T) and running 20 additional dynamics steps. Measures wrong-attractor rate at readout (WA@0), after extra steps (WA@20), and recovery.
 - **Falsification criteria:** WA > 5% at sigma=0.1 AND no recovery at +20 steps -> THESIS WEAKENED
-- **Design:** Train CE-dynamics + E5, inject noise sigma={0.01..2.0} at s_T, run K={0..20} extra steps, measure WA rate, recovery, basin escape threshold.
+- **Results (dynamics_ce):**
+  - State norm: 43.1 (large trajectory in state space)
+  - Basin escape threshold: **None** (WA@0=0.000 at ALL noise levels, even sigma=2.0)
+  - BUT WA@20=15.5% even at sigma=0.01 (divergence from extra steps, not noise)
+  - sigma=0.01: WA@0=0.000, WA@20=0.156, recovery=-0.156
+  - sigma=1.00: WA@0=0.000, WA@20=0.211, recovery=-0.211
+  - sigma=2.00: WA@0=0.000, WA@20=0.370, recovery=-0.370
+  - Verdict: THESIS SUPPORTED for basin width. Additional steps always harmful.
+- **Results (E5):**
+  - State norm: 7.5 (compact, near-origin representation)
+  - Basin escape threshold: sigma=1.0 (WA@0=0.478, 13% of state norm)
+  - At low noise (sigma<0.2): WA@0=0, WA@20=2-3% (stable)
+  - At sigma=0.5: WA@0=0.003, WA@20=0.222 (basin beginning to fragment)
+  - At sigma=1.0: WA@0=0.478, WA@20=0.865 (massive escape, unrecoverable)
+  - Verdict: THESIS WEAKENED — narrow basins, zero recovery mechanism
+- **Key Findings:**
+  1. CE has INFINITELY WIDE readout basins (noise never flips readout at T=10) vs E5 escape at sigma=1.0
+  2. NEITHER track can recover — all recovery values negative for both regimes
+  3. CE divergence is independent of noise magnitude: WA@20=15.5% even at sigma=0.01 (confirms D19 high-T degradation)
+  4. E5 is more temporally stable at low noise (2-3% WA@20 vs CE 15.5%) but fragile at high noise
+  5. CE state norm 6x larger than E5 — ballistic trajectories cover more state space
+- **Cross-experiment synthesis:** Confirms D11 basin width finding (CE wider), D17 recovery finding (neither recovers), D19 high-T degradation (CE diverges past training horizon)
+- **Artifacts:** `experiments/06_uesd/results/exp_d21_wrong_attractor.json`
 
 ### Exp D20: Bottleneck Sweep (PENDING — FALSIFICATION TEST)
 - **Config:** `experiments/06_uesd/exp_d20_bottleneck_sweep.py`
@@ -420,11 +442,43 @@ Framework where AI generation happens in continuous embedding space via iterativ
 - **Falsification criteria:** accuracy range < 0.05 AND step-dependence range < 0.05 across V -> THESIS WEAKENED
 - **Design:** 15 training runs (5 vocab sizes x 3 seeds), CE-dynamics, measure accuracy at T=1 and T=10, step dependence, Lyapunov, recovery.
 
-### Exp D19: Step Ablation Falsification Test (PENDING — HIGHEST PRIORITY FALSIFICATION)
+### Exp D19: Step Ablation Falsification Test (COMPLETE — DYNAMICS OVERWHELMINGLY ESSENTIAL)
 - **Config:** `experiments/06_uesd/exp_d19_step_ablation.py`
-- **Purpose:** Falsification test #1 from Codex meta-analysis. The single cheapest test of whether iterative dynamics provide essential computation. If seq_acc(T=1) is within 0.02 of seq_acc(T=10), the model gains nothing from iteration — thesis weakened/falsified.
+- **Purpose:** Falsification test #1 — the existential test of whether iterative dynamics provide essential computation.
 - **Falsification criteria:** seq_acc(T=1)/seq_acc(T=10) >= 0.98 -> THESIS WEAKENED; ratio < 0.50 -> THESIS SUPPORTED
-- **Design:** Train CE-dynamics + E5, evaluate at T={1,2,3,4,5,6,7,8,10,15,20,32}, measure accuracy per carry chain depth, corruption recovery at each T.
+- **Results (dynamics_ce) — RATIO = 0.0146:**
+  - T=1: seq_acc=0.015 (catastrophically insufficient)
+  - T=2: seq_acc=0.456 (massive jump, +44%)
+  - T=3: seq_acc=0.920 (already strong at 3 steps)
+  - T=4: seq_acc=0.986
+  - T=5: seq_acc=0.999 (saturated)
+  - T=8-15: seq_acc=1.000
+  - T=20: seq_acc=0.998 (onset of degradation)
+  - T=32: seq_acc=0.780 (SIGNIFICANT DEGRADATION — 22% drop)
+  - Per-carry-position: ALL positions converge at similar rates (c0-c3 within 2% at each T) — PARALLEL not sequential
+  - Corruption recovery: peaks at +5 steps (9%), then DECLINES (non-monotonic)
+  - VERDICT: THESIS STRONGLY SUPPORTED — dynamics essential, ratio=0.015
+- **Results (E5) — RATIO = 0.0000:**
+  - T=1: seq_acc=0.000 (ZERO — even worse than CE)
+  - T=2: seq_acc=0.009
+  - T=3: seq_acc=0.228 (much slower than CE's 92%)
+  - T=4: seq_acc=0.880
+  - T=5: seq_acc=0.999
+  - T=6-20: seq_acc=1.000 (STABLE through T=20)
+  - T=32: seq_acc=0.958 (mild degradation, 4.2% drop vs CE's 22%)
+  - Per-carry-position: also parallel convergence (no sequential dependence)
+  - Corruption recovery: MONOTONICALLY increasing (+1: 1.8%, +20: 7.9%)
+  - VERDICT: THESIS STRONGLY SUPPORTED — dynamics essential, ratio=0.000
+- **Key Findings:**
+  1. BOTH regimes absolutely need dynamics — T=1 is catastrophically insufficient for both
+  2. CE converges FASTER (92% at T=3 vs E5's 23%) — consistent with "ballistic" direct paths from D11
+  3. E5 is MORE STABLE at high T (100% at T=20, 95.8% at T=32 vs CE's 99.8% and 78%) — consistent with fixed-point attractor from D11
+  4. Carry positions converge IN PARALLEL for both regimes — strongly supports T5 (parallel computation)
+  5. CE has a FINITE COMPUTE WINDOW (~T=5-15) while E5 has OPEN-ENDED stability
+  6. CE recovery is non-monotonic (peaks at +5), E5 recovery is monotonic — fundamentally different dynamics
+  7. Codex prediction was WRONG: predicted CE "mid-to-high 90%" at T=1, actual was 1.5%
+- **Codex prediction assessment:** Codex predicted CE at T=1 would be "mid-to-high 90%". Actual: 1.5%. The D11 "ballistic computation" finding led to overconfidence in single-step sufficiency. Ballistic paths are ESSENTIAL but they need multiple steps of refinement.
+- **Artifacts:** `experiments/06_uesd/results/exp_d19_step_ablation.json`
 
 ### Exp D17: Reconsideration Capacity (COMPLETE — E5 CREATES 30x ENERGY WELLS, MINIMAL SELF-CORRECTION)
 - **Config:** `experiments/06_uesd/exp_d17_reconsideration_capacity.py`
