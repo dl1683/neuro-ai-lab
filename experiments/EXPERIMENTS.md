@@ -433,6 +433,40 @@ Framework where AI generation happens in continuous embedding space via iterativ
 - **Cross-validation:** Step-by-step accuracy matches D19 curves almost exactly. Per-chain parallelism matches D7, D8, D10, D19 findings.
 - **Artifacts:** `experiments/06_uesd/results/exp_d16_information_trajectory.json`
 
+### Exp D12: Langevin Escape (COMPLETE — CE MORE NOISE-ROBUST, MAJORITY VOTE RESCUES E5, NO BASIN DISCOVERY)
+- **Config:** `experiments/06_uesd/exp_d12_langevin_escape.py`
+- **Purpose:** Test whether injecting Gaussian noise during UESD dynamics (Langevin-style) can (a) explore alternative basins ("rescue" stuck examples), or (b) degrade accuracy through perturbation. Uses cosine annealing schedule (noise decreases over dynamics steps). Four noise levels tau={0, 0.005, 0.01, 0.05}, 8 stochastic samples per example with majority vote.
+- **Models:** E5 seed42, E5 seed512, dynamics_ce seed42
+- **Results (E5 seed42 — 100%/100% deterministic):**
+  - tau=0.0: single=100%, majority=100%
+  - tau=0.005: single=100%, majority=100%
+  - tau=0.01: single=100%, majority=100%
+  - tau=0.05: **single=73.7%, majority=99.1%** — noise degrades single samples, majority vote rescues
+  - Energy: 18.95→0.031 (616x reduction, genuine fixed point)
+  - Per-chain at tau=0.05: chain 0=100%, chain 1=99.4%, chain 2=98.5%, chain 3=98.5% (longer chains slightly worse)
+  - Rescue at tau=0.005: net=0 (noise neither helps nor hurts)
+- **Results (E5 seed512 — 99.90% deterministic):**
+  - tau=0.05: single=87.0%, majority=99.6%
+  - Energy: 16.91→0.064 (264x reduction)
+  - Per-chain at tau=0.05: uniform (99.2-99.8%)
+  - Rescue at tau=0.005: **net=-1** (noise BROKE 1 example, rescued none)
+- **Results (dynamics_ce seed42 — 100%/100% deterministic):**
+  - tau=0.0: single=100%, majority=100%
+  - tau=0.005: single=100%, majority=100%
+  - tau=0.01: single=100%, majority=100%
+  - tau=0.05: **single=99.85%, majority=100%** — dramatically more noise-robust than E5
+  - Energy: 37.6→19.1 (2x reduction, NOT a fixed point — confirms D11)
+  - Per-chain at tau=0.05: ALL 100% (zero chain-length effect under noise)
+  - Rescue at tau=0.005: net=0
+- **Key Findings:**
+  1. **CE-dynamics is FAR more noise-robust than E5.** At tau=0.05: CE 99.85% vs E5 73.7-87.0%. CE's ballistic paths through high-energy state space are geometrically wider and harder to perturb.
+  2. **Majority vote is an effective rescue mechanism for E5.** 8-sample voting recovers E5 from 73-87% to 99.1-99.6%. Individual stochastic samples are unreliable, but the ensemble is robust.
+  3. **Langevin exploration DOES NOT discover new basins.** Net rescue is 0 or negative for all tracks. The deterministic solutions are already optimal — noise only degrades, never improves.
+  4. **Energy profiles confirm D11 regime distinction.** E5 converges 264-616x to near-zero energy (genuine attractor). CE only 2x reduction to ~19 (ballistic computation, not convergence).
+  5. **Chain-length effect appears only for E5 under noise.** Longer carry chains are slightly more fragile (98.5% vs 100% at tau=0.05). CE has zero chain sensitivity even under noise — further evidence for parallel computation robustness.
+- **Cross-validation:** Energy profiles match D11 exactly. CE wide basins match D21. Noise robustness difference aligns with D18 Lyapunov profiles (CE lyap=0.18 vs E5 lyap=0.07 — counterintuitively, higher Lyapunov gives more noise robustness because state space is larger).
+- **Artifacts:** `experiments/06_uesd/results/exp_d12_langevin_escape.json`
+
 ### Exp D15: Nishimori Calibration (COMPLETE — CE OVERSHOOTS, E5 UNDERSHOOTS, PARALLEL CALIBRATION)
 - **Config:** `experiments/06_uesd/exp_d15_nishimori_calibration.py`
 - **Purpose:** Test whether UESD dynamics approach the Nishimori line (rho=tanh(1/2)=0.462), the statistical physics prediction for optimal Bayesian posterior calibration. Measures confidence-accuracy calibration (ECE) at each dynamics step, identifies the step t* where rho is closest to the Nishimori prediction, and checks whether t* coincides with the step of minimum calibration error.
