@@ -141,15 +141,15 @@ def langevin_inference(model, src, T, tau_0, schedule_fn, n_samples=1):
             # Deterministic dynamics step
             s_new, _ = model.dynamics_step(s, context)
 
+            # Track energy BEFORE noise (clean dynamics residual)
+            residual = s_new - s
+            energy = (residual ** 2).sum(dim=-1).mean(dim=-1)
+            energies.append(energy)
+
             # Add noise (Langevin)
             if tau_t > 0 and t < T - 1:  # no noise on last step
                 noise = torch.randn_like(s_new) * (2 * tau_t) ** 0.5
                 s_new = s_new + noise
-
-            # Track energy
-            residual = s_new - s
-            energy = (residual ** 2).sum(dim=-1).mean(dim=-1)
-            energies.append(energy)
 
             s = s_new
 
