@@ -312,6 +312,156 @@ Framework where AI generation happens in continuous embedding space via iterativ
 - **Wall time:** 3.75 hours total (10 runs × ~22 min each)
 - **Artifacts:** `experiments/06_uesd/results/exp_d5_failure_stability.json`
 
+### Exp D18: Error Function Comparison (COMPLETE — E3 IS A THIRD DYNAMICAL REGIME)
+- **Config:** `experiments/06_uesd/exp_d18_error_function_comparison.py`
+- **Purpose:** Compare E3 (denoising score matching) vs E5 (self-consistency) vs CE-dynamics on identical architecture. Tests whether different error functions create different dynamical regimes.
+- **Architecture:** Same as standard. V=64, d=128, T=10, 20K steps. Three tracks trained from scratch.
+- **Results:**
+  | Metric | dynamics_ce | E5 | E3 (denoising) |
+  |--------|-------------|-----|-----------------|
+  | tok/seq acc | 0.9999/0.9998 | 1.0/1.0 | 1.0/1.0 |
+  | SC energy | 0.200 | 0.000302 | 0.000365 |
+  | Lyapunov | 0.181 | 0.070 | 0.063 |
+  | Alignment | 0.621 | 0.774 | 0.665 |
+  | Amplification | 6.15 | 2.01 | 1.89 |
+  | Overshoot | 0.986 | 1.058 | 1.127 |
+  | Denoise sigma=0.1 | 20.8x (amplifies) | 0.71x | 0.16x |
+  | Denoise sigma=0.5 | 1.68x (amplifies) | 0.72x | 0.11x |
+  | Denoise sigma=1.0 | 1.08x (barely) | 0.76x | 0.15x |
+- **Key Findings:**
+  1. E3 IS A THIRD DYNAMICAL REGIME: lowest Lyapunov (0.063), lowest amplification (1.89), highest overshoot (1.127). Distinct from both E5 "highway" and CE "scattered".
+  2. E3 IS THE BEST DENOISER: contracts noise to 11% at sigma=0.5 vs E5's 72% vs CE amplifying 1.68x. Denoising objective creates strongest contractive field.
+  3. E3 IMPLICITLY ACHIEVES SELF-CONSISTENCY: SC energy 0.000365 without any SC loss term. Denoising forces dynamics toward fixed points.
+  4. E3 HYBRID UPDATE PATTERN: starts at 6.04 (like CE) but contracts to 0.25 (like E5). Combines exploration with convergence.
+  5. ALL THREE REACH PERFECT ACCURACY: error function shapes dynamics geometry, not task performance at this scale.
+  6. THREE-REGIME LANDSCAPE: CE="scattered" (high lyap, low align), E5="highway" (low lyap, high align), E3="contractive denoiser" (lowest lyap, mid align, strongest contraction).
+- **Training time:** CE=2390s, E5=2644s, E3=2642s
+- **Artifacts:** `experiments/06_uesd/results/exp_d18_error_function_comparison.json`
+
+### Exp D11: Energy Landscape Cartography (COMPLETE — TWO QUALITATIVELY DIFFERENT DYNAMICAL REGIMES)
+- **Config:** `experiments/06_uesd/exp_d11_energy_landscape.py`
+- **Purpose:** Map the actual energy landscape E(s) = ||F(s,c)||^2 for trained models. Tests whether UESD dynamics converge to fixed-point attractors or operate via a different mechanism. Four phases: basin structure, basin radius, 2D PCA landscape slice, path efficiency.
+- **Architecture:** Standard config. 2 tracks (E5, CE-dynamics) x 2 seeds (42, 512) + untrained control.
+- **Results:**
+  | Metric | E5 (seed42) | E5 (seed512) | CE (seed42) | CE (seed512) | Untrained |
+  |--------|-------------|--------------|-------------|--------------|-----------|
+  | Seq accuracy | 1.0000 | 1.0000 | 1.0000 | 1.0000 | 0.0000 |
+  | Final energy | 0.0205 | 0.0380 | 18.815 | 31.238 | -- |
+  | Energy T=0 | 18.95 | 16.90 | 37.60 | 63.35 | -- |
+  | Energy ratio (T=0/T=10) | 900x | 445x | 2.0x | 2.0x | -- |
+  | Path ratio | 1.227 | 1.261 | 1.096 | 1.075 | 1.066 |
+  | Geodesic dist | 11.29 | 11.23 | 42.25 | 53.25 | -- |
+  | Basin robustness (scale=0.5) | 99.3% | 99.1% | 100% | 100% | -- |
+  | Basin robustness (scale=1.0) | 39.9% | 63.1% | 97.9% | 96.0% | -- |
+  | Sim matrix mean | 0.784 | 0.739 | 0.798 | 0.845 | 0.596 |
+  | PCA var PC1 | 3.2% | 2.9% | 9.7% | 10.3% | -- |
+- **Key Findings:**
+  1. E5 IS A GENUINE FIXED-POINT ATTRACTOR: energy drops 450-900x to near-zero (0.02-0.04). Monotonic convergence with exponential step-size decay (4.2 -> 0.2).
+  2. CE-DYNAMICS IS NOT A FIXED-POINT SYSTEM: energy plateaus at high values (19-31). Only 2x reduction over 10 steps. Operates on flat energy plateau.
+  3. CE-DYNAMICS HAS WIDER BASINS: 100% seq agreement at perturbation scale=0.5 (vs E5 99%), 96-98% at scale=1.0 (vs E5 40-63%). More robust to initialization noise.
+  4. CE-DYNAMICS TAKES MORE DIRECT PATHS: path ratio 1.08 (nearly geodesic) vs E5 1.24. CONTRADICTS prediction of circuitous rotation — ballistic computation is geometrically efficient.
+  5. CE-DYNAMICS STEP SIZES NEARLY CONSTANT: ~6->4 over 10 steps (oscillatory/ballistic regime) vs E5 exponential decay 4.2->0.2 (convergent regime).
+  6. CE STATES TRAVEL 4-5x FARTHER: geodesic=42-53 vs E5=11. Consistent with "scattered" dynamics from D5.
+  7. ENERGY LANDSCAPE FLAT FOR CE: grid min=18.8, max=19.2 (2% variation). Basin structure determined by DYNAMICS, not by energy wells.
+  8. PCA STRUCTURE: CE has 3x more variance in PC1 (10% vs 3%) — dynamics are more structured/lower-dimensional.
+- **Implications for D19:** If CE-dynamics doesn't converge to fixed points but computes ballistically with constant step sizes, T=1 might capture most computation. This is the critical test.
+- **Training time:** ~2400s per model, ~11K total
+- **Artifacts:** `experiments/06_uesd/results/exp_d11_energy_landscape.json`
+
+### Exp D21: Wrong-Attractor Rate Under Latent Noise (PENDING — FALSIFICATION TEST)
+- **Config:** `experiments/06_uesd/exp_d21_wrong_attractor.py`
+- **Purpose:** Falsification test #5 from Codex meta-analysis. Tests whether converged dynamics are a stable iterative solver by injecting Gaussian noise at converged states and measuring wrong-attractor rate and recovery. If WA>5% at small sigma with no recovery, system is not robust.
+- **Falsification criteria:** WA > 5% at sigma=0.1 AND no recovery at +20 steps -> THESIS WEAKENED
+- **Design:** Train CE-dynamics + E5, inject noise sigma={0.01..2.0} at s_T, run K={0..20} extra steps, measure WA rate, recovery, basin escape threshold.
+
+### Exp D20: Bottleneck Sweep (PENDING — FALSIFICATION TEST)
+- **Config:** `experiments/06_uesd/exp_d20_bottleneck_sweep.py`
+- **Purpose:** Falsification test #6 from Codex meta-analysis. Tests whether softmax bottleneck actually drives the need for iterative dynamics by sweeping vocab size V={16,32,64,128,256} with 3 seeds each. If metrics are flat across 4x V range, bottleneck story is unsupported.
+- **Falsification criteria:** accuracy range < 0.05 AND step-dependence range < 0.05 across V -> THESIS WEAKENED
+- **Design:** 15 training runs (5 vocab sizes x 3 seeds), CE-dynamics, measure accuracy at T=1 and T=10, step dependence, Lyapunov, recovery.
+
+### Exp D19: Step Ablation Falsification Test (PENDING — HIGHEST PRIORITY FALSIFICATION)
+- **Config:** `experiments/06_uesd/exp_d19_step_ablation.py`
+- **Purpose:** Falsification test #1 from Codex meta-analysis. The single cheapest test of whether iterative dynamics provide essential computation. If seq_acc(T=1) is within 0.02 of seq_acc(T=10), the model gains nothing from iteration — thesis weakened/falsified.
+- **Falsification criteria:** seq_acc(T=1)/seq_acc(T=10) >= 0.98 -> THESIS WEAKENED; ratio < 0.50 -> THESIS SUPPORTED
+- **Design:** Train CE-dynamics + E5, evaluate at T={1,2,3,4,5,6,7,8,10,15,20,32}, measure accuracy per carry chain depth, corruption recovery at each T.
+
+### Exp D17: Reconsideration Capacity (COMPLETE — E5 CREATES 30x ENERGY WELLS, MINIMAL SELF-CORRECTION)
+- **Config:** `experiments/06_uesd/exp_d17_reconsideration_capacity.py`
+- **Purpose:** Test whether UESD dynamics can self-correct from wrong intermediate states. Three phases: answer injection (corrupt single positions of correct output), cross-example transplant, error-correcting capacity (corrupt k/4 positions).
+- **Architecture:** Same as D7/D8. V=64, d=128, T=10, 20K steps. Two tracks: dynamics_ce and E5 (128x SC bug caveat).
+- **Results (dynamics_ce):**
+  - Accuracy: tok=0.9999, seq=0.9998 (2398s training)
+  - Energy ratio: 1.1x (corruption barely increases self-consistency energy)
+  - Single-position recovery: peaks at +5 steps (15.2% pos0), then DECLINES (+20: 9.7%)
+  - Error-correcting capacity: 1/4 corrupted→8.7%, 2/4→0.9%, 3/4→0.1%, 4/4→0.0%
+  - First recovery threshold: never reached (+21 = out of range)
+- **Results (E5, 128x SC bug caveat):**
+  - Accuracy: tok=1.0000, seq=1.0000 (2634s training)
+  - Energy ratio: **30.0x** (corruption massively increases SC energy — deep energy well!)
+  - Single-position recovery: MONOTONICALLY INCREASES (+5: 6.3%, +10: 13.0%, +20: 16.8%)
+  - Error-correcting capacity: 1/4 corrupted→15.1%, 2/4→1.6%, 3/4→0.1%, 4/4→0.0%
+  - First recovery threshold: never reached (+21 = out of range)
+- **Key Findings:**
+  1. SC LOSS CREATES DEEP ENERGY WELLS: E5 energy ratio 30x vs dynamics_ce 1.1x. Corruption is "visible" to the energy landscape.
+  2. E5 RECOVERY IS MONOTONIC: dynamics keep improving with more steps (pulled by energy gradient). dynamics_ce peaks then declines (no energy signal to follow).
+  3. E5 has BETTER error correction than dynamics_ce (15.1% vs 8.7% at 1/4 corrupted), but both are LOW — the dynamics cannot fully self-correct.
+  4. Cross-example transplant: insufficient valid pairs for both tracks (data limitation).
+  5. Even with 30x energy gradient, 20 extra steps recovers only ~17% — basin of attraction exists but dynamics are too slow to reach it.
+  6. Both tracks preserve uncorrupted positions (other_intact=True) — corruption doesn't propagate.
+- **Predictions Assessment:**
+  - Self-correction: WEAK for both tracks (max 17% recovery)
+  - E5 vs dynamics_ce difference: CONFIRMED — SC loss creates meaningful energy landscape
+  - Recovery increases with more steps: TRUE for E5, FALSE for dynamics_ce
+- **Artifacts:** `experiments/06_uesd/results/exp_d17_reconsideration.json`
+
+### Exp D8: Causal Carry Probing (COMPLETE — SELF-HEALING DYNAMICS, ZERO CAUSAL OUTPUT CHANGE)
+- **Config:** `experiments/06_uesd/exp_d8_causal_carry_probing.py`
+- **Purpose:** Three-phase causal investigation of carry propagation in UESD dynamics. Phase 1: linear probes for carry_in/carry_out at each dynamics step. Phase 2: carry-flip perturbation with matched controls. Phase 3: state surgery (flip carry direction via learned probe, measure persistence and output change).
+- **Architecture:** Same as D7. V=64, d=128, T=10, 20K steps. Two tracks: dynamics_ce and E5 (128x SC bug caveat).
+- **Results (dynamics_ce):**
+  - Accuracy: tok=1.0000, seq=1.0000 (2159s training)
+  - **Phase 1 — Carry probes confirm D7 parallel finding:**
+    - carry_in: ALL positions jump 50% -> 99%+ at step 1. First step >=80%: [1, 1, 1, N/A]. No wavefront.
+    - carry_out: Gradual rise to ~85% max. First step >=80%: [3, 9, 2, 5] — no sequential pattern.
+  - **Phase 2 — Perturbation reveals directional causality:**
+    - Flip at pos k -> divergence at pos k-1 (leftward) at step 1, weaker at k-2 and k-3
+    - Flip pos1: leftward divergence 0.100 vs ctrl 0.007 at step 1 (14x above control)
+    - Flip pos3: propagation pos3->pos2 at step 1 (0.104 vs ctrl 0.005), pos2->pos1 delayed
+    - Causal structure IS present but computation is parallel, not sequential
+  - **Phase 3 — State surgery: dynamics are self-healing:**
+    - Flip success (immediate) = 1.000 at all steps/positions
+    - Flip persistence at t=3: 2-4%, t=5: 10-13%, t=7: 32-45% (increases closer to T)
+    - **Output change = 0.0 at ALL positions, ALL steps** — surgery has zero causal effect on output
+    - Boundary leftward change = 0.000 everywhere
+    - Average persistence: 0.177
+- **Results (E5, 128x SC bug caveat):**
+  - Accuracy: tok=0.9999, seq=0.9998 (2685s training)
+  - **Phase 1 — E5 shows ONE-STEP DELAY vs dynamics_ce:**
+    - carry_in: Step 1 stays at chance (~49%), step 2 jumps to 99%+. First step >=80%: [2, 2, 2, N/A]
+    - carry_out: All positions jump to 91-99% at step 1, then DEGRADE after step 5 (pos0: 0.916->0.824)
+    - Late degradation suggests SC loss compresses state representation
+  - **Phase 2 — Perturbation shows DELAYED WAVEFRONT:**
+    - Flip at pos1: NO leftward divergence at step 1 (0.003 vs ctrl 0.003), appears at step 2 (0.321 vs 0.057)
+    - Perturbation propagates one hop per step — subtle sequential structure in E5
+    - Contrast with dynamics_ce: immediate propagation at step 1
+  - **Phase 3 — STRONGER self-healing than dynamics_ce:**
+    - Average persistence: 0.074 (vs dynamics_ce 0.177)
+    - Output change = 0.0 everywhere (same)
+    - SC loss creates stronger fixed-point attractors
+- **Key Findings:**
+  1. CARRY INFORMATION IS DECODABLE but NOT CAUSALLY RELEVANT — surgery flips carry direction but produces zero output change
+  2. dynamics_ce is fully parallel (step 1 resolution), E5 has a one-step delay with subtle wavefront
+  3. E5 has stronger self-healing (lower persistence) due to SC loss creating stronger attractors
+  4. Carry-out probe accuracy degrades at late steps in E5 — fixed-point dynamics compress representation
+  5. Perturbation analysis reveals directional causal structure (leftward propagation) even though computation is parallel
+  6. The model's computation is ROBUST to intermediate state manipulation — no fragile chain of representations
+- **Predictions Assessment:**
+  - Wavefront in probes: FALSE for dynamics_ce (parallel), PARTIAL for E5 (one-step delay but not position-sequential)
+  - Surgery changes output: FALSE — zero output change at all conditions
+  - E5 SC loss effect: CONFIRMED — stronger attractors, lower perturbation persistence
+- **Artifacts:** `experiments/06_uesd/results/exp_d8_causal_carry_probing.json`
+
 ### Exp D7: Thinking Emergence (COMPLETE — PARALLEL COMPUTATION, NOT SEQUENTIAL WAVEFRONT)
 - **Config:** `experiments/06_uesd/exp_d7_thinking_emergence.py`
 - **Purpose:** Test whether UESD dynamics progressively resolve carry chains in a right-to-left wavefront pattern, analogous to "thinking." Three analyses: (1) per-step readout accuracy with position breakdown, (2) carry-chain-length stratified first-correct-step, (3) step transition analysis.
