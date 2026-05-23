@@ -106,10 +106,23 @@ def generate_comparison_batch(batch_size, seq_len, vocab_size):
     """Compare A vs B digit by digit, MSB first.
     Output: 0=equal, 1=A>B, 2=A<B at the FIRST differing position.
     All subsequent positions get 0. This requires left-to-right sequential scan.
+
+    Forces shared prefixes of random length to ensure the first-differing
+    position is distributed across all positions, not concentrated at pos 0.
     """
     half = seq_len // 2
     a = torch.randint(0, vocab_size, (batch_size, half))
     b = torch.randint(0, vocab_size, (batch_size, half))
+
+    # Force shared prefix of random length [0, half-1]
+    prefix_len = torch.randint(0, half, (batch_size,))
+    for i in range(batch_size):
+        pl = prefix_len[i].item()
+        b[i, :pl] = a[i, :pl]
+        # Ensure the first post-prefix digit differs
+        if pl < half:
+            while b[i, pl] == a[i, pl]:
+                b[i, pl] = torch.randint(0, vocab_size, (1,)).item()
 
     input_ids = torch.zeros(batch_size, seq_len, dtype=torch.long)
     input_ids[:, 0::2] = a
@@ -122,7 +135,6 @@ def generate_comparison_batch(batch_size, seq_len, vocab_size):
             if not found and a[i, j] != b[i, j]:
                 target_ids[i, j] = 1 if a[i, j] > b[i, j] else 2
                 found = True
-            # remaining positions stay 0
     return input_ids, target_ids
 
 
@@ -162,16 +174,26 @@ def generate_multiply_mod_batch(batch_size, seq_len, vocab_size):
 TRANSFER_TASKS = {
     "subtraction": generate_subtraction_batch,
     "comparison": generate_comparison_batch,
-    "multiply_mod": generate_multiply_mod_batch,
 }
+
+
+def _dynamics_hash(model):
+    """Hash dynamics parameters to verify freeze."""
+    import hashlib
+    h = hashlib.sha256()
+    for p in model.dynamics.parameters():
+        h.update(p.data.cpu().numpy().tobytes())
+    return h.hexdigest()[:16]
 
 
 def train_ce_dynamics(model, task_gen, config, device, freeze_dynamics=False):
     """Train with CE-dynamics loss. Optionally freeze the dynamics module."""
+    dyn_hash_before = None
     if freeze_dynamics:
         for param in model.dynamics.parameters():
             param.requires_grad = False
         trainable = [p for p in model.parameters() if p.requires_grad]
+        dyn_hash_before = _dynamics_hash(model)
     else:
         trainable = list(model.parameters())
 
@@ -190,7 +212,13 @@ def train_ce_dynamics(model, task_gen, config, device, freeze_dynamics=False):
         src, tgt = src.to(device), tgt.to(device)
 
         logits = model(src, T)
-        loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), tgt.reshape(-1))
+        # Only compute CE on result positions (first half), not zero-padding
+        logits_result = logits[:, :half, :]
+        tgt_result = tgt[:, :half]
+        loss = F.cross_entropy(
+            logits_result.reshape(-1, logits_result.size(-1)),
+            tgt_result.reshape(-1),
+        )
 
         optimizer.zero_grad()
         loss.backward()
@@ -208,11 +236,17 @@ def train_ce_dynamics(model, task_gen, config, device, freeze_dynamics=False):
                   f"| seq_acc: {seq_acc:.4f}", flush=True)
 
     model.eval()
+    dynamics_verified = None
     if freeze_dynamics:
+        dyn_hash_after = _dynamics_hash(model)
+        dynamics_verified = dyn_hash_before == dyn_hash_after
+        if not dynamics_verified:
+            print(f"    WARNING: Dynamics parameters changed during frozen training!", flush=True)
         for param in model.dynamics.parameters():
             param.requires_grad = True
 
-    return history
+    return {"ce": history["ce"], "seq_acc": history["seq_acc"],
+            "dynamics_verified_frozen": dynamics_verified}
 
 
 def evaluate_task(model, task_gen, config, device, n_eval=4096):
@@ -394,18 +428,47 @@ def run():
         del model_ft
         torch.cuda.empty_cache()
 
+        # --- Condition D: Random-frozen dynamics (control) ---
+        print(f"\n  Condition D: Random-frozen dynamics (control)", flush=True)
+        set_seed(SEED + 9999)
+        model_rand = UESDModel(
+            V, config["d_model"], config["n_heads"],
+            config["d_ff"], config["n_enc_layers"], config["max_len"],
+        ).to(device)
+
+        t0 = time.time()
+        hist_rand = train_ce_dynamics(
+            model_rand, task_gen, config, device, freeze_dynamics=True
+        )
+        time_rand = time.time() - t0
+
+        set_seed(SEED + 8888)
+        eval_rand = evaluate_task(model_rand, task_gen, config, device)
+        print(f"    Random-frozen: tok={eval_rand['tok_acc']:.4f} "
+              f"seq={eval_rand['seq_acc']:.4f} ({time_rand:.0f}s)", flush=True)
+
+        task_results["random_frozen"] = {
+            "train_time_s": time_rand,
+            "eval": eval_rand,
+            "history": hist_rand,
+        }
+        del model_rand
+        torch.cuda.empty_cache()
+
         # Transfer gap analysis
         full_acc = eval_full["seq_acc"]
         frozen_acc = eval_transfer["seq_acc"]
         ft_acc = eval_ft["seq_acc"]
+        rand_acc = eval_rand["seq_acc"]
         task_results["transfer_gap"] = {
             "full_vs_frozen": full_acc - frozen_acc,
             "full_vs_finetuned": full_acc - ft_acc,
-            "frozen_vs_finetuned": ft_acc - frozen_acc,
+            "frozen_vs_random_frozen": frozen_acc - rand_acc,
         }
         print(f"\n    Transfer gaps:", flush=True)
-        print(f"      Full vs Frozen:    {full_acc - frozen_acc:+.4f}", flush=True)
-        print(f"      Full vs Finetuned: {full_acc - ft_acc:+.4f}", flush=True)
+        print(f"      Full vs Frozen-addition:   {full_acc - frozen_acc:+.4f}", flush=True)
+        print(f"      Full vs Finetuned:         {full_acc - ft_acc:+.4f}", flush=True)
+        print(f"      Frozen-addition vs Random: {frozen_acc - rand_acc:+.4f}", flush=True)
 
         all_results[task_name] = task_results
 

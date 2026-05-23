@@ -58,8 +58,8 @@ from shared.training import set_seed, count_params, train
 from shared.data import generate_batch
 
 
-TAU_VALUES = [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0]
-N_LANGEVIN_SAMPLES = 8  # average over multiple noise realizations
+TAU_VALUES = [0.0, 0.005, 0.01, 0.05]
+N_LANGEVIN_SAMPLES = 8
 
 
 def build_config(seed=42):
@@ -176,12 +176,18 @@ def evaluate_langevin(model, src, tgt, T, tau_0, schedule_fn, max_chain, half):
         seq_correct = (preds == targets).all(dim=1)
         sample_accs.append(seq_correct.float().mean().item())
 
-    # Majority vote across samples
+    # Single-sample accuracy (first sample — no ensembling)
+    single_correct = (all_preds[0] == targets).all(dim=1)
+    single_acc = single_correct.float().mean().item()
+
+    # Majority vote across samples (ensemble — separate from Langevin escape signal)
+    V = targets.max().item() + 1
+    V = max(V, 64)
     vote_preds = torch.stack(all_preds, dim=0)  # [n_samples, B, half]
     majority_preds = torch.zeros_like(all_preds[0])
     for b in range(B):
         for p in range(half):
-            counts = torch.bincount(vote_preds[:, b, p], minlength=64)
+            counts = torch.bincount(vote_preds[:, b, p], minlength=V)
             majority_preds[b, p] = counts.argmax()
 
     majority_correct = (majority_preds == targets).all(dim=1)
@@ -202,6 +208,7 @@ def evaluate_langevin(model, src, tgt, T, tau_0, schedule_fn, max_chain, half):
     energy_profile = mean_energies.mean(dim=0).cpu().tolist()
 
     return {
+        "single_sample_seq_acc": single_acc,
         "majority_seq_acc": majority_acc,
         "sample_accs": sample_accs,
         "mean_sample_acc": float(np.mean(sample_accs)),
@@ -211,59 +218,68 @@ def evaluate_langevin(model, src, tgt, T, tau_0, schedule_fn, max_chain, half):
 
 
 @torch.no_grad()
-def rescue_analysis(model, src, tgt, T, config, device):
-    """Identify examples where deterministic fails but Langevin succeeds."""
+def rescue_analysis(model, eval_src_select, eval_tgt_select,
+                    eval_src_test, eval_tgt_test, T, config, device):
+    """Identify examples where deterministic fails but Langevin succeeds.
+
+    Uses separate selection and test sets to avoid overfitting tau.
+    Reports both single-sample and majority-vote rescue rates.
+    """
     half = config["seq_len"] // 2
-    targets = tgt[:, :half]
-    B = src.shape[0]
+    V = config["vocab_size"]
 
-    # Deterministic baseline
-    logits_det = model(src, T)
-    preds_det = logits_det[:, :half, :].argmax(dim=-1)
-    correct_det = (preds_det == targets).all(dim=1)
+    def _run_rescue(src, tgt, tau_0):
+        targets = tgt[:, :half]
+        B = src.shape[0]
+        logits_det = model(src, T)
+        preds_det = logits_det[:, :half, :].argmax(dim=-1)
+        correct_det = (preds_det == targets).all(dim=1)
 
-    # Best Langevin (cosine anneal, sweep tau)
-    best_rescued = 0
-    best_tau = 0
-    best_details = None
-
-    for tau_0 in [0.01, 0.05, 0.1]:
         all_preds, _ = langevin_inference(
             model, src, T, tau_0, noise_schedule_cosine, n_samples=N_LANGEVIN_SAMPLES
         )
 
-        # Majority vote
+        # Single-sample rescue
+        correct_single = (all_preds[0] == targets).all(dim=1)
+        rescued_single = (~correct_det & correct_single).sum().item()
+        broken_single = (correct_det & ~correct_single).sum().item()
+
+        # Majority-vote rescue
         vote_preds = torch.stack(all_preds, dim=0)
         majority_preds = torch.zeros_like(all_preds[0])
         for b in range(B):
             for p in range(half):
-                counts = torch.bincount(vote_preds[:, b, p], minlength=64)
+                counts = torch.bincount(vote_preds[:, b, p], minlength=V)
                 majority_preds[b, p] = counts.argmax()
+        correct_maj = (majority_preds == targets).all(dim=1)
+        rescued_maj = (~correct_det & correct_maj).sum().item()
+        broken_maj = (correct_det & ~correct_maj).sum().item()
 
-        correct_lang = (majority_preds == targets).all(dim=1)
+        return {
+            "tau_0": tau_0,
+            "det_correct": correct_det.sum().item(),
+            "total": B,
+            "single_rescued": rescued_single,
+            "single_broken": broken_single,
+            "single_net": rescued_single - broken_single,
+            "majority_rescued": rescued_maj,
+            "majority_broken": broken_maj,
+            "majority_net": rescued_maj - broken_maj,
+        }
 
-        # Rescued: wrong deterministically, correct with Langevin
-        rescued = (~correct_det & correct_lang).sum().item()
-        # Broken: correct deterministically, wrong with Langevin
-        broken = (correct_det & ~correct_lang).sum().item()
-
-        if rescued > best_rescued:
-            best_rescued = rescued
+    # Select best tau on selection set
+    best_tau = 0.01
+    best_net = -float('inf')
+    for tau_0 in [0.005, 0.01, 0.05]:
+        res = _run_rescue(eval_src_select, eval_tgt_select, tau_0)
+        if res["single_net"] > best_net:
+            best_net = res["single_net"]
             best_tau = tau_0
-            best_details = {
-                "tau_0": tau_0,
-                "rescued": rescued,
-                "broken": broken,
-                "det_correct": correct_det.sum().item(),
-                "lang_correct": correct_lang.sum().item(),
-                "net_gain": rescued - broken,
-            }
 
-    return best_details if best_details else {
-        "tau_0": 0, "rescued": 0, "broken": 0,
-        "det_correct": correct_det.sum().item(),
-        "lang_correct": correct_det.sum().item(), "net_gain": 0,
-    }
+    # Evaluate on held-out test set
+    test_result = _run_rescue(eval_src_test, eval_tgt_test, best_tau)
+    test_result["selected_on"] = "separate_selection_set"
+    return test_result
 
 
 def run():
@@ -284,11 +300,19 @@ def run():
         "config": config,
     }
 
-    # Generate eval data
+    # Generate eval data — split into selection and test sets
     set_seed(7777)
-    eval_src, eval_tgt = generate_batch("addition", 2048, config["seq_len"], V)
-    eval_src = eval_src.to(device)
-    eval_tgt = eval_tgt.to(device)
+    eval_src_all, eval_tgt_all = generate_batch("addition", 4096, config["seq_len"], V)
+    eval_src_all = eval_src_all.to(device)
+    eval_tgt_all = eval_tgt_all.to(device)
+
+    eval_src = eval_src_all[:2048]
+    eval_tgt = eval_tgt_all[:2048]
+    rescue_select_src = eval_src_all[:1024]
+    rescue_select_tgt = eval_tgt_all[:1024]
+    rescue_test_src = eval_src_all[2048:]
+    rescue_test_tgt = eval_tgt_all[2048:]
+
     max_chain = compute_carries(eval_src, V)
 
     print(f"\nCarry chain distribution:", flush=True)
@@ -296,67 +320,83 @@ def run():
         n = (max_chain == cl).sum().item()
         print(f"  max_chain={cl}: {n}/2048 ({n/2048:.1%})", flush=True)
 
+    # E5 uses seed 512 (stochastic failure seed) to test rescue hypothesis
+    track_seeds = {"e5": [42, 512], "dynamics_ce": [42]}
+
     for track in ["e5", "dynamics_ce"]:
-        seed = 42
-        label = f"{track}_seed{seed}"
-        print(f"\n{'=' * 60}", flush=True)
-        print(f"  Training: {label}", flush=True)
-        print(f"{'=' * 60}", flush=True)
+        for seed in track_seeds[track]:
+            label = f"{track}_seed{seed}"
+            print(f"\n{'=' * 60}", flush=True)
+            print(f"  Training: {label}", flush=True)
+            print(f"{'=' * 60}", flush=True)
 
-        cfg = build_config(seed)
-        set_seed(seed)
-        model = UESDModel(
-            V, cfg["d_model"], cfg["n_heads"],
-            cfg["d_ff"], cfg["n_enc_layers"], cfg["max_len"],
-        ).to(device)
+            cfg = build_config(seed)
+            set_seed(seed)
+            model = UESDModel(
+                V, cfg["d_model"], cfg["n_heads"],
+                cfg["d_ff"], cfg["n_enc_layers"], cfg["max_len"],
+            ).to(device)
 
-        t0 = time.time()
-        tr = train(model, "addition", track, cfg, device)
-        train_time = time.time() - t0
-        print(f"  Training: {train_time:.1f}s, final CE: {tr['ce_history'][-1]:.4f}",
-              flush=True)
+            t0 = time.time()
+            tr = train(model, "addition", track, cfg, device)
+            train_time = time.time() - t0
+            final_loss = tr["history"][-1]["loss"]
+            print(f"  Final loss: {final_loss:.4f}", flush=True)
 
-        # Deterministic baseline
-        with torch.no_grad():
-            logits = model(eval_src, T)
-            preds = logits[:, :half, :].argmax(dim=-1)
-            targets = eval_tgt[:, :half]
-            det_tok = (preds == targets).float().mean().item()
-            det_seq = (preds == targets).all(dim=1).float().mean().item()
-        print(f"  Deterministic: tok={det_tok:.4f} seq={det_seq:.4f}", flush=True)
+            model.eval()
 
-        track_results = {
-            "train_time_s": train_time,
-            "deterministic_tok_acc": det_tok,
-            "deterministic_seq_acc": det_seq,
-        }
+            # Deterministic baseline
+            with torch.no_grad():
+                logits = model(eval_src, T)
+                preds = logits[:, :half, :].argmax(dim=-1)
+                targets = eval_tgt[:, :half]
+                det_tok = (preds == targets).float().mean().item()
+                det_seq = (preds == targets).all(dim=1).float().mean().item()
+            print(f"  Deterministic: tok={det_tok:.4f} seq={det_seq:.4f}", flush=True)
 
-        # Sweep tau and schedules
-        for sched_name, sched_fn in SCHEDULES.items():
-            print(f"\n  Schedule: {sched_name}", flush=True)
-            sched_results = {}
+            track_results = {
+                "seed": seed,
+                "train_time_s": train_time,
+                "final_loss": final_loss,
+                "deterministic_tok_acc": det_tok,
+                "deterministic_seq_acc": det_seq,
+            }
 
-            for tau_0 in TAU_VALUES:
-                res = evaluate_langevin(
-                    model, eval_src, eval_tgt, T, tau_0, sched_fn, max_chain, half
-                )
-                sched_results[f"tau_{tau_0}"] = res
-                print(f"    tau={tau_0:.3f}: majority_acc={res['majority_seq_acc']:.4f} "
-                      f"mean_sample={res['mean_sample_acc']:.4f}", flush=True)
+            # Sweep tau and schedules (cosine only per Codex parsimony advice)
+            for sched_name in ["cosine"]:
+                sched_fn = SCHEDULES[sched_name]
+                print(f"\n  Schedule: {sched_name}", flush=True)
+                sched_results = {}
 
-            track_results[sched_name] = sched_results
+                for tau_0 in TAU_VALUES:
+                    res = evaluate_langevin(
+                        model, eval_src, eval_tgt, T, tau_0, sched_fn, max_chain, half
+                    )
+                    sched_results[f"tau_{tau_0}"] = res
+                    print(f"    tau={tau_0}: single={res['single_sample_seq_acc']:.4f} "
+                          f"majority={res['majority_seq_acc']:.4f}", flush=True)
 
-        # Rescue analysis
-        print(f"\n  Rescue analysis...", flush=True)
-        rescue = rescue_analysis(model, eval_src, eval_tgt, T, cfg, device)
-        track_results["rescue_analysis"] = rescue
-        print(f"    Best tau={rescue['tau_0']}: rescued={rescue['rescued']}, "
-              f"broken={rescue['broken']}, net={rescue['net_gain']}", flush=True)
+                track_results[sched_name] = sched_results
 
-        all_results[label] = track_results
+            # Rescue analysis with separate selection/test sets
+            print(f"\n  Rescue analysis (separate selection/test sets)...", flush=True)
+            rescue = rescue_analysis(
+                model, rescue_select_src, rescue_select_tgt,
+                rescue_test_src, rescue_test_tgt, T, cfg, device
+            )
+            track_results["rescue_analysis"] = rescue
+            print(f"    tau={rescue['tau_0']}: "
+                  f"single rescued={rescue['single_rescued']}, "
+                  f"broken={rescue['single_broken']}, "
+                  f"net={rescue['single_net']}", flush=True)
+            print(f"    majority rescued={rescue['majority_rescued']}, "
+                  f"broken={rescue['majority_broken']}, "
+                  f"net={rescue['majority_net']}", flush=True)
 
-        del model
-        torch.cuda.empty_cache()
+            all_results[label] = track_results
+
+            del model
+            torch.cuda.empty_cache()
 
     # Save
     out_dir = Path(__file__).parent / "results"

@@ -139,20 +139,31 @@ def phase1_basin_structure(model, eval_src, eval_tgt, config, device):
     s_sample = F.normalize(s_flat[idx], dim=-1)
     sim_matrix = torch.mm(s_sample, s_sample.t())
 
-    # Cluster by thresholding cosine similarity
-    threshold = 0.95
-    visited = set()
-    basins = []
-    for i in range(n_sample):
-        if i in visited:
-            continue
-        cluster = (sim_matrix[i] > threshold).nonzero(as_tuple=True)[0].tolist()
-        visited.update(cluster)
-        basins.append(cluster)
+    # Cluster by thresholding cosine similarity — sweep thresholds
+    THRESHOLDS = [0.90, 0.95, 0.98, 0.99]
+    threshold_results = {}
+    basins_default = None
+    for threshold in THRESHOLDS:
+        visited = set()
+        basins = []
+        for i in range(n_sample):
+            if i in visited:
+                continue
+            cluster = (sim_matrix[i] > threshold).nonzero(as_tuple=True)[0].tolist()
+            visited.update(cluster)
+            basins.append(cluster)
+        threshold_results[f"thresh_{threshold}"] = {
+            "n_basins": len(basins),
+            "basin_sizes": sorted([len(b) for b in basins], reverse=True)[:20],
+        }
+        if threshold == 0.95:
+            basins_default = basins
+
+    basins = basins_default
 
     # Per-basin accuracy
     basin_stats = []
-    for i, basin in enumerate(basins[:20]):  # top 20 basins
+    for i, basin in enumerate(basins[:20]):
         basin_idx = idx[basin]
         basin_correct = correct[basin_idx].float().mean().item()
         basin_energy = energies[-1][basin_idx].mean().item()
@@ -174,6 +185,7 @@ def phase1_basin_structure(model, eval_src, eval_tgt, config, device):
         "n_basins_found": len(basins),
         "basin_sizes": [len(b) for b in basins],
         "top_basin_stats": basin_stats,
+        "threshold_sensitivity": threshold_results,
         "energy_correct_mean": energy_correct,
         "energy_wrong_mean": energy_wrong,
         "energy_profile": energy_profile,
@@ -368,6 +380,28 @@ def run():
     eval_src = eval_src.to(device)
     eval_tgt = eval_tgt.to(device)
 
+    # === Control: Untrained model ===
+    print(f"\n{'=' * 60}", flush=True)
+    print(f"  CONTROL: Untrained model", flush=True)
+    print(f"{'=' * 60}", flush=True)
+    set_seed(42)
+    ctrl_model = UESDModel(
+        V, config["d_model"], config["n_heads"],
+        config["d_ff"], config["n_enc_layers"], config["max_len"],
+    ).to(device)
+    ctrl_model.eval()
+    ctrl_basin = phase1_basin_structure(ctrl_model, eval_src, eval_tgt, config, device)
+    ctrl_path = phase4_path_efficiency(ctrl_model, eval_src, config, device)
+    print(f"  Basins: {ctrl_basin['n_basins_found']}, "
+          f"Energy correct: {ctrl_basin['energy_correct_mean']:.4f}", flush=True)
+    print(f"  Path ratio: {ctrl_path['efficiency_ratio_mean']:.3f}", flush=True)
+    all_results["control_untrained"] = {
+        "basin_structure": ctrl_basin,
+        "path_efficiency": ctrl_path,
+    }
+    del ctrl_model
+    torch.cuda.empty_cache()
+
     for track in ["e5", "dynamics_ce"]:
         for seed in SEEDS:
             label = f"{track}_seed{seed}"
@@ -386,8 +420,10 @@ def run():
             t0 = time.time()
             tr = train(model, "addition", track, cfg, device)
             train_time = time.time() - t0
-            print(f"  Training complete in {train_time:.1f}s", flush=True)
-            print(f"  Final CE: {tr['ce_history'][-1]:.4f}", flush=True)
+            final_loss = tr["history"][-1]["loss"]
+            print(f"  Final loss: {final_loss:.4f}", flush=True)
+
+            model.eval()
 
             # Phase 1: Basin structure
             print(f"\n  Phase 1: Basin structure...", flush=True)
@@ -421,7 +457,7 @@ def run():
 
             all_results[label] = {
                 "train_time_s": train_time,
-                "final_ce": tr["ce_history"][-1],
+                "final_loss": final_loss,
                 "basin_structure": basin_results,
                 "basin_radius": radius_results,
                 "landscape_slice": slice_results,
