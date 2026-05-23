@@ -246,12 +246,26 @@ def calibration_analysis(model, eval_src, eval_tgt, config, device,
     t_star = int(np.argmin(rho_dists))
     calib_at_tstar = step_results[t_star]["ece"]
 
+    eces = [r["ece"] for r in step_results]
+    t_ece_min = int(np.argmin(eces))
+
     tau_used = readout_tau if readout_tau is not None else model.tau
     return {
         "per_step": step_results,
         "t_star_nishimori": t_star,
         "rho_at_tstar": step_results[t_star]["avg_confidence"],
         "ece_at_tstar": calib_at_tstar,
+        "t_ece_min": t_ece_min,
+        "ece_min": eces[t_ece_min],
+        "rho_at_ece_min": step_results[t_ece_min]["avg_confidence"],
+        "nishimori_test": {
+            "rho_nearest_step": t_star,
+            "ece_min_step": t_ece_min,
+            "steps_coincide": t_star == t_ece_min,
+            "rho_at_ece_min_distance": abs(
+                step_results[t_ece_min]["avg_confidence"] - NISHIMORI_RHO
+            ),
+        },
         "readout_tau": tau_used,
     }
 
@@ -349,8 +363,12 @@ def run():
         tstar = cal["t_star_nishimori"]
         rho = cal["rho_at_tstar"]
         ece = cal["ece_at_tstar"]
-        print(f"    t*={tstar}, rho={rho:.4f} (target={NISHIMORI_RHO:.4f}), "
-              f"ECE={ece:.4f}", flush=True)
+        nt = cal["nishimori_test"]
+        print(f"    rho-nearest step: t*={tstar}, rho={rho:.4f} "
+              f"(target={NISHIMORI_RHO:.4f}), ECE={ece:.4f}", flush=True)
+        print(f"    ECE-min step: t={nt['ece_min_step']}, "
+              f"rho={cal['rho_at_ece_min']:.4f}, ECE={cal['ece_min']:.4f}, "
+              f"coincide={nt['steps_coincide']}", flush=True)
         for sr in cal["per_step"]:
             if sr["step"] in [0, 1, 3, 5, 7, 10]:
                 print(f"    t={sr['step']}: conf={sr['avg_confidence']:.4f} "

@@ -307,28 +307,37 @@ def run():
                       f"pos={[f'{p:.3f}' for p in probe_per_pos]}",
                       flush=True)
 
-        # Shuffled-label control at t=0 and t=T
-        print(f"  Shuffled-label control probes...", flush=True)
+        # Shuffled-label control at every step (validates probe isn't reading structure)
+        print(f"  Shuffled-label control probes (all steps)...", flush=True)
         shuffled_controls = {}
-        for t in [0, T]:
+        for t in range(T + 1):
             sh_acc, sh_pos = train_shuffled_probe(
                 states[t], eval_tgt, d_model, V, half, device,
                 train_idx, test_idx,
             )
             shuffled_controls[t] = {"probe_accuracy": sh_acc, "per_position": sh_pos}
-            print(f"    t={t} shuffled: probe={sh_acc:.4f}", flush=True)
+            if t in [0, 3, 5, 7, T]:
+                print(f"    t={t} shuffled: probe={sh_acc:.4f}", flush=True)
 
-        # Check monotonicity
+        # Check monotonicity (with tolerance for probe noise)
+        MONO_TOL = 0.005
         probe_accs = [p["probe_accuracy"] for p in probe_results]
-        monotonic = all(probe_accs[i] <= probe_accs[i + 1]
-                        for i in range(len(probe_accs) - 1))
+        monotonic_strict = all(
+            probe_accs[i] <= probe_accs[i + 1]
+            for i in range(len(probe_accs) - 1)
+        )
+        monotonic_tolerant = all(
+            probe_accs[i] <= probe_accs[i + 1] + MONO_TOL
+            for i in range(len(probe_accs) - 1)
+        )
         max_backtrack = max(
             (probe_accs[i] - probe_accs[i + 1]
              for i in range(len(probe_accs) - 1)),
             default=0.0,
         )
-        print(f"  Monotonic: {monotonic}, max backtrack: {max_backtrack:.4f}",
-              flush=True)
+        print(f"  Monotonic (strict): {monotonic_strict}, "
+              f"(tol={MONO_TOL}): {monotonic_tolerant}, "
+              f"max backtrack: {max_backtrack:.4f}", flush=True)
 
         # Per-chain-length probe analysis
         print(f"  Per-chain probe analysis...", flush=True)
@@ -369,7 +378,9 @@ def run():
             "shuffled_label_controls": {
                 str(k): v for k, v in shuffled_controls.items()
             },
-            "monotonic": monotonic,
+            "monotonic_strict": monotonic_strict,
+            "monotonic_tolerant": monotonic_tolerant,
+            "monotonicity_tolerance": MONO_TOL,
             "max_backtrack": max_backtrack,
             "per_chain_probes": chain_probe_results,
         }
