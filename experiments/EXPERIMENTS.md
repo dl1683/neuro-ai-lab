@@ -368,6 +368,26 @@ Framework where AI generation happens in continuous embedding space via iterativ
 - **Training time:** ~2400s per model, ~11K total
 - **Artifacts:** `experiments/06_uesd/results/exp_d11_energy_landscape.json`
 
+### Exp D10: Adaptive Halting (COMPLETE — CARRY-CHAIN CORRELATION VANISHES UNDER PRESSURE)
+- **Config:** `experiments/06_uesd/exp_d10_adaptive_halting.py`
+- **Purpose:** Test whether PonderNet-style adaptive halting reveals difficulty-dependent compute allocation. If carry-chain depth correlates with halt step, the model allocates MORE computation to harder problems (sequential processing). If halt step is flat across difficulty, computation is parallel.
+- **Architecture:** Standard config + PonderNet HaltingHead. Baseline fixed T=10, then beta={0.01, 0.1, 1.0} halting penalty. 25K training steps each.
+- **Results:**
+  | Variant | Seq Acc (greedy) | Mean Halt | Chain 0 Halt | Chain 3 Halt | Spread |
+  |---------|------------------|-----------|--------------|--------------|--------|
+  | Baseline (T=10) | 1.0000 | 10 (fixed) | -- | -- | -- |
+  | beta=0.01 | 1.0000 | 7.93 | 7.71 | 8.18 | 0.47 |
+  | beta=0.1 | 1.0000 | 6.33 | 6.31 | 6.36 | 0.05 |
+  | beta=1.0 | 0.9985 | 6.22 | 6.22 | 6.22 | 0.001 |
+- **Key Findings:**
+  1. CARRY-CHAIN CORRELATION VANISHES WITH HALTING PRESSURE: At beta=0.01, chain3 uses 0.47 more steps than chain0 (weak positive). At beta=0.1, spread=0.05 (negligible). At beta=1.0, spread=0.001 (ZERO). The model does NOT allocate more compute to harder problems.
+  2. MODEL NEEDS ~6 STEPS MINIMUM: Even at beta=1.0 (strongest pressure), mean_halt=6.22. The model resists dropping below ~6 steps, consistent with D7 finding that computation completes by step 4-7.
+  3. ACCURACY MAINTAINED UNDER PRESSURE: beta=1.0 still achieves 99.85% seq accuracy with 38% fewer steps than baseline.
+  4. HALT DISTRIBUTION IS BROAD: No sharp "done" signal — distribution is roughly geometric decay. ~23% of examples halt by step 1 at beta=1.0.
+  5. T5 (PARALLEL COMPUTATION) SUPPORTED: Difficulty-independent halt times confirm computation is parallel, not sequential carry processing.
+- **Training time:** baseline=2318s, beta=0.01=6059s, beta=0.1=6317s, beta=1.0=5335s
+- **Artifacts:** `experiments/06_uesd/results/exp_d10_adaptive_halting.json`
+
 ### Exp D21: Wrong-Attractor Rate Under Latent Noise (PENDING — FALSIFICATION TEST)
 - **Config:** `experiments/06_uesd/exp_d21_wrong_attractor.py`
 - **Purpose:** Falsification test #5 from Codex meta-analysis. Tests whether converged dynamics are a stable iterative solver by injecting Gaussian noise at converged states and measuring wrong-attractor rate and recovery. If WA>5% at small sigma with no recovery, system is not robust.
