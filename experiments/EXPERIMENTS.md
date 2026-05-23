@@ -280,6 +280,38 @@ Framework where AI generation happens in continuous embedding space via iterativ
 - **Wall time:** 2458s total (1193s CE-dynamics + 1265s E5)
 - **Artifacts:** `experiments/06_uesd/results/exp_d4_phase_dynamics.json`
 
+### Exp D5: Multi-Seed Failure Stability (COMPLETE — 10/10 SUCCESS, TWO NON-OVERLAPPING REGIMES)
+- **Config:** `experiments/06_uesd/exp_d5_failure_stability.py`
+- **Purpose:** Multi-seed validation of D4's two stability mechanisms. D4 was single-seed (N=1); Codex rated multi-seed as Impact 10/10 priority. Tests whether E5 "highway" and CE-dynamics "scattered" regimes are robust across 5 seeds each.
+- **Model:** UESD 694K params (d=128, heads=4, d_ff=512, T=10), seeds [42, 137, 256, 512, 1024]
+- **Method:** 5 seeds × 2 tracks (E5 + CE-dynamics) = 10 runs, 20K steps each. Full Lyapunov/alignment/amplification/overshoot diagnostics at convergence.
+- **Results (E5 "highway" — 5 seeds, CV 5%):**
+  | Metric | Mean | Std | CV% |
+  |--------|------|-----|-----|
+  | Lyapunov | 0.059 | 0.003 | 5.1 |
+  | Alignment | 0.808 | 0.042 | 5.2 |
+  | Amplification | 1.81x | 0.05 | 2.8 |
+  | Overshoot | 1.067 | 0.062 | 5.8 |
+  | Final CE | 0.0044 | 0.0016 | 36.4 |
+
+- **Results (CE-dynamics "scattered" — 5 seeds, CV 12%):**
+  | Metric | Mean | Std | CV% |
+  |--------|------|-----|-----|
+  | Lyapunov | 0.188 | 0.022 | 11.6 |
+  | Alignment | 0.595 | 0.069 | 11.6 |
+  | Amplification | 6.78x | 1.63 | 24.0 |
+  | Overshoot | 0.923 | 0.033 | 3.6 |
+  | Final CE | 0.0049 | 0.0019 | 38.8 |
+
+- **Key findings:**
+  1. **ALL 10 RUNS SUCCEED.** Both tracks converge to low CE across all seeds. UESD dynamics are robust.
+  2. **RANGES DO NOT OVERLAP.** Lyapunov: E5 [0.056, 0.063] vs CE-dyn [0.162, 0.228]. Alignment: E5 [0.780, 0.892] vs CE-dyn [0.469, 0.656]. Amplification: E5 [1.75, 1.89] vs CE-dyn [5.08, 9.88]. Two genuinely different dynamical regimes.
+  3. **CLEAN PHASE BOUNDARY ON OVERSHOOT.** E5 always > 1.0 (overshoots), CE-dyn always < 1.0 (undershoots). Zero crossover across 10 runs.
+  4. **E5 TIGHTER CLUSTERING.** Lyapunov CV=5.1% vs CE-dyn CV=11.6%. Self-consistency loss regularizes dynamics toward a tighter attractor cluster.
+  5. **CE-DYN SEED 1024 OUTLIER.** Lyapunov=0.228, amplification=9.88x, CE=0.0082 (2x worse than mean but still converged). CE-dynamics without self-consistency has higher seed variance.
+- **Wall time:** 3.75 hours total (10 runs × ~22 min each)
+- **Artifacts:** `experiments/06_uesd/results/exp_d5_failure_stability.json`
+
 ### Exp D3b: Trajectory Lyapunov Validation (COMPLETE — FINDINGS VALIDATED WITH CORRECTIONS)
 - **Config:** `experiments/06_uesd/exp_d3b_validation.py`
 - **Purpose:** Codex-mandated validation of D3. Four tests: (1) autograd Jacobian check, (2) eps sweep 1e-3 to 1e-5, (3) shuffled-trajectory ablation (10 permutations per sample), (4) corrected conservatism bounds.
