@@ -78,6 +78,8 @@ def train_model(track, config, device):
     optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
     T = config["T"]
 
+    half = config["seq_len"] // 2
+
     for step in range(1, config["training_steps"] + 1):
         src, tgt = generate_batch("addition", config["batch_size"],
                                   config["seq_len"], config["vocab_size"])
@@ -89,13 +91,15 @@ def train_model(track, config, device):
         for _ in range(T):
             s, _ = model.dynamics_step(s, context)
         logits = model.readout_logits(s)
+        logits_r = logits[:, :half, :]
+        tgt_r = tgt[:, :half]
 
         if track == "dynamics_ce":
-            loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)),
-                                   tgt.reshape(-1))
+            loss = F.cross_entropy(logits_r.reshape(-1, logits_r.size(-1)),
+                                   tgt_r.reshape(-1))
         else:
-            ce = F.cross_entropy(logits.reshape(-1, logits.size(-1)),
-                                 tgt.reshape(-1))
+            ce = F.cross_entropy(logits_r.reshape(-1, logits_r.size(-1)),
+                                 tgt_r.reshape(-1))
             s_next = model.dynamics(s, context)
             sc = (s_next - s).pow(2).sum(dim=-1).mean()
             eff_lam = min(step / config["warmup_steps"], 1.0)

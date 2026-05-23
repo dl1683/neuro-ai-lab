@@ -183,22 +183,28 @@ def participation_ratio(spectrum):
 def _dynamics_ce_step(model, src, tgt, T):
     context = model.encode(src)
     B, L_out = src.shape
+    half = L_out // 2
     s = model.init_state(B, L_out, src.device)
     for _ in range(T):
         s, _ = model.dynamics_step(s, context)
     logits = model.readout_logits(s)
-    loss = torch.nn.functional.cross_entropy(logits.reshape(-1, logits.size(-1)), tgt.reshape(-1))
+    logits_r = logits[:, :half, :]
+    tgt_r = tgt[:, :half]
+    loss = torch.nn.functional.cross_entropy(logits_r.reshape(-1, logits_r.size(-1)), tgt_r.reshape(-1))
     return loss
 
 
 def _e5_step(model, src, tgt, T, step, warmup_steps, lambda_1):
     context = model.encode(src)
     B, L_out = src.shape
+    half = L_out // 2
     s = model.init_state(B, L_out, src.device)
     for _ in range(T):
         s, _ = model.dynamics_step(s, context)
     logits = model.readout_logits(s)
-    ce = torch.nn.functional.cross_entropy(logits.reshape(-1, logits.size(-1)), tgt.reshape(-1))
+    logits_r = logits[:, :half, :]
+    tgt_r = tgt[:, :half]
+    ce = torch.nn.functional.cross_entropy(logits_r.reshape(-1, logits_r.size(-1)), tgt_r.reshape(-1))
     sc = (s - model.dynamics(s, context)).pow(2).mean()
     eff_lam = min(step / warmup_steps, 1.0) * lambda_1
     return ce + eff_lam * sc

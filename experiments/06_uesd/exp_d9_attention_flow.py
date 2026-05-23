@@ -100,11 +100,14 @@ def train_model(track, config, device):
 
         context = model.encode(src)
         B, L = src.shape
+        half = L // 2
         s = model.init_state(B, L, device)
         for _ in range(T):
             s, _ = model.dynamics_step(s, context)
         logits = model.readout_logits(s)
-        ce = F.cross_entropy(logits.reshape(-1, logits.size(-1)), tgt.reshape(-1))
+        logits_r = logits[:, :half, :]
+        tgt_r = tgt[:, :half]
+        ce = F.cross_entropy(logits_r.reshape(-1, logits_r.size(-1)), tgt_r.reshape(-1))
 
         if track == "e5":
             sc = (s - model.dynamics(s, context)).pow(2).mean()

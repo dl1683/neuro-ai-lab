@@ -216,8 +216,11 @@ def train_fixed(model, config, device):
         src, tgt = generate_batch("addition", config["batch_size"],
                                   config["seq_len"], config["vocab_size"])
         src, tgt = src.to(device), tgt.to(device)
+        half = config["seq_len"] // 2
         logits = model(src, T)
-        loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), tgt.reshape(-1))
+        logits_r = logits[:, :half, :]
+        tgt_r = tgt[:, :half]
+        loss = F.cross_entropy(logits_r.reshape(-1, logits_r.size(-1)), tgt_r.reshape(-1))
 
         optimizer.zero_grad()
         loss.backward()
