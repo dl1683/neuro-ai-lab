@@ -243,44 +243,61 @@ def phase2_basin_radius(model, eval_src, eval_tgt, config, device):
 
 @torch.no_grad()
 def phase3_landscape_slice(model, eval_src, config, device):
-    """2D energy landscape slice through PCA of trajectory endpoints."""
+    """2D energy landscape slice for a FIXED context using perturbed initial states.
+
+    Uses one input's context throughout: perturbs initial decoder state N times,
+    runs dynamics, PCA's the final states, then evaluates energy grid under
+    the same context. This gives a true context-conditional landscape slice.
+    """
     T = config["T"]
-    B = min(eval_src.shape[0], 256)
-    src = eval_src[:B]
+    N_PERTURBATIONS = 256
 
-    states, energies, context = trace_trajectory(model, src, T)
-    s_final = states[-1]  # [B, L, d]
+    # Use a single input's context
+    src_single = eval_src[:1]
+    context = model.encode(src_single)  # [1, L, d]
+    L_out = src_single.shape[1]
+    d_model = config["d_model"]
 
-    # Flatten and compute PCA
+    # Generate perturbed trajectories from same context
+    s0_base = model.init_state(1, L_out, device)
+    final_states = []
+    all_traj_states = []
+
+    for _ in range(N_PERTURBATIONS):
+        noise = torch.randn_like(s0_base) * 0.5
+        s = s0_base + noise
+        traj = [s.clone()]
+        ctx = context.expand(1, -1, -1)
+        for t in range(T):
+            s, _ = model.dynamics_step(s, ctx)
+            traj.append(s.clone())
+        final_states.append(s.squeeze(0))
+        all_traj_states.append(traj)
+
+    s_final = torch.stack(final_states, dim=0)  # [N, L, d]
+    B = N_PERTURBATIONS
+
+    # PCA of final states (all from same context)
     s_flat = s_final.reshape(B, -1).cpu().numpy()
     mean = s_flat.mean(axis=0)
     centered = s_flat - mean
 
     U, S_vals, Vt = np.linalg.svd(centered, full_matrices=False)
-    pc1 = Vt[0]  # first principal component
-    pc2 = Vt[1]  # second principal component
+    pc1 = Vt[0]
+    pc2 = Vt[1]
 
-    # Explained variance
     total_var = (S_vals ** 2).sum()
     var_explained = (S_vals[:10] ** 2) / total_var
 
-    # Create grid in PCA space
     coords1 = np.linspace(-3, 3, N_GRID_POINTS)
     coords2 = np.linspace(-3, 3, N_GRID_POINTS)
 
-    # Scale by the actual spread
     scale1 = S_vals[0] / np.sqrt(B)
     scale2 = S_vals[1] / np.sqrt(B)
 
     energy_grid = np.zeros((N_GRID_POINTS, N_GRID_POINTS))
-    L_out = s_final.shape[1]
-    d_model = s_final.shape[2]
-
-    # Use a single example's context for the landscape
-    context_single = context[:1]
 
     for i, c1 in enumerate(coords1):
-        # Batch across second coordinate for efficiency
         points = []
         for j, c2 in enumerate(coords2):
             point = mean + c1 * scale1 * pc1 + c2 * scale2 * pc2
@@ -290,22 +307,24 @@ def phase3_landscape_slice(model, eval_src, config, device):
             np.array(points), dtype=torch.float32, device=device
         ).reshape(N_GRID_POINTS, L_out, d_model)
 
-        ctx_expanded = context_single.expand(N_GRID_POINTS, -1, -1)
+        ctx_expanded = context.expand(N_GRID_POINTS, -1, -1)
         e = compute_energy(model, points_tensor, ctx_expanded)
         energy_grid[i] = e.cpu().numpy()
 
-    # Project actual trajectories onto PCA
+    # Project perturbed trajectories onto PCA (use first 8 trajectories)
     trajectory_projections = []
-    for t_idx, s_t in enumerate(states):
-        s_flat_t = s_t[:B].reshape(B, -1).cpu().numpy()
-        proj1 = ((s_flat_t - mean) @ pc1) / scale1
-        proj2 = ((s_flat_t - mean) @ pc2) / scale2
+    for t_idx in range(T + 1):
+        projs_1, projs_2 = [], []
+        for traj in all_traj_states[:8]:
+            s_t = traj[t_idx].squeeze(0).reshape(-1).cpu().numpy()
+            projs_1.append(((s_t - mean) @ pc1) / scale1)
+            projs_2.append(((s_t - mean) @ pc2) / scale2)
         trajectory_projections.append({
             "step": t_idx,
-            "pc1_mean": float(proj1.mean()),
-            "pc1_std": float(proj1.std()),
-            "pc2_mean": float(proj2.mean()),
-            "pc2_std": float(proj2.std()),
+            "pc1_mean": float(np.mean(projs_1)),
+            "pc1_std": float(np.std(projs_1)),
+            "pc2_mean": float(np.mean(projs_2)),
+            "pc2_std": float(np.std(projs_2)),
         })
 
     return {
@@ -318,6 +337,7 @@ def phase3_landscape_slice(model, eval_src, config, device):
         "grid_range": {"c1": [-3, 3], "c2": [-3, 3]},
         "scale1": float(scale1),
         "scale2": float(scale2),
+        "n_perturbations": N_PERTURBATIONS,
     }
 
 
