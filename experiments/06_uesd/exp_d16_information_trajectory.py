@@ -366,7 +366,7 @@ def run():
                 "n": n,
                 "probes": chain_probes,
             }
-            accs_str = " → ".join(
+            accs_str = " -> ".join(
                 f"{p['probe_accuracy']:.3f}" for p in chain_probes
                 if p["step"] in [0, 3, 5, 7, 10]
             )

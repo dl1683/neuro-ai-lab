@@ -341,7 +341,7 @@ def run():
             print(f"  Accuracy: tok={tok_acc:.4f} seq={seq_acc:.4f}", flush=True)
 
             if tok_acc < 0.6:
-                print(f"  Model did not learn — skipping attention analysis", flush=True)
+                print(f"  Model did not learn -- skipping attention analysis", flush=True)
                 seq_results[track] = {
                     "token_acc": tok_acc, "seq_acc": seq_acc,
                     "status": "did_not_learn",
@@ -374,7 +374,7 @@ def run():
             )
 
             # Print key findings
-            print(f"\n  Cross-attention mean input position (result pos × step):",
+            print(f"\n  Cross-attention mean input position (result pos x step):",
                   flush=True)
             focus = attn_results["cross_attention"]["focus_shift"]
             print(f"  {'':>6s}", end="", flush=True)
@@ -387,7 +387,7 @@ def run():
                     print(f"  {focus[t][k]:5.2f}", end="", flush=True)
                 print(flush=True)
 
-            print(f"\n  Self-attention to carry source (k→k+1):", flush=True)
+            print(f"\n  Self-attention to carry source (k->k+1):", flush=True)
             carry_sa = attn_results["self_attention"]["carry_source_attn"]
             print(f"  {'':>6s}", end="", flush=True)
             for k in range(half - 1):

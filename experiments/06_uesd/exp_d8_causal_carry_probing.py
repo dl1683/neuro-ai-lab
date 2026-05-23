@@ -551,7 +551,7 @@ def run():
 
         probe_grids = {}
         for label_name in ["carry_in", "carry_out"]:
-            print(f"\n  {label_name} probe accuracy (step × position):", flush=True)
+            print(f"\n  {label_name} probe accuracy (step x position):", flush=True)
             print(f"  {'Step':>6s}", end="", flush=True)
             for k in range(half):
                 print(f"  pos_{k:d}", end="", flush=True)
@@ -584,10 +584,10 @@ def run():
                 first_acc.append(found)
             print(f"  First step >= 80%: {first_acc}", flush=True)
             if label_name == "carry_in":
-                print(f"  (Expect wavefront: pos2 → pos1 → pos0; pos3 = N/A)",
+                print(f"  (Expect wavefront: pos2 -> pos1 -> pos0; pos3 = N/A)",
                       flush=True)
             else:
-                print(f"  (Expect wavefront: pos3 → pos2 → pos1)", flush=True)
+                print(f"  (Expect wavefront: pos3 -> pos2 -> pos1)", flush=True)
 
         # ===== PHASE 2: CARRY-FLIP PERTURBATION WITH CONTROLS =====
         print(f"\n  --- PHASE 2: Carry-Flip Perturbation (with controls) ---",

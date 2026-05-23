@@ -312,6 +312,50 @@ Framework where AI generation happens in continuous embedding space via iterativ
 - **Wall time:** 3.75 hours total (10 runs × ~22 min each)
 - **Artifacts:** `experiments/06_uesd/results/exp_d5_failure_stability.json`
 
+### Exp D7: Thinking Emergence (COMPLETE — PARALLEL COMPUTATION, NOT SEQUENTIAL WAVEFRONT)
+- **Config:** `experiments/06_uesd/exp_d7_thinking_emergence.py`
+- **Purpose:** Test whether UESD dynamics progressively resolve carry chains in a right-to-left wavefront pattern, analogous to "thinking." Three analyses: (1) per-step readout accuracy with position breakdown, (2) carry-chain-length stratified first-correct-step, (3) step transition analysis.
+- **Model:** UESD 694K params, seed=42, 20K steps, N_EVAL=4096
+- **⚠️ SC LOSS BUG:** E5 track used `.pow(2).sum(dim=-1).mean()` instead of `.pow(2).mean()` — 128x stronger SC regularization. E5 results should be interpreted with caution. CE-dynamics results are unaffected.
+- **Results (dynamics_ce — VALID):**
+  | Step | Mean Acc | Seq Acc | Pos0 (MSB) | Pos3 (LSB) | Newly Correct |
+  |------|----------|---------|------------|------------|---------------|
+  | 0 | 0.016 | 0.000 | 0.015 | 0.016 | 1.6% |
+  | 1 | 0.286 | 0.008 | 0.336 | 0.270 | 27.3% |
+  | 2 | 0.651 | 0.178 | 0.623 | 0.667 | 37.2% |
+  | 3 | 0.948 | 0.807 | 0.927 | 0.959 | 30.0% |
+  | 4 | 0.996 | 0.982 | 0.991 | 0.998 | 4.7% |
+  | 5 | 0.999 | 0.996 | 0.997 | 1.000 | 0.4% |
+  | 7+ | 1.000 | 1.000 | 1.000 | 1.000 | 0.0% |
+  - **Mean first_stable by position:** pos0=2.13, pos1=2.17, pos2=2.08, pos3=2.09. Median=2.0 for ALL positions.
+  - **No wavefront.** All positions stabilize at essentially the same step (~2). Model resolves carries in PARALLEL, not sequentially.
+  - **Carry-chain correlation: r=-0.033 (none).** chain=0: 2.15, chain=1: 2.03, chain=2: 2.11, chain=3: 2.13. Hard and easy problems resolved at the same step.
+  - **Zero backtracking after step 7.** Transitions show 0% newly wrong at steps 4+. Once correct, stays correct.
+
+- **Results (E5 — 128x SC BUG, interpret with caution):**
+  | Step | Mean Acc | Seq Acc | Pos0 (MSB) | Pos3 (LSB) | Newly Correct |
+  |------|----------|---------|------------|------------|---------------|
+  | 0 | 0.016 | 0.000 | 0.016 | 0.014 | 1.6% |
+  | 2 | 0.174 | 0.001 | 0.135 | 0.220 | 12.9% |
+  | 3 | 0.531 | 0.076 | 0.479 | 0.661 | 36.2% |
+  | 5 | 0.982 | 0.930 | 0.966 | 1.000 | 12.2% |
+  | 6 | 0.999 | 0.997 | 0.997 | 1.000 | 1.7% |
+  | 8 | 1.000 | 1.000 | 1.000 | 1.000 | 0.0% |
+  - **Mean first_stable by position:** pos0=3.58, pos1=3.63, pos2=3.29, pos3=3.13. **Weak wavefront: LSB first.**
+  - **Carry-chain correlation: r=+0.132 (weak positive).** chain=0: 3.30, chain=2: 3.72. Harder carry chains take ~0.4 more steps.
+  - **E5 convergence ~1.3 steps slower than dynamics_ce** (mean 3.4 vs 2.1). 128x SC may be responsible.
+  - **Position 3 shows clear right-to-left bias:** At step 3, pos3=66.1% vs pos0=47.9%. LSB computes first.
+
+- **Key findings:**
+  1. **CE-DYNAMICS COMPUTES IN PARALLEL, NOT SEQUENTIALLY.** All positions stabilize at step ~2 regardless of carry depth. The model does NOT propagate carries right-to-left through dynamics steps — it solves the entire problem simultaneously. This challenges the "thinking" metaphor.
+  2. **E5 SHOWS SEQUENTIAL PATTERNS (BUT 128x SC CAVEAT).** E5 shows position-dependent timing (LSB first) and carry-chain correlation (+0.13). Whether this is genuine E5 behavior or an artifact of 128x SC needs verification with the fixed code.
+  3. **PROGRESSIVE COMPUTATION IS REAL.** Both tracks show monotonic accuracy improvement across steps (1.6% → 100%). The dynamics genuinely compute the answer iteratively. But in CE-dynamics, this computation is more "refining all positions simultaneously" rather than "propagating carries step by step."
+  4. **ZERO BACKTRACKING.** Once a position becomes correct, it stays correct (transitions show 0% newly wrong after step 4). Dynamics are monotonically constructive.
+  5. **CE-DYNAMICS IS REMARKABLY FAST.** 99.5% accuracy at step 4 of 10 available steps. The model uses only 40% of its dynamics budget to achieve near-perfect accuracy. The remaining 6 steps refine margins but don't change predictions.
+  6. **PREDICTION ASSESSMENT:** Prediction 1 (wavefront) — FALSE for CE-dynamics, PARTIALLY TRUE for E5 (with caveat). Prediction 2 (carry-chain correlation) — FALSE for CE-dynamics (r=-0.03), WEAK for E5 (r=+0.13). Prediction 3 (within-position stability vs first-correct correlation) — NULL (not computed).
+- **Wall time:** 3401s (CE-dynamics: 1377s, E5: 2025s)
+- **Artifacts:** `experiments/06_uesd/results/exp_d7_thinking_emergence.json`
+
 ### Exp D3b: Trajectory Lyapunov Validation (COMPLETE — FINDINGS VALIDATED WITH CORRECTIONS)
 - **Config:** `experiments/06_uesd/exp_d3b_validation.py`
 - **Purpose:** Codex-mandated validation of D3. Four tests: (1) autograd Jacobian check, (2) eps sweep 1e-3 to 1e-5, (3) shuffled-trajectory ablation (10 permutations per sample), (4) corrected conservatism bounds.
