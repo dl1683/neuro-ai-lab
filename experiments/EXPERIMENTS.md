@@ -527,6 +527,36 @@ Framework where AI generation happens in continuous embedding space via iterativ
 - **Cross-experiment synthesis:** Confirms D11 basin width finding (CE wider), D17 recovery finding (neither recovers), D19 high-T degradation (CE diverges past training horizon)
 - **Artifacts:** `experiments/06_uesd/results/exp_d21_wrong_attractor.json`
 
+### Codex Falsification Review (D19+D20+D21) — THESIS CONFIDENCE 4.5/10
+- **Review:** `experiments/06_uesd/results/codex_falsification_review.md`
+- **Scorecard:**
+  - T1 (dynamics essential): **PASS** — CE ratio=0.015, E5 ratio=0.000
+  - T4 (E5 advantage): **WEAKENED** — E5 doesn't dominate; no D20 E5 comparison
+  - T5 (parallel computation): **PASS (qualified)** — all positions converge simultaneously
+  - T6 (causal repair): **INCONCLUSIVE/WEAKENED** — no recovery observed in D21
+- **Key findings:**
+  1. Finite-horizon iterative improvement IS supported
+  2. Robust causal iterative repair IS NOT supported (no recovery, negative values everywhere)
+  3. CE degrades more than E5 at high T because CE has no convergence pressure
+  4. Recovery failure may not be fundamental — training objective doesn't enforce perturbation invariance
+- **Top recommendations:** (1) Train-time perturbation robustness, (2) Variable-T curriculum, (3) Scaling stress
+- **Thesis confidence: 4.5/10** — computational mechanism works, stronger claims unproven
+
+### Exp D22: Robust Dynamics — Variable-T + Denoising Training (RUNNING)
+- **Config:** `experiments/06_uesd/exp_d22_robust_dynamics.py`
+- **Purpose:** Directly targets the 4.5/10 confidence gap. Tests whether training modifications can fix recovery failure and widen compute window.
+- **Variants:**
+  - A: Variable-T curriculum (T sampled from {4,6,8,10,12,14,16} each batch)
+  - B: Denoising-robust (noise injection at random intermediate step during training)
+  - C: Combined (both A and B)
+  - Baseline: Standard CE-dynamics T=10
+- **Seeds:** [42, 1337, 2024] x 4 variants = 12 training runs
+- **Predictions:**
+  1. Variable-T widens compute window (T=32 accuracy >> baseline's 78%)
+  2. Denoising enables POSITIVE recovery values (the key breakthrough target)
+  3. Combined achieves both
+- **Artifacts:** `experiments/06_uesd/results/exp_d22_robust_dynamics.json` (pending)
+
 ### Exp D20: Bottleneck Sweep (COMPLETE — STEP DEPENDENCE SCALES MONOTONICALLY WITH V, THESIS SUPPORTED)
 - **Config:** `experiments/06_uesd/exp_d20_bottleneck_sweep.py`
 - **Purpose:** Falsification test #6 from Codex meta-analysis. Tests whether softmax bottleneck actually drives the need for iterative dynamics by sweeping vocab size V={16,32,64,128,256} with 3 seeds each. If metrics are flat across 4x V range, bottleneck story is unsupported.
