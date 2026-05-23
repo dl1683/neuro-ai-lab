@@ -56,7 +56,8 @@ from shared.data import generate_batch
 
 SEED = 42
 T_MAX = 15
-LAMBDA_P = 0.01  # geometric prior parameter
+T_BASELINE = 10  # fixed-T baseline uses standard T=10
+LAMBDA_P = 0.1  # geometric prior parameter (0.01 was too flat)
 BETA_VALUES = [0.01, 0.1, 1.0]
 
 
@@ -168,22 +169,22 @@ def train_adaptive(model, halting_head, config, device, beta=0.1):
         halt_dist = torch.stack(halt_dist, dim=1)  # [B, T]
         halt_dist = halt_dist / halt_dist.sum(dim=1, keepdim=True).clamp(min=1e-8)
 
-        # Weighted CE loss
+        # Weighted CE loss (only on result positions, not padding)
         ce_loss = torch.zeros(1, device=device)
         for t in range(T):
-            logits_t = logits_list[t]
+            logits_t = logits_list[t][:, :half, :]  # result positions only
+            tgt_result = tgt[:, :half]
             ce_t = F.cross_entropy(
                 logits_t.reshape(-1, logits_t.size(-1)),
-                tgt.reshape(-1), reduction='none'
-            ).reshape(B, L)
+                tgt_result.reshape(-1), reduction='none'
+            ).reshape(B, half)
             ce_per_example = ce_t.mean(dim=1)  # [B]
             ce_loss = ce_loss + (halt_dist[:, t] * ce_per_example).mean()
 
-        # KL divergence from geometric prior
-        kl_loss = F.kl_div(
-            halt_dist.mean(dim=0).log().clamp(min=-20),
-            prior, reduction='batchmean', log_target=False
-        )
+        # Per-example KL(halt_dist || prior) — correct direction
+        log_halt = halt_dist.clamp(min=1e-8).log()  # [B, T]
+        log_prior = prior.log().unsqueeze(0).expand(B, -1)  # [B, T]
+        kl_loss = (halt_dist * (log_halt - log_prior)).sum(dim=1).mean()
 
         loss = ce_loss + beta * kl_loss
 
@@ -326,9 +327,10 @@ def run():
         n = (max_chain == chain_len).sum().item()
         print(f"  max_chain={chain_len}: {n}/4096 ({n/4096:.1%})", flush=True)
 
-    # === Baseline: Fixed T ===
+    # === Baseline: Fixed T (uses standard T=10, NOT T_MAX) ===
+    T_base = T_BASELINE
     print(f"\n{'=' * 60}", flush=True)
-    print(f"  Baseline: Fixed T={T}", flush=True)
+    print(f"  Baseline: Fixed T={T_base} (adaptive uses T_MAX={T})", flush=True)
     print(f"{'=' * 60}", flush=True)
 
     set_seed(SEED)
@@ -338,23 +340,25 @@ def run():
     ).to(device)
     print(f"  Params: {count_params(model_fixed)}", flush=True)
 
+    # Train baseline with T=10 (standard config)
+    baseline_config = {**config, "T": T_base}
     t0 = time.time()
-    model_fixed = train_fixed(model_fixed, config, device)
+    model_fixed = train_fixed(model_fixed, baseline_config, device)
     fixed_time = time.time() - t0
 
     with torch.no_grad():
-        logits = model_fixed(eval_src, T)
+        logits = model_fixed(eval_src, T_base)
         preds = logits[:, :half, :].argmax(dim=-1)
         targets = eval_tgt[:, :half]
         fixed_tok = (preds == targets).float().mean().item()
         fixed_seq = (preds == targets).all(dim=1).float().mean().item()
 
-    print(f"  Fixed T={T}: tok={fixed_tok:.4f} seq={fixed_seq:.4f} "
+    print(f"  Fixed T={T_base}: tok={fixed_tok:.4f} seq={fixed_seq:.4f} "
           f"({fixed_time:.0f}s)", flush=True)
 
     all_results["baseline"] = {
         "tok_acc": fixed_tok, "seq_acc": fixed_seq,
-        "train_time_s": fixed_time, "T": T,
+        "train_time_s": fixed_time, "T": T_base,
     }
 
     # === Adaptive halting for each beta ===
