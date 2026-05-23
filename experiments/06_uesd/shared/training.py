@@ -50,7 +50,7 @@ def _e5_step(model, src_ids, target_ids, T, step=0,
     # Self-consistency: one more step to measure residual
     s_next, _ = model.dynamics_step(s, context)
     residual = s_next - s
-    sc_loss = (residual ** 2).sum(dim=-1).mean()
+    sc_loss = (residual ** 2).mean()
 
     # Readout CE
     logits = model.readout_logits(s)

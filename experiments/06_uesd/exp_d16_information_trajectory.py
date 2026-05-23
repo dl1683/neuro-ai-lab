@@ -98,7 +98,7 @@ def train_model(track, config, device):
             ce = F.cross_entropy(logits_r.reshape(-1, logits_r.size(-1)),
                                  tgt_r.reshape(-1))
             s_next = model.dynamics(s, context)
-            sc = (s_next - s).pow(2).sum(dim=-1).mean()
+            sc = (s_next - s).pow(2).mean()
             eff_lam = min(step / config["warmup_steps"], 1.0)
             loss = ce + eff_lam * sc
 

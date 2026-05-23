@@ -147,7 +147,7 @@ def train_model(track, config, device):
 
         elif track == "e5":
             s_next = model.dynamics(s, context)
-            sc = (s_next - s).pow(2).sum(dim=-1).mean()
+            sc = (s_next - s).pow(2).mean()
             eff_lam = min(step / config["warmup_steps"], 1.0)
             loss = ce + eff_lam * sc
 
@@ -173,7 +173,7 @@ def train_model(track, config, device):
             s_denoised = model.dynamics(s_conditioned, context)
 
             # Denoising loss: predict the CLEAN state from noisy
-            denoise_loss = (s_denoised - s.detach()).pow(2).sum(dim=-1).mean()
+            denoise_loss = (s_denoised - s.detach()).pow(2).mean()
 
             loss = ce + eff_lam * denoise_loss
 
@@ -187,7 +187,7 @@ def train_model(track, config, device):
             if track == "e5":
                 with torch.no_grad():
                     s_next = model.dynamics(s.detach(), context)
-                    sc_val = (s_next - s.detach()).pow(2).sum(dim=-1).mean()
+                    sc_val = (s_next - s.detach()).pow(2).mean()
                 extra = f" | SC: {sc_val.item():.4f}"
             elif track == "e3":
                 extra = f" | Denoise: {denoise_loss.item():.4f}"
@@ -224,7 +224,7 @@ def compute_diagnostics(model, eval_src, eval_tgt, config, device):
 
     # Self-consistency energy at final state
     s_next = model.dynamics(states[-1], context)
-    sc_energy = (s_next - states[-1]).pow(2).sum(dim=-1).mean().item()
+    sc_energy = (s_next - states[-1]).pow(2).mean().item()
 
     # Per-step update norms
     update_norms = []
