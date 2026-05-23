@@ -368,6 +368,26 @@ Framework where AI generation happens in continuous embedding space via iterativ
 - **Training time:** ~2400s per model, ~11K total
 - **Artifacts:** `experiments/06_uesd/results/exp_d11_energy_landscape.json`
 
+### Exp D13: Dynamics Transfer (COMPLETE — WEAK TRANSFER, TARGET TASKS TOO EASY)
+- **Config:** `experiments/06_uesd/exp_d13_dynamics_transfer.py`
+- **Purpose:** Test whether dynamics learned on addition transfer to related tasks (subtraction, comparison). Four conditions: full training from scratch, frozen dynamics transfer (keep addition dynamics, train new encoder+readout), finetuned transfer, random frozen dynamics baseline.
+- **Architecture:** Standard config. Source: CE-dynamics trained on addition (100%/100%). Target tasks: subtraction, comparison.
+- **Results:**
+  | Condition | Subtraction Seq Acc | Comparison Seq Acc |
+  |-----------|--------------------|--------------------|
+  | Full training (scratch) | 1.0000 | 1.0000 |
+  | Frozen dynamics (addition) | 0.9993 | 1.0000 |
+  | Finetuned dynamics | 0.9998 | 1.0000 |
+  | Random frozen dynamics | 0.9951 | 1.0000 |
+- **Key Findings:**
+  1. COMPARISON IS TRIVIALLY SOLVED: All conditions including random frozen dynamics achieve 100%. Task too easy for measuring transfer.
+  2. SUBTRACTION TRANSFER GAP IS TINY: Frozen addition dynamics (99.93%) vs random dynamics (99.51%) = only 0.42% gap. Trained dynamics provide minimal advantage.
+  3. FINETUNING HELPS MARGINALLY: 99.98% vs 99.93% frozen = 0.05% improvement. Not meaningful.
+  4. ENCODER+READOUT DOMINATE: The encoder and readout layers can learn to use ANY dynamics (even random) to solve subtraction. The specific dynamics learned from addition are not a critical bottleneck.
+  5. INCONCLUSIVE FOR THESIS: Target tasks are too easy to measure whether dynamics learn transferable computation algorithms. Need harder target tasks (e.g., multiplication, modular arithmetic) to test properly.
+- **Training time:** Source=2467s, transfers=1300-2425s each
+- **Artifacts:** `experiments/06_uesd/results/exp_d13_dynamics_transfer.json`
+
 ### Exp D10: Adaptive Halting (COMPLETE — CARRY-CHAIN CORRELATION VANISHES UNDER PRESSURE)
 - **Config:** `experiments/06_uesd/exp_d10_adaptive_halting.py`
 - **Purpose:** Test whether PonderNet-style adaptive halting reveals difficulty-dependent compute allocation. If carry-chain depth correlates with halt step, the model allocates MORE computation to harder problems (sequential processing). If halt step is flat across difficulty, computation is parallel.
