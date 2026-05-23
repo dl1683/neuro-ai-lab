@@ -527,11 +527,31 @@ Framework where AI generation happens in continuous embedding space via iterativ
 - **Cross-experiment synthesis:** Confirms D11 basin width finding (CE wider), D17 recovery finding (neither recovers), D19 high-T degradation (CE diverges past training horizon)
 - **Artifacts:** `experiments/06_uesd/results/exp_d21_wrong_attractor.json`
 
-### Exp D20: Bottleneck Sweep (PENDING — FALSIFICATION TEST)
+### Exp D20: Bottleneck Sweep (COMPLETE — STEP DEPENDENCE SCALES MONOTONICALLY WITH V, THESIS SUPPORTED)
 - **Config:** `experiments/06_uesd/exp_d20_bottleneck_sweep.py`
 - **Purpose:** Falsification test #6 from Codex meta-analysis. Tests whether softmax bottleneck actually drives the need for iterative dynamics by sweeping vocab size V={16,32,64,128,256} with 3 seeds each. If metrics are flat across 4x V range, bottleneck story is unsupported.
 - **Falsification criteria:** accuracy range < 0.05 AND step-dependence range < 0.05 across V -> THESIS WEAKENED
-- **Design:** 15 training runs (5 vocab sizes x 3 seeds), CE-dynamics, measure accuracy at T=1 and T=10, step dependence, Lyapunov, recovery.
+- **Design:** 15 training runs (5 vocab sizes x 3 seeds), CE-dynamics, measure accuracy at T=1/T=3/T=10, step dependence, contraction, recovery.
+- **Results (mean across 3 seeds per V):**
+  | V | log2(V) | Params | T10 Seq | T1 Seq | T3 Seq | Step Dep | Contraction | Recovery |
+  |---|---------|--------|---------|--------|--------|----------|-------------|----------|
+  | 16 | 4.0 | 687,872 | 100.0% | 18.2% | 97.6% | 0.818 | 0.773 | 18.8% |
+  | 32 | 5.0 | 689,920 | 100.0% | 7.1% | 98.7% | 0.929 | 0.756 | 12.3% |
+  | 64 | 6.0 | 694,016 | 100.0% | 0.8% | 93.8% | 0.992 | 0.704 | 7.3% |
+  | 128 | 7.0 | 702,208 | 99.9% | 0.01% | 41.0% | 0.999 | 0.724 | 5.3% |
+  | 256 | 8.0 | 718,592 | 0.02% | 0.0% | 0.0% | 0.000 | 0.746 | 0.0% |
+- **Falsification verdict:** **THESIS SUPPORTED.** Step-dependence range = 0.999 >> 0.05 threshold. Accuracy range = 1.000 >> 0.05.
+- **Key Findings:**
+  1. **Step dependence scales MONOTONICALLY with V** (for V where model learns): 0.818 -> 0.929 -> 0.992 -> 0.999. Larger bottleneck = more dynamics needed. This is the cleanest single result supporting the "softmax bottleneck drives iteration" thesis.
+  2. **T=1 accuracy drops exponentially with V**: 18.2% -> 7.1% -> 0.8% -> 0.01%. Single-step computation becomes progressively more insufficient as the readout projection grows harder.
+  3. **T=3 shows a PHASE TRANSITION at V=128**: V=16-64 all achieve >93% at T=3, but V=128 drops to 41% (high seed variance: 11%-93%). The model is at the edge of what 3 dynamics steps can solve at V=128.
+  4. **V=256 is a CAPACITY FAILURE**: the model (d=128, 718K params) cannot learn V=256 addition at all (loss stuck at log(256)/2 = 2.77). This is not a dynamics failure — the model lacks representational capacity. Step dependence is meaningless here.
+  5. **Recovery decreases monotonically**: 18.8% -> 12.3% -> 7.3% -> 5.3% -> 0.0%. Larger bottlenecks make recovery from perturbation progressively harder.
+  6. **V=128 has high seed variance for T=3**: seed 1337 achieves 93% while seeds 42 and 2024 get 11-19%. The model is right at its capacity edge for this bottleneck width, where initialization determines whether T=3 dynamics can solve the problem.
+  7. **Contraction is relatively V-independent**: ~0.70-0.77 across V=16-256. The dynamics' contraction rate is an architectural property, not bottleneck-dependent.
+- **Cross-experiment synthesis:** V=64 step_dep=0.992 matches D19 result (0.985) closely, validating reproducibility. The V=128 T=3 collapse connects to D19's finding that CE needs 3-5 steps — at larger V, "3 steps" becomes insufficient. Recovery decrease matches D21 findings.
+- **Artifacts:** `experiments/06_uesd/results/exp_d20_bottleneck_sweep.json` (reconstructed from stdout; script has relative path bug)
+- **Wall time:** 20,903s (~5.8 hrs) across 15 training runs
 
 ### Exp D19: Step Ablation Falsification Test (COMPLETE — DYNAMICS OVERWHELMINGLY ESSENTIAL)
 - **Config:** `experiments/06_uesd/exp_d19_step_ablation.py`

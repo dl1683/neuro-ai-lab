@@ -367,13 +367,13 @@ def run():
         print(f"  Fraction of null-B trials below actual: {fraction_below_actual:.3f}", flush=True)
 
         if mean_actual < mean_null_b:
-            print(f"  CONCLUSION: Actual has MORE cancellation than random rotation → "
+            print(f"  CONCLUSION: Actual has MORE cancellation than random rotation -> "
                   f"dynamics learned EXTRA rotation structure", flush=True)
         elif mean_actual > mean_null_b * 1.5:
-            print(f"  CONCLUSION: Actual has LESS cancellation than random rotation → "
+            print(f"  CONCLUSION: Actual has LESS cancellation than random rotation -> "
                   f"dynamics have partial alignment (directed amplification)", flush=True)
         else:
-            print(f"  CONCLUSION: Actual is comparable to random rotation → "
+            print(f"  CONCLUSION: Actual is comparable to random rotation -> "
                   f"cancellation is statistical, not learned", flush=True)
 
         mean_pr = np.mean([np.mean(ss["participation_ratio"]) for ss in all_spectra_stats])
@@ -426,8 +426,8 @@ def run():
         elif ratio > 1.2:
             interp = "PARTIAL alignment (actual >> random)"
         else:
-            interp = "STATISTICAL cancellation (actual ≈ random)"
-        print(f"    {tr['track']}: actual/null_B = {ratio:.2f} → {interp}", flush=True)
+            interp = "STATISTICAL cancellation (actual ~ random)"
+        print(f"    {tr['track']}: actual/null_B = {ratio:.2f} -> {interp}", flush=True)
 
     print(f"{'=' * 70}", flush=True)
 
