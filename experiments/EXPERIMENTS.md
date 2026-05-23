@@ -408,6 +408,31 @@ Framework where AI generation happens in continuous embedding space via iterativ
 - **Training time:** baseline=2318s, beta=0.01=6059s, beta=0.1=6317s, beta=1.0=5335s
 - **Artifacts:** `experiments/06_uesd/results/exp_d10_adaptive_halting.json`
 
+### Exp D16: Information Trajectory (COMPLETE — MONOTONIC ACCUMULATION, PROBES LEAD READOUT)
+- **Config:** `experiments/06_uesd/exp_d16_information_trajectory.py`
+- **Purpose:** Track how information about the target accumulates across dynamics steps. Uses linear probes on hidden states at each step t to measure MI(s_t, y*), separate from readout accuracy. Tests whether information builds progressively or appears suddenly.
+- **Results (dynamics_ce):**
+  - Readout trajectory: 0%->0.8%->18%->82%->99%->100% (steps 0-5)
+  - Probe trajectory: 1.6%->53%->81%->95%->99%->100% (steps 0-5)
+  - **PROBES LEAD READOUT**: At step 1, probes decode 53% but readout only 0.8% seq_acc. Information embeds in hidden states before readout can extract it.
+  - Monotonic: **strictly monotonic** (zero backtracking)
+  - Shuffled controls: all ~1.6% (chance) confirming genuine signal
+  - Per-chain-length: all chain lengths converge at similar rates (parallel)
+- **Results (E5):**
+  - Readout trajectory: 0%->0%->6%->51%->96%->99%->100% (steps 0-5)
+  - Probe trajectory: 1.6%->40%->61%->86%->95%->99%->100% (steps 0-5)
+  - Slower than CE (40% vs 53% at step 1) — consistent with D19
+  - Monotonic: tolerant-monotonic (max backtrack 0.03%)
+  - Per-chain: chain=3 probes peak at 87% (vs CE 97%) — slight chain-length effect in E5
+- **Key Findings:**
+  1. Information accumulates MONOTONICALLY — dynamics progressively build answer information
+  2. CE accumulates info FASTER than E5 (consistent with "ballistic" direct paths from D11)
+  3. Probes detect info BEFORE readout — information is embedded in hidden states 1-2 steps before readout can read it out
+  4. All chain lengths converge in parallel (no sequential carry-wave)
+  5. Zero backtracking for CE — dynamics never "forget" information once accumulated
+- **Cross-validation:** Step-by-step accuracy matches D19 curves almost exactly. Per-chain parallelism matches D7, D8, D10, D19 findings.
+- **Artifacts:** `experiments/06_uesd/results/exp_d16_information_trajectory.json`
+
 ### Exp D21: Wrong-Attractor Rate Under Latent Noise (COMPLETE — WIDE BASINS BUT NO RECOVERY)
 - **Config:** `experiments/06_uesd/exp_d21_wrong_attractor.py`
 - **Purpose:** Falsification test #5 from Codex meta-analysis. Tests solver stability by injecting Gaussian noise at converged states (s_T) and running 20 additional dynamics steps. Measures wrong-attractor rate at readout (WA@0), after extra steps (WA@20), and recovery.
