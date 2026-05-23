@@ -404,11 +404,11 @@ def run():
             alm, als = mean_std(final_aligns)
             osm, oss = mean_std(final_os)
 
-            print(f"  SUCCESS final metrics (mean ± std):", flush=True)
-            print(f"    Lyapunov:      {lm:.4f} ± {ls:.4f}", flush=True)
-            print(f"    Amplification: {am:.2f} ± {asm:.2f}", flush=True)
-            print(f"    Alignment:     {alm:.3f} ± {als:.3f}", flush=True)
-            print(f"    O/S ratio:     {osm:.3f} ± {oss:.3f}", flush=True)
+            print(f"  SUCCESS final metrics (mean +/- std):", flush=True)
+            print(f"    Lyapunov:      {lm:.4f} +/- {ls:.4f}", flush=True)
+            print(f"    Amplification: {am:.2f} +/- {asm:.2f}", flush=True)
+            print(f"    Alignment:     {alm:.3f} +/- {als:.3f}", flush=True)
+            print(f"    O/S ratio:     {osm:.3f} +/- {oss:.3f}", flush=True)
 
         if fail_runs:
             fail_lyaps = [r["snapshots"][-1]["lyapunov_mean"] for r in fail_runs]
@@ -465,7 +465,7 @@ def run():
             align_min_step = snaps[align_min_idx]["step"]
             align_recovery = snaps[min(align_min_idx + 3, len(snaps)-1)]["mean_alignment"]
             print(f"  seed={r['seed']}: align_min={align_min:.3f} at step {align_min_step} "
-                  f"→ recovery={align_recovery:.3f} | "
+                  f"-> recovery={align_recovery:.3f} | "
                   f"outcome={r['outcome']}", flush=True)
 
     print(f"\n{'=' * 80}", flush=True)

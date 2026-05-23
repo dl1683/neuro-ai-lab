@@ -1,0 +1,85 @@
+{
+  "timestamp": "2026-05-22T18:33:08+00:00",
+  "device": "cuda",
+  "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU",
+  "purpose": "Multi-seed stability validation: 5 seeds x 2 tracks",
+  "note": "JSON reconstructed from task output - training completed but original save crashed on Unicode print error",
+  "config": {
+    "vocab_size": 64,
+    "d_model": 128,
+    "n_heads": 4,
+    "d_ff": 512,
+    "n_enc_layers": 2,
+    "max_len": 32,
+    "seq_len": 8,
+    "T": 10,
+    "batch_size": 256,
+    "lr": 3e-4,
+    "training_steps": 20000,
+    "warmup_steps": 5000,
+    "seeds": [42, 137, 256, 512, 1024]
+  },
+  "summary_table": {
+    "columns": ["track", "seed", "outcome", "lyap_i", "lyap_f", "ali_i", "ali_min", "ali_f", "amp_f", "os_f", "CE_f"],
+    "rows": [
+      ["e5", 42, "SUCCESS", 0.3128, 0.0623, 0.877, 0.774, 0.892, 1.87, 1.093, 0.0070],
+      ["e5", 137, "SUCCESS", 0.3023, 0.0559, 0.881, 0.691, 0.782, 1.75, 1.011, 0.0046],
+      ["e5", 256, "SUCCESS", 0.3140, 0.0573, 0.921, 0.658, 0.780, 1.78, 1.016, 0.0038],
+      ["e5", 512, "SUCCESS", 0.3029, 0.0578, 0.835, 0.572, 0.789, 1.78, 1.177, 0.0032],
+      ["e5", 1024, "SUCCESS", 0.3026, 0.0634, 0.903, 0.731, 0.796, 1.89, 1.036, 0.0032],
+      ["dynamics_ce", 42, "SUCCESS", 0.3193, 0.1619, 0.921, 0.076, 0.628, 5.08, 0.941, 0.0053],
+      ["dynamics_ce", 137, "SUCCESS", 0.3069, 0.1866, 0.909, 0.328, 0.646, 6.51, 0.901, 0.0033],
+      ["dynamics_ce", 256, "SUCCESS", 0.3151, 0.1807, 0.903, 0.181, 0.469, 6.12, 0.959, 0.0041],
+      ["dynamics_ce", 512, "SUCCESS", 0.3143, 0.1838, 0.832, 0.174, 0.573, 6.31, 0.946, 0.0038],
+      ["dynamics_ce", 1024, "SUCCESS", 0.3003, 0.2283, 0.857, 0.202, 0.656, 9.88, 0.868, 0.0082]
+    ]
+  },
+  "cross_seed_stats": {
+    "e5": {
+      "n_success": 5,
+      "n_total": 5,
+      "success_seeds": [42, 137, 256, 512, 1024],
+      "final_metrics": {
+        "lyapunov": {"mean": 0.0593, "std": 0.0030, "cv_pct": 5.1},
+        "amplification": {"mean": 1.81, "std": 0.05, "cv_pct": 2.8},
+        "alignment": {"mean": 0.808, "std": 0.042, "cv_pct": 5.2},
+        "overshoot_ratio": {"mean": 1.067, "std": 0.062, "cv_pct": 5.8},
+        "final_ce": {"mean": 0.0044, "std": 0.0016, "cv_pct": 36.4}
+      }
+    },
+    "dynamics_ce": {
+      "n_success": 5,
+      "n_total": 5,
+      "success_seeds": [42, 137, 256, 512, 1024],
+      "final_metrics": {
+        "lyapunov": {"mean": 0.1883, "std": 0.0218, "cv_pct": 11.6},
+        "amplification": {"mean": 6.78, "std": 1.63, "cv_pct": 24.0},
+        "alignment": {"mean": 0.595, "std": 0.069, "cv_pct": 11.6},
+        "overshoot_ratio": {"mean": 0.923, "std": 0.033, "cv_pct": 3.6},
+        "final_ce": {"mean": 0.0049, "std": 0.0019, "cv_pct": 38.8}
+      }
+    }
+  },
+  "key_findings": {
+    "all_seeds_succeed": "10/10 runs (5 E5 + 5 CE-dynamics) converge to low CE",
+    "two_regimes_non_overlapping": {
+      "lyapunov": "E5 range [0.056, 0.063] vs CE-dyn [0.162, 0.228] — no overlap",
+      "alignment": "E5 range [0.780, 0.892] vs CE-dyn [0.469, 0.656] — no overlap",
+      "amplification": "E5 range [1.75, 1.89] vs CE-dyn [5.08, 9.88] — no overlap",
+      "overshoot": "E5 always > 1.0 vs CE-dyn always < 1.0 — clean phase boundary"
+    },
+    "ce_dyn_seed_1024_outlier": {
+      "note": "CE-dynamics seed 1024 is an outlier with notably worse stability metrics",
+      "lyap": "0.2283 vs mean 0.1783 for other 4 seeds (1.28 std devs above)",
+      "amp": "9.88x vs mean 6.005 (2.4 std devs above)",
+      "ce": "0.0082 vs mean 0.0041 (2x worse but still converged)",
+      "interpretation": "CE-dynamics without self-consistency has higher seed variance — seed 1024 found a less stable solution pathway"
+    },
+    "e5_tighter_clustering": "E5 Lyapunov CV=5.1% vs CE-dyn CV=11.6% — E5's self-consistency loss regularizes dynamics toward a tighter attractor cluster"
+  },
+  "training_times_seconds": {
+    "e5": [1345.3, 1299.4, 1368.3, 1266.0, 1517.6],
+    "dynamics_ce": [1309.9, 1358.7, 1244.5, 1244.3, 1177.6],
+    "total_hours": 3.75
+  }
+}
