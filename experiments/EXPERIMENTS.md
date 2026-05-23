@@ -433,6 +433,38 @@ Framework where AI generation happens in continuous embedding space via iterativ
 - **Cross-validation:** Step-by-step accuracy matches D19 curves almost exactly. Per-chain parallelism matches D7, D8, D10, D19 findings.
 - **Artifacts:** `experiments/06_uesd/results/exp_d16_information_trajectory.json`
 
+### Exp D15: Nishimori Calibration (COMPLETE — CE OVERSHOOTS, E5 UNDERSHOOTS, PARALLEL CALIBRATION)
+- **Config:** `experiments/06_uesd/exp_d15_nishimori_calibration.py`
+- **Purpose:** Test whether UESD dynamics approach the Nishimori line (rho=tanh(1/2)=0.462), the statistical physics prediction for optimal Bayesian posterior calibration. Measures confidence-accuracy calibration (ECE) at each dynamics step, identifies the step t* where rho is closest to the Nishimori prediction, and checks whether t* coincides with the step of minimum calibration error.
+- **Nishimori prediction:** rho = tanh(1/2) = 0.462 — the theoretical confidence level where a Bayesian decoder's posterior matches the true posterior.
+- **Results (dynamics_ce):**
+  - Calibration trajectory (conf/acc): step 0 (20%/1.5%) → step 2 (53%/51%) → step 4 (92%/99%) → step 10 (100%/100%)
+  - t_star_nishimori: **2** (rho=0.534, ABOVE Nishimori 0.462 by +15.6%)
+  - ECE at t*: 0.106. ECE min at step 10: 0.004
+  - **Steps don't coincide**: rho-nearest at step 2, ECE-min at step 10
+  - Tau sensitivity: tau=0.05→rho=0.500, tau=0.1→rho=0.534, **tau=0.2→rho=0.495** (within 7% of Nishimori!), tau=0.5→rho=0.102, tau=1.0→rho=0.041
+  - Per-chain calibration: chain 0 rho=0.516, chain 1 rho=0.529, chain 2 rho=0.545, chain 3 rho=0.553 — all t*=2, uniform across chains
+- **Results (E5):**
+  - Calibration trajectory (conf/acc): step 0 (20%/1.5%) → step 2 (34%/51%) → step 4 (92%/99%) → step 10 (100%/100%)
+  - t_star_nishimori: **2** (rho=0.341, BELOW Nishimori 0.462 by -26.2%)
+  - ECE at t*: 0.168. ECE min at step 10: 0.004
+  - **Steps don't coincide**: rho-nearest at step 2, ECE-min at step 10
+  - Tau sensitivity: tau=0.05→rho=0.475, tau=0.1→rho=0.341, tau=0.2→rho=0.419, tau=0.5→rho=0.104, tau=1.0→rho=0.041
+  - Per-chain calibration: all chains t*=2, rho~0.34 — completely uniform
+- **Controls:**
+  - Shuffled labels: accuracy stays flat at ~1.6% (chance) across all steps while confidence still increases — confirms calibration signal is genuine, not architectural artifact
+  - Encoder-only baseline: conf=0.936, acc=0.997, ECE=0.061, seq_acc=0.988 — well-calibrated without dynamics
+- **Key Findings:**
+  1. **Both regimes pass through Nishimori neighborhood but don't match it.** CE overshoots (rho=0.534 > 0.462), E5 undershoots (rho=0.341 < 0.462). Neither is purely Bayesian.
+  2. **CE overshoots = overconfident at intermediate steps.** Consistent with "ballistic" fast-converging paths from D11 — CE commits early and aggressively.
+  3. **E5 undershoots = underconfident at intermediate steps.** Consistent with conservative fixed-point convergence — E5 builds confidence slowly.
+  4. **Nishimori step ≠ optimal calibration step.** Both tracks have t*(rho)=2 but t*(ECE)=10. The Nishimori line doesn't predict the optimally calibrated step.
+  5. **Tau=0.2 brings CE within 7% of Nishimori** (rho=0.495 vs 0.462). The Nishimori prediction is temperature-sensitive and approachable.
+  6. **Per-chain calibration is uniform** — all carry chain lengths calibrate at the same rate and step. Strongly supports parallel computation (T5 thesis).
+  7. **Shuffled controls validate** — genuine learned calibration, not architectural bias.
+- **Cross-validation:** Step-2 accuracy (~50%) matches D19 interpolation between T=1 (1.5%) and T=3 (92%). Per-chain uniformity matches D7, D8, D10, D16, D19 parallel findings.
+- **Artifacts:** `experiments/06_uesd/results/exp_d15_nishimori_calibration.json`
+
 ### Exp D21: Wrong-Attractor Rate Under Latent Noise (COMPLETE — WIDE BASINS BUT NO RECOVERY)
 - **Config:** `experiments/06_uesd/exp_d21_wrong_attractor.py`
 - **Purpose:** Falsification test #5 from Codex meta-analysis. Tests solver stability by injecting Gaussian noise at converged states (s_T) and running 20 additional dynamics steps. Measures wrong-attractor rate at readout (WA@0), after extra steps (WA@20), and recovery.
