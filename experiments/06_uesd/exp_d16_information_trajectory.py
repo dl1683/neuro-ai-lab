@@ -152,46 +152,61 @@ def collect_intermediate_states(model, eval_src, config, device):
     return states  # list of T+1 tensors, each [B, L, d]
 
 
-def train_linear_probe(states_t, targets, d_model, V, half, device,
-                       n_epochs=50, lr=1e-3):
-    """Train a linear probe from s_t to y* for each result position."""
-    B = states_t.shape[0]
-    features = states_t[:, :half, :].reshape(B * half, d_model)
-    labels = targets[:, :half].reshape(B * half)
+def make_example_split(B, train_frac=0.8, seed=1234):
+    """Split examples (not tokens) into train/test. Returns index arrays."""
+    rng = torch.Generator().manual_seed(seed)
+    perm = torch.randperm(B, generator=rng)
+    n_train = int(train_frac * B)
+    return perm[:n_train], perm[n_train:]
 
-    # Split into train/test
-    n_train = int(0.8 * B * half)
-    idx = torch.randperm(B * half)
-    train_idx = idx[:n_train]
-    test_idx = idx[n_train:]
+
+def train_linear_probe(states_t, targets, d_model, V, half, device,
+                       train_idx, test_idx, n_epochs=50, lr=1e-3):
+    """Train a linear probe from s_t to y* with example-level train/test split.
+
+    train_idx/test_idx are example-level indices (not token-level), ensuring
+    no positions from the same addition problem leak across splits.
+    """
+    train_feat = states_t[train_idx, :half, :].reshape(-1, d_model)
+    train_labels = targets[train_idx, :half].reshape(-1)
+    test_feat = states_t[test_idx, :half, :].reshape(-1, d_model)
+    test_labels = targets[test_idx, :half].reshape(-1)
 
     probe = nn.Linear(d_model, V).to(device)
     optimizer = torch.optim.Adam(probe.parameters(), lr=lr)
 
     for epoch in range(n_epochs):
-        logits = probe(features[train_idx])
-        loss = F.cross_entropy(logits, labels[train_idx])
+        logits = probe(train_feat)
+        loss = F.cross_entropy(logits, train_labels)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
-    # Evaluate
     with torch.no_grad():
-        test_logits = probe(features[test_idx])
+        test_logits = probe(test_feat)
         test_preds = test_logits.argmax(dim=-1)
-        test_acc = (test_preds == labels[test_idx]).float().mean().item()
+        test_acc = (test_preds == test_labels).float().mean().item()
 
-        # Per-position accuracy
         per_pos = []
+        n_test = len(test_idx)
         for p in range(half):
-            pos_mask = (test_idx % half) == p
-            if pos_mask.sum() > 0:
-                pos_acc = (test_preds[pos_mask] == labels[test_idx][pos_mask]).float().mean().item()
-                per_pos.append(pos_acc)
-            else:
-                per_pos.append(float('nan'))
+            pos_preds = test_preds[p::half]
+            pos_labels = test_labels[p::half]
+            pos_acc = (pos_preds == pos_labels).float().mean().item()
+            per_pos.append(pos_acc)
 
     return test_acc, per_pos
+
+
+def train_shuffled_probe(states_t, targets, d_model, V, half, device,
+                         train_idx, test_idx, n_epochs=50, lr=1e-3):
+    """Shuffled-label control: same as train_linear_probe but permuted targets."""
+    perm = torch.randperm(targets.shape[0], device=device)
+    shuffled_tgt = targets[perm]
+    return train_linear_probe(
+        states_t, shuffled_tgt, d_model, V, half, device,
+        train_idx, test_idx, n_epochs, lr
+    )
 
 
 @torch.no_grad()
@@ -269,12 +284,18 @@ def run():
                       f"pos={[f'{p:.3f}' for p in ra['per_position']]}",
                       flush=True)
 
+        # Fixed example-level split (shared across all steps and controls)
+        train_idx, test_idx = make_example_split(eval_src.shape[0])
+        train_idx = train_idx.to(device)
+        test_idx = test_idx.to(device)
+
         # Linear probe accuracy per step
         print(f"  Training linear probes per step...", flush=True)
         probe_results = []
         for t in range(T + 1):
             probe_acc, probe_per_pos = train_linear_probe(
-                states[t], eval_tgt, d_model, V, half, device
+                states[t], eval_tgt, d_model, V, half, device,
+                train_idx, test_idx,
             )
             probe_results.append({
                 "step": t,
@@ -285,6 +306,17 @@ def run():
                 print(f"    t={t}: probe={probe_acc:.4f} "
                       f"pos={[f'{p:.3f}' for p in probe_per_pos]}",
                       flush=True)
+
+        # Shuffled-label control at t=0 and t=T
+        print(f"  Shuffled-label control probes...", flush=True)
+        shuffled_controls = {}
+        for t in [0, T]:
+            sh_acc, sh_pos = train_shuffled_probe(
+                states[t], eval_tgt, d_model, V, half, device,
+                train_idx, test_idx,
+            )
+            shuffled_controls[t] = {"probe_accuracy": sh_acc, "per_position": sh_pos}
+            print(f"    t={t} shuffled: probe={sh_acc:.4f}", flush=True)
 
         # Check monotonicity
         probe_accs = [p["probe_accuracy"] for p in probe_results]
@@ -309,12 +341,15 @@ def run():
 
             chain_states = [s[mask] for s in states]
             chain_tgt = eval_tgt[mask]
+            chain_train, chain_test = make_example_split(n)
+            chain_train = chain_train.to(device)
+            chain_test = chain_test.to(device)
 
             chain_probes = []
             for t in range(T + 1):
                 acc, per_pos = train_linear_probe(
                     chain_states[t], chain_tgt, d_model, V, half, device,
-                    n_epochs=30,
+                    chain_train, chain_test, n_epochs=30,
                 )
                 chain_probes.append({"step": t, "probe_accuracy": acc})
 
@@ -322,7 +357,6 @@ def run():
                 "n": n,
                 "probes": chain_probes,
             }
-            # Print only the trajectory
             accs_str = " → ".join(
                 f"{p['probe_accuracy']:.3f}" for p in chain_probes
                 if p["step"] in [0, 3, 5, 7, 10]
@@ -332,6 +366,9 @@ def run():
         all_results[track] = {
             "readout_accuracy": readout_accs,
             "probe_accuracy": probe_results,
+            "shuffled_label_controls": {
+                str(k): v for k, v in shuffled_controls.items()
+            },
             "monotonic": monotonic,
             "max_backtrack": max_backtrack,
             "per_chain_probes": chain_probe_results,

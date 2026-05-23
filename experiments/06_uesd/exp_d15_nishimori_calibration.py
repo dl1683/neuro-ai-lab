@@ -51,6 +51,7 @@ from shared.data import generate_batch
 NISHIMORI_RHO = np.tanh(0.5)  # ≈ 0.4621
 N_CALIBRATION_BINS = 20
 TAU_VALUES = [0.05, 0.1, 0.2, 0.5, 1.0]
+MODEL_TAU = 0.1  # model's trained readout temperature — primary analysis uses this
 
 
 def build_config(seed=42):
@@ -141,13 +142,63 @@ def compute_carries(src, vocab_size):
     return max_chain
 
 
+def _readout_probs(model, s, half, readout_tau=None):
+    """Compute readout probabilities using the model's actual readout pipeline.
+
+    Uses readout_proj + normalize + cosine sim (matching model.readout_logits),
+    optionally overriding the temperature for sensitivity analysis.
+    """
+    h = model.readout_proj(s[:, :half, :])
+    W = model.tok_emb.weight
+    h = F.normalize(h, dim=-1)
+    W = F.normalize(W, dim=-1)
+    tau = readout_tau if readout_tau is not None else model.tau
+    logits = torch.matmul(h, W.t()) / tau  # [B, half, V]
+    return F.softmax(logits, dim=-1)
+
+
+def _compute_ece_mce(conf_flat, corr_flat):
+    """Standard ECE/MCE: bin by max predicted-class probability."""
+    bin_edges = np.linspace(0, 1, N_CALIBRATION_BINS + 1)
+    bin_accs, bin_confs, bin_counts = [], [], []
+
+    for b_idx in range(N_CALIBRATION_BINS):
+        lo, hi = bin_edges[b_idx], bin_edges[b_idx + 1]
+        mask = (conf_flat >= lo) & (conf_flat < hi)
+        n = mask.sum()
+        if n > 0:
+            bin_accs.append(float(corr_flat[mask].mean()))
+            bin_confs.append(float(conf_flat[mask].mean()))
+            bin_counts.append(int(n))
+        else:
+            bin_accs.append(float('nan'))
+            bin_confs.append(float('nan'))
+            bin_counts.append(0)
+
+    total = len(conf_flat)
+    ece = sum(
+        (bc / total) * abs(ba - bconf)
+        for ba, bconf, bc in zip(bin_accs, bin_confs, bin_counts)
+        if not np.isnan(ba)
+    )
+    mce = max(
+        (abs(ba - bconf) for ba, bconf in zip(bin_accs, bin_confs)
+         if not np.isnan(ba)),
+        default=0.0,
+    )
+    return ece, mce, bin_accs, bin_confs, bin_counts
+
+
 @torch.no_grad()
 def calibration_analysis(model, eval_src, eval_tgt, config, device,
-                         readout_tau=0.1):
-    """Compute per-step calibration metrics for UESD dynamics."""
+                         readout_tau=None):
+    """Compute per-step calibration metrics for UESD dynamics.
+
+    Uses the model's actual readout (readout_proj + cosine sim / tau).
+    Confidence = max predicted-class probability (standard ECE definition).
+    """
     T = config["T"]
     half = config["seq_len"] // 2
-    V = config["vocab_size"]
 
     context = model.encode(eval_src)
     B, L = eval_src.shape
@@ -157,62 +208,17 @@ def calibration_analysis(model, eval_src, eval_tgt, config, device,
     step_results = []
 
     for t in range(T + 1):
-        # Readout probabilities at current state
-        logits = model.readout_logits(s)  # [B, L, V] using cosine sim / tau
-        # Override with specified tau for this analysis
-        emb = model.tok_emb.weight  # [V, d]
-        cos_sim = F.cosine_similarity(
-            s[:, :half, :].unsqueeze(2),  # [B, half, 1, d]
-            emb.unsqueeze(0).unsqueeze(0),  # [1, 1, V, d]
-            dim=-1,
-        )  # [B, half, V]
-        probs = F.softmax(cos_sim / readout_tau, dim=-1)  # [B, half, V]
+        probs = _readout_probs(model, s, half, readout_tau)  # [B, half, V]
 
-        # Confidence: probability assigned to the correct token
-        correct_probs = probs.gather(
-            2, targets.unsqueeze(-1)
-        ).squeeze(-1)  # [B, half]
+        # Confidence = max predicted-class probability (standard ECE)
+        max_probs, preds = probs.max(dim=-1)  # [B, half]
+        correct = (preds == targets).float()
 
-        # Correctness: does argmax match target?
-        preds = probs.argmax(dim=-1)  # [B, half]
-        correct = (preds == targets).float()  # [B, half]
-
-        # Flatten for calibration analysis
-        conf_flat = correct_probs.reshape(-1).cpu().numpy()
+        conf_flat = max_probs.reshape(-1).cpu().numpy()
         corr_flat = correct.reshape(-1).cpu().numpy()
 
-        # Calibration: bin by confidence, measure accuracy per bin
-        bin_edges = np.linspace(0, 1, N_CALIBRATION_BINS + 1)
-        bin_accs = []
-        bin_confs = []
-        bin_counts = []
-
-        for b_idx in range(N_CALIBRATION_BINS):
-            lo, hi = bin_edges[b_idx], bin_edges[b_idx + 1]
-            mask = (conf_flat >= lo) & (conf_flat < hi)
-            n = mask.sum()
-            if n > 0:
-                bin_accs.append(float(corr_flat[mask].mean()))
-                bin_confs.append(float(conf_flat[mask].mean()))
-                bin_counts.append(int(n))
-            else:
-                bin_accs.append(float('nan'))
-                bin_confs.append(float('nan'))
-                bin_counts.append(0)
-
-        # Expected Calibration Error
-        total = len(conf_flat)
-        ece = sum(
-            (bc / total) * abs(ba - bconf)
-            for ba, bconf, bc in zip(bin_accs, bin_confs, bin_counts)
-            if not np.isnan(ba)
-        )
-
-        # Maximum Calibration Error
-        mce = max(
-            (abs(ba - bconf) for ba, bconf in zip(bin_accs, bin_confs)
-             if not np.isnan(ba)),
-            default=0.0,
+        ece, mce, bin_accs, bin_confs, bin_counts = _compute_ece_mce(
+            conf_flat, corr_flat
         )
 
         avg_confidence = float(conf_flat.mean())
@@ -233,31 +239,33 @@ def calibration_analysis(model, eval_src, eval_tgt, config, device,
             "bin_counts": bin_counts,
         })
 
-        # Advance dynamics (except after last step)
         if t < T:
             s, _ = model.dynamics_step(s, context)
 
-    # Find the step closest to Nishimori rho
     rho_dists = [r["rho_distance"] for r in step_results]
     t_star = int(np.argmin(rho_dists))
     calib_at_tstar = step_results[t_star]["ece"]
 
+    tau_used = readout_tau if readout_tau is not None else model.tau
     return {
         "per_step": step_results,
         "t_star_nishimori": t_star,
         "rho_at_tstar": step_results[t_star]["avg_confidence"],
         "ece_at_tstar": calib_at_tstar,
-        "readout_tau": readout_tau,
+        "readout_tau": tau_used,
     }
 
 
 @torch.no_grad()
 def per_chain_calibration(model, eval_src, eval_tgt, max_chain, config,
-                          device, readout_tau=0.1):
-    """Check if Nishimori transition step depends on carry-chain length."""
+                          device):
+    """Check if Nishimori transition step depends on carry-chain length.
+
+    Uses model's trained readout (readout_proj + cosine / tau).
+    Confidence = max predicted-class probability.
+    """
     T = config["T"]
     half = config["seq_len"] // 2
-    V = config["vocab_size"]
 
     context = model.encode(eval_src)
     B, L = eval_src.shape
@@ -265,7 +273,6 @@ def per_chain_calibration(model, eval_src, eval_tgt, max_chain, config,
     targets = eval_tgt[:, :half]
 
     chain_results = {}
-
     for chain_len in range(half):
         mask = max_chain == chain_len
         n = mask.sum().item()
@@ -277,22 +284,14 @@ def per_chain_calibration(model, eval_src, eval_tgt, max_chain, config,
             "avg_accuracy_per_step": [],
         }
 
-    s = model.init_state(B, L, device)
     for t in range(T + 1):
-        emb = model.tok_emb.weight
-        cos_sim = F.cosine_similarity(
-            s[:, :half, :].unsqueeze(2),
-            emb.unsqueeze(0).unsqueeze(0),
-            dim=-1,
-        )
-        probs = F.softmax(cos_sim / readout_tau, dim=-1)
-        correct_probs = probs.gather(2, targets.unsqueeze(-1)).squeeze(-1)
-        preds = probs.argmax(dim=-1)
+        probs = _readout_probs(model, s, half)
+        max_probs, preds = probs.max(dim=-1)
         correct = (preds == targets).float()
 
         for chain_len in chain_results:
             mask = max_chain == chain_len
-            chain_conf = correct_probs[mask].mean().item()
+            chain_conf = max_probs[mask].mean().item()
             chain_acc = correct[mask].mean().item()
             chain_results[chain_len]["avg_confidence_per_step"].append(chain_conf)
             chain_results[chain_len]["avg_accuracy_per_step"].append(chain_acc)
@@ -300,7 +299,6 @@ def per_chain_calibration(model, eval_src, eval_tgt, max_chain, config,
         if t < T:
             s, _ = model.dynamics_step(s, context)
 
-    # Find t* per chain length
     for chain_len, data in chain_results.items():
         confs = data["avg_confidence_per_step"]
         dists = [abs(c - NISHIMORI_RHO) for c in confs]
@@ -344,30 +342,54 @@ def run():
 
         track_results = {}
 
-        # Sweep readout temperatures
+        # Primary analysis: model's trained tau (pre-registered)
+        print(f"\n  Primary calibration (tau={MODEL_TAU})...", flush=True)
+        cal = calibration_analysis(model, eval_src, eval_tgt, config, device)
+        track_results["primary"] = cal
+        tstar = cal["t_star_nishimori"]
+        rho = cal["rho_at_tstar"]
+        ece = cal["ece_at_tstar"]
+        print(f"    t*={tstar}, rho={rho:.4f} (target={NISHIMORI_RHO:.4f}), "
+              f"ECE={ece:.4f}", flush=True)
+        for sr in cal["per_step"]:
+            if sr["step"] in [0, 1, 3, 5, 7, 10]:
+                print(f"    t={sr['step']}: conf={sr['avg_confidence']:.4f} "
+                      f"acc={sr['avg_accuracy']:.4f} "
+                      f"ECE={sr['ece']:.4f} "
+                      f"|conf-rho|={sr['rho_distance']:.4f}", flush=True)
+
+        # Shuffled-label control: same computation, but targets are permuted
+        # If calibration looks good with shuffled labels, the metric is broken
+        print(f"\n  Shuffled-label control...", flush=True)
+        perm = torch.randperm(eval_tgt.shape[0], device=device)
+        shuffled_tgt = eval_tgt[perm]
+        cal_shuffled = calibration_analysis(
+            model, eval_src, shuffled_tgt, config, device
+        )
+        track_results["shuffled_label_control"] = cal_shuffled
+        print(f"    Shuffled t*={cal_shuffled['t_star_nishimori']}, "
+              f"rho={cal_shuffled['rho_at_tstar']:.4f}, "
+              f"ECE={cal_shuffled['ece_at_tstar']:.4f}", flush=True)
+
+        # Secondary: tau sweep (sensitivity analysis, not primary evidence)
+        print(f"\n  Tau sensitivity sweep...", flush=True)
+        tau_sweep = {}
         for tau in TAU_VALUES:
-            print(f"\n  Calibration analysis (tau={tau})...", flush=True)
-            cal = calibration_analysis(
+            cal_tau = calibration_analysis(
                 model, eval_src, eval_tgt, config, device, readout_tau=tau
             )
-            track_results[f"tau_{tau}"] = cal
+            tau_sweep[f"tau_{tau}"] = {
+                "t_star": cal_tau["t_star_nishimori"],
+                "rho_at_tstar": cal_tau["rho_at_tstar"],
+                "ece_at_tstar": cal_tau["ece_at_tstar"],
+            }
+            print(f"    tau={tau}: t*={cal_tau['t_star_nishimori']}, "
+                  f"rho={cal_tau['rho_at_tstar']:.4f}, "
+                  f"ECE={cal_tau['ece_at_tstar']:.4f}", flush=True)
+        track_results["tau_sensitivity"] = tau_sweep
 
-            tstar = cal["t_star_nishimori"]
-            rho = cal["rho_at_tstar"]
-            ece = cal["ece_at_tstar"]
-            print(f"    t*={tstar}, rho={rho:.4f} (target={NISHIMORI_RHO:.4f}), "
-                  f"ECE={ece:.4f}", flush=True)
-
-            # Per-step summary
-            for sr in cal["per_step"]:
-                if sr["step"] in [0, 1, 3, 5, 7, 10]:
-                    print(f"    t={sr['step']}: conf={sr['avg_confidence']:.4f} "
-                          f"acc={sr['avg_accuracy']:.4f} "
-                          f"ECE={sr['ece']:.4f} "
-                          f"|conf-rho|={sr['rho_distance']:.4f}", flush=True)
-
-        # Per-chain calibration at default tau
-        print(f"\n  Per-chain calibration (tau=0.1)...", flush=True)
+        # Per-chain calibration at model's tau
+        print(f"\n  Per-chain calibration...", flush=True)
         chain_cal = per_chain_calibration(
             model, eval_src, eval_tgt, max_chain, config, device
         )
@@ -419,26 +441,34 @@ def run():
     enc_model.eval()
 
     # Encoder calibration (single-shot, no dynamics)
+    # Uses max predicted-class probability as confidence (standard ECE)
     with torch.no_grad():
         logits = enc_model(eval_src)
         probs = F.softmax(logits[:, :half, :], dim=-1)
         targets = eval_tgt[:, :half]
-        correct_probs = probs.gather(2, targets.unsqueeze(-1)).squeeze(-1)
-        preds = probs.argmax(dim=-1)
+        max_probs, preds = probs.max(dim=-1)
         correct = (preds == targets).float()
 
-        enc_conf = correct_probs.mean().item()
-        enc_acc = correct.float().mean().item()
-        enc_preds_correct = (preds == targets).all(dim=1).float().mean().item()
+        conf_flat = max_probs.reshape(-1).cpu().numpy()
+        corr_flat = correct.reshape(-1).cpu().numpy()
+        ece, mce, bin_accs, bin_confs, bin_counts = _compute_ece_mce(
+            conf_flat, corr_flat
+        )
+
+        enc_conf = float(conf_flat.mean())
+        enc_acc = float(corr_flat.mean())
+        enc_seq_acc = (preds == targets).all(dim=1).float().mean().item()
 
     print(f"  Encoder: conf={enc_conf:.4f}, acc={enc_acc:.4f}, "
-          f"seq_acc={enc_preds_correct:.4f}", flush=True)
+          f"ECE={ece:.4f}, seq_acc={enc_seq_acc:.4f}", flush=True)
     print(f"  |conf - rho| = {abs(enc_conf - NISHIMORI_RHO):.4f}", flush=True)
 
     all_results["encoder_control"] = {
         "avg_confidence": enc_conf,
         "avg_accuracy": enc_acc,
-        "seq_accuracy": enc_preds_correct,
+        "ece": ece,
+        "mce": mce,
+        "seq_accuracy": enc_seq_acc,
         "rho_distance": abs(enc_conf - NISHIMORI_RHO),
     }
 
