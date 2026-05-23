@@ -421,6 +421,7 @@ def run():
         train_time = time.time() - t0
         print(f"  Training done in {train_time:.0f}s", flush=True)
 
+        model.eval()
         set_seed(999)
         eval_src, eval_tgt = generate_batch("addition", N_EVAL,
                                              config["seq_len"], V)

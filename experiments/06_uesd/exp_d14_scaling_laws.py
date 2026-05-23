@@ -115,7 +115,12 @@ def train_and_eval(model, config, device, T_override=None):
         src, tgt = src.to(device), tgt.to(device)
 
         logits = model(src, T)
-        loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), tgt.reshape(-1))
+        logits_result = logits[:, :half, :]
+        tgt_result = tgt[:, :half]
+        loss = F.cross_entropy(
+            logits_result.reshape(-1, logits_result.size(-1)),
+            tgt_result.reshape(-1),
+        )
 
         optimizer.zero_grad()
         loss.backward()
@@ -124,9 +129,8 @@ def train_and_eval(model, config, device, T_override=None):
 
         if step % 2000 == 0 or step == 1:
             with torch.no_grad():
-                preds = logits[:, :half, :].argmax(dim=-1)
-                targets = tgt[:, :half]
-                seq_acc = (preds == targets).all(dim=1).float().mean().item()
+                preds = logits_result.argmax(dim=-1)
+                seq_acc = (preds == tgt_result).all(dim=1).float().mean().item()
             history.append({"step": step, "loss": loss.item(), "seq_acc": seq_acc})
             print(f"      Step {step:>6d}/{total} | CE: {loss.item():.4f} "
                   f"| seq: {seq_acc:.4f}", flush=True)
@@ -171,7 +175,12 @@ def train_and_eval_encoder(model, config, device, n_layers):
         src, tgt = src.to(device), tgt.to(device)
 
         logits = model(src)
-        loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), tgt.reshape(-1))
+        logits_result = logits[:, :half, :]
+        tgt_result = tgt[:, :half]
+        loss = F.cross_entropy(
+            logits_result.reshape(-1, logits_result.size(-1)),
+            tgt_result.reshape(-1),
+        )
 
         optimizer.zero_grad()
         loss.backward()
@@ -180,9 +189,8 @@ def train_and_eval_encoder(model, config, device, n_layers):
 
         if step % 2000 == 0 or step == 1:
             with torch.no_grad():
-                preds = logits[:, :half, :].argmax(dim=-1)
-                targets = tgt[:, :half]
-                seq_acc = (preds == targets).all(dim=1).float().mean().item()
+                preds = logits_result.argmax(dim=-1)
+                seq_acc = (preds == tgt_result).all(dim=1).float().mean().item()
             history.append({"step": step, "loss": loss.item(), "seq_acc": seq_acc})
             print(f"      Step {step:>6d}/{total} | CE: {loss.item():.4f} "
                   f"| seq: {seq_acc:.4f}", flush=True)
