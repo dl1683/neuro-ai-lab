@@ -196,6 +196,70 @@ class EncoderOnlyAblation(nn.Module):
         return self.readout_logits(h)
 
 
+class RectifiedFlowHead(nn.Module):
+    """MLP velocity field for rectified-flow correction of UESD outputs."""
+
+    def __init__(self, d_model, t_dim=16, hidden_dim=256):
+        super().__init__()
+        self.t_mlp = nn.Sequential(
+            nn.Linear(1, t_dim),
+            nn.SiLU(),
+            nn.Linear(t_dim, t_dim),
+        )
+        in_dim = d_model * 3 + t_dim
+        self.net = nn.Sequential(
+            nn.Linear(in_dim, hidden_dim),
+            nn.SiLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.SiLU(),
+            nn.Linear(hidden_dim, d_model),
+        )
+
+    def forward(self, z, h, c_pool, t):
+        """Predict velocity from current state toward data manifold.
+
+        Args:
+            z: (B, L, d) current latent state
+            h: (B, L, d) UESD dynamics output (conditioning)
+            c_pool: (B, d) mean-pooled encoder context
+            t: (B,) noise-level parameter in [0, 1]
+
+        Returns:
+            velocity: (B, L, d)
+        """
+        t_emb = self.t_mlp(t.unsqueeze(-1))
+        c_exp = c_pool.unsqueeze(1).expand(-1, z.size(1), -1)
+        t_exp = t_emb.unsqueeze(1).expand(-1, z.size(1), -1)
+        inp = torch.cat([z, h, c_exp, t_exp], dim=-1)
+        return self.net(inp)
+
+
+class BasinCoupledUESD(UESDModel):
+    """UESD with rectified-flow correction for basin-coupled convergence."""
+
+    def __init__(self, vocab_size, d_model, n_heads, d_ff, n_enc_layers, max_len,
+                 flow_hidden=256, flow_t_dim=16):
+        super().__init__(vocab_size, d_model, n_heads, d_ff, n_enc_layers, max_len)
+        self.flow_head = RectifiedFlowHead(d_model, t_dim=flow_t_dim, hidden_dim=flow_hidden)
+
+    @torch.no_grad()
+    def flow_correct(self, h, context, K=4):
+        """Apply K Euler steps of rectified-flow correction.
+
+        Convention: t=0 is data, t=1 is noise.
+        flow_head predicts velocity (data - noise direction).
+        Integration goes from t=1 down to t=0.
+        """
+        c_pool = context.mean(dim=1)
+        z = h.clone()
+        B = h.size(0)
+        for k in range(K, 0, -1):
+            t = torch.full((B,), k / K, device=h.device)
+            v = self.flow_head(z, h, c_pool, t)
+            z = z + (1.0 / K) * v
+        return z
+
+
 def default_config():
     return {
         "vocab_size": 64,

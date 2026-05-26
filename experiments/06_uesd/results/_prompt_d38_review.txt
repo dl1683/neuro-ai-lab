@@ -1,0 +1,45 @@
+You are the Correctness Engineer reviewing code BEFORE a GPU experiment launch.
+
+Read these files carefully:
+1. C:\Users\devan\OneDrive\Desktop\Projects\neuro-ai-lab\experiments\06_uesd\exp_d38_basin_coupled_flow.py
+2. C:\Users\devan\OneDrive\Desktop\Projects\neuro-ai-lab\experiments\06_uesd\shared\model.py (focus on RectifiedFlowHead and BasinCoupledUESD classes)
+3. C:\Users\devan\OneDrive\Desktop\Projects\neuro-ai-lab\experiments\06_uesd\shared\training.py
+4. C:\Users\devan\OneDrive\Desktop\Projects\neuro-ai-lab\experiments\06_uesd\shared\data.py (the addition task)
+
+CONTEXT: This experiment implements "Basin-Coupled UESD with Rectified-Flow Correction" — a 4-phase training approach to solve the 20% wrong-attractor problem in UESD dynamics. It extends the existing UESDModel with a flow correction head.
+
+YOUR TASK — check for bugs that would waste GPU time:
+
+1. SHAPE MISMATCHES: Trace tensor shapes through every forward path. Check:
+   - flow_head input dimensions (z, h, c_pool, t concatenation)
+   - t parameter broadcasting (scalar vs batch)
+   - margin computation (correct logit gathering)
+   - recovery training path (detached h + noise -> dynamics -> readout)
+
+2. GRADIENT FLOW: Verify correct grad/no-grad:
+   - Phase A: CE grads flow through G, encoder, readout
+   - Phase B: CE grads through G; flow loss only trains flow_head (h detached)
+   - Phase C: CE+SC grads through G; flow detached; margin grads through readout
+   - Phase D: Same as C plus recovery loss grads through G (from detached h+noise)
+
+3. LOSS SIGNS AND CONVENTIONS:
+   - Rectified flow: z_t = (1-t)*y + t*eps, target_v = y - eps
+   - Inference: integration from t=1 to t=0, z = z + (1/K)*v
+   - Check if this is mathematically correct (does the flow move toward data?)
+
+4. EVALUATION CORRECTNESS:
+   - Addition task uses first HALF positions for accuracy (second half is padding zeros)
+   - Wrong-attractor rate computation matches diagnostics.py
+   - Contraction rate k estimator matches D33/D37
+
+5. OFF-BY-ONE AND EDGE CASES:
+   - Phase step counters (step_in_phase starts at 1)
+   - SC warmup ratio at step boundaries
+   - Empty batch handling in evaluation
+
+6. POTENTIAL OOMS:
+   - Phase D: recovery path creates extra graph through 3 G steps
+   - Batch size 256, seq_len 16, d_model 128 — is this safe?
+   - Maximum graph depth with VT up to T=16 plus 3 recovery steps
+
+Report ONLY actual bugs or risks. Do not suggest style changes. Flag severity: CRITICAL (will crash or give wrong results), WARNING (might cause subtle issues), or INFO (minor).
