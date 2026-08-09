@@ -1,4 +1,4 @@
-﻿"""Cutset predictors for severe global pruning."""
+"""Cutset predictors for severe global pruning."""
 
 from __future__ import annotations
 

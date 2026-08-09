@@ -1,4 +1,4 @@
-﻿"""Adaptive path pruning utilities.
+"""Adaptive path pruning utilities.
 
 This module contains the reusable core behind the experiment-04 discovery:
 path-aware pruning is most useful as a sparsity-cliff correction for dense

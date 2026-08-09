@@ -1,4 +1,4 @@
-﻿"""Residual route-capacity allocation utilities.
+"""Residual route-capacity allocation utilities.
 
 This module turns the TinyResNet route-quality experiments into a reusable method
 surface. It predicts protected-capacity shares for residual networks from route

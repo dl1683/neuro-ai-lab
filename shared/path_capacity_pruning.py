@@ -1,4 +1,4 @@
-﻿"""Path-capacity constrained pruning utilities.
+"""Path-capacity constrained pruning utilities.
 
 The goal is to preserve circuit viability under severe sparsity. A base saliency
 score still ranks most parameters, but required bridge layers receive an explicit
