@@ -12,7 +12,8 @@ Smoke protocol (``--smoke N``):
   - evaluate the first N examples of the canonical selected cohort through the
     identical data, prompt, generation, and extraction path;
   - report diagnostic metrics to stdout with verdict SMOKE_ONLY;
-  - never write the canonical result artifact.
+  - never write the canonical result artifact unless the canonical-cohort
+    leakage preflight detects the preregistered terminal VOID condition.
 
 The exact base-A identifier is private repository-local configuration. This
 script reads it from the gitignored ``_local_manifest.md`` and never logs or
@@ -22,7 +23,9 @@ serializes it.
 from __future__ import annotations
 
 import argparse
+import difflib
 import hashlib
+import inspect
 import json
 import math
 import os
@@ -78,6 +81,9 @@ MAX_EXTRACTION_FAILURE_RATE = 0.05
 HERE = Path(__file__).resolve().parent
 LOCAL_MANIFEST_PATH = HERE / "_local_manifest.md"
 RESULT_PATH = HERE / "results" / "exp_e1_task_band.json"
+INITIAL_PARSER_MISS_PATH = (
+    HERE / "results" / "exp_e1_task_band_initial_parser_miss.json"
+)
 
 NUMBER_PATTERN = r"[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?"
 HASH_ANSWER_RE = re.compile(rf"####\s*({NUMBER_PATTERN})")
@@ -106,7 +112,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         metavar="N",
         help=(
             "run the first N examples of the canonical cohort without writing "
-            "the canonical result artifact"
+            "the canonical result artifact unless leakage is detected"
         ),
     )
     parser.add_argument(
@@ -121,6 +127,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     args = parser.parse_args(argv)
     if args.smoke is not None and not 1 <= args.smoke <= CANONICAL_SAMPLE_COUNT:
         parser.error(f"--smoke N must satisfy 1 <= N <= {CANONICAL_SAMPLE_COUNT}")
+    if args.smoke is not None and args.parser_attempt != "initial":
+        parser.error("--parser-attempt repaired is only valid for the canonical run")
     return args
 
 
@@ -229,23 +237,37 @@ def leakage_preflight(
     test_split: Dataset,
     selected_indices: Sequence[int],
 ) -> dict[str, Any]:
-    demonstration_questions = {
-        normalized_question(train_split[index]["question"])
-        for index in DEMONSTRATION_INDICES
-    }
-    cohort_questions = {
-        normalized_question(test_split[index]["question"])
-        for index in selected_indices
-    }
-    overlaps = demonstration_questions & cohort_questions
-    if overlaps:
-        raise RuntimeError("demonstration-versus-cohort question leakage detected")
+    demonstration_questions: dict[str, list[int]] = {}
+    for index in DEMONSTRATION_INDICES:
+        normalized = normalized_question(train_split[index]["question"])
+        demonstration_questions.setdefault(normalized, []).append(index)
+
+    cohort_questions: dict[str, list[dict[str, int]]] = {}
+    for cohort_position, dataset_index in enumerate(selected_indices):
+        normalized = normalized_question(test_split[dataset_index]["question"])
+        cohort_questions.setdefault(normalized, []).append(
+            {
+                "cohort_position": cohort_position,
+                "dataset_index": dataset_index,
+            }
+        )
+
+    overlapping_questions = sorted(demonstration_questions.keys() & cohort_questions.keys())
+    overlap_evidence = [
+        {
+            "normalized_question": question,
+            "demonstration_indices": demonstration_questions[question],
+            "cohort_examples": cohort_questions[question],
+        }
+        for question in overlapping_questions
+    ]
     return {
-        "status": "PASS",
+        "status": "FAIL" if overlap_evidence else "PASS",
         "comparison": "normalized_exact_question_text",
         "demonstration_count": len(demonstration_questions),
         "cohort_count": len(cohort_questions),
-        "overlap_count": 0,
+        "overlap_count": len(overlap_evidence),
+        "overlaps": overlap_evidence,
     }
 
 
@@ -310,6 +332,107 @@ def extract_predicted_answer(
         if normalized is not None:
             return normalized, "last_numeric_token_in_first_segment", segment, segment_stop_reason
     return None, None, segment, segment_stop_reason
+
+
+def parser_source_text() -> str:
+    components = (
+        normalize_number,
+        first_answer_segment,
+        extract_predicted_answer,
+    )
+    return "\n\n".join(inspect.getsource(component) for component in components)
+
+
+def sha256_text(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def load_initial_parser_miss() -> tuple[dict[str, Any], str, str]:
+    try:
+        artifact = json.loads(INITIAL_PARSER_MISS_PATH.read_text(encoding="utf-8"))
+        parser_provenance = artifact["protocol"]["answer_extraction"][
+            "parser_provenance"
+        ]
+        initial_source = parser_provenance["source_text"]
+        initial_fingerprint = parser_provenance["source_sha256"]
+    except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
+        raise RuntimeError("the initial parser-miss artifact is invalid") from error
+
+    valid_artifact = (
+        artifact.get("experiment") == EXPERIMENT
+        and artifact.get("mode") == "canonical"
+        and artifact.get("sample_count") == CANONICAL_SAMPLE_COUNT
+        and artifact.get("status") == "PARSER_REPAIR_REQUIRED"
+        and artifact.get("verdict", {}).get("token") == "PARSER-REPAIR-REQUIRED"
+        and artifact.get("extraction_failures", {}).get("rate", 0)
+        > MAX_EXTRACTION_FAILURE_RATE
+        and isinstance(artifact.get("per_example"), list)
+        and len(artifact["per_example"]) == CANONICAL_SAMPLE_COUNT
+        and parser_provenance.get("attempt") == "initial"
+        and isinstance(initial_source, str)
+        and sha256_text(initial_source) == initial_fingerprint
+    )
+    if not valid_artifact:
+        raise RuntimeError("the initial parser-miss artifact failed provenance checks")
+    return artifact, initial_source, initial_fingerprint
+
+
+def parser_provenance(mode: str, attempt: str) -> dict[str, Any]:
+    current_source = parser_source_text()
+    current_fingerprint = sha256_text(current_source)
+    provenance: dict[str, Any] = {
+        "attempt": attempt if mode == "canonical" else "smoke",
+        "source_components": [
+            "normalize_number",
+            "first_answer_segment",
+            "extract_predicted_answer",
+        ],
+        "source_sha256": current_fingerprint,
+        "source_text": current_source,
+    }
+    if mode != "canonical":
+        return provenance
+
+    relative_attempt_path = str(INITIAL_PARSER_MISS_PATH.relative_to(HERE.parent.parent))
+    if attempt == "initial":
+        if INITIAL_PARSER_MISS_PATH.exists():
+            raise RuntimeError(
+                "the initial parser attempt is already recorded; use the repaired attempt"
+            )
+        provenance["initial_miss_artifact_path"] = relative_attempt_path
+        provenance["change_from_initial"] = None
+        return provenance
+
+    if not INITIAL_PARSER_MISS_PATH.is_file():
+        raise RuntimeError("a repaired parser attempt requires the initial-miss artifact")
+    _, initial_source, initial_fingerprint = load_initial_parser_miss()
+    if current_fingerprint == initial_fingerprint:
+        raise RuntimeError("the repaired parser source is identical to the initial parser")
+
+    source_diff = "".join(
+        difflib.unified_diff(
+            initial_source.splitlines(keepends=True),
+            current_source.splitlines(keepends=True),
+            fromfile=f"initial/{initial_fingerprint}",
+            tofile=f"repaired/{current_fingerprint}",
+        )
+    )
+    if not source_diff:
+        raise RuntimeError("the repaired parser has no mechanically recorded source diff")
+    provenance.update(
+        {
+            "initial_miss_artifact_path": relative_attempt_path,
+            "initial_miss_artifact_sha256": sha256_file(INITIAL_PARSER_MISS_PATH),
+            "initial_source_sha256": initial_fingerprint,
+            "source_changed_from_initial": True,
+            "change_from_initial": source_diff,
+        }
+    )
+    return provenance
 
 
 class NewQuestionBoundaryCriteria(StoppingCriteria):
@@ -377,19 +500,30 @@ def canonical_verdict(
     correct_count: int,
     valid_extracted_incorrect_count: int,
     extraction_failure_rate: float,
-    parser_attempt: str,
+    parser_evidence: dict[str, Any],
 ) -> dict[str, Any]:
     if extraction_failure_rate > MAX_EXTRACTION_FAILURE_RATE:
-        if parser_attempt == "initial":
+        if parser_evidence["attempt"] == "initial":
             return {
                 "token": "PARSER-REPAIR-REQUIRED",
                 "reason": "initial_extraction_failure_rate_above_5_percent",
                 "next_action": (
                     "repair and qualify the parser once, then rerun with "
-                    "--parser-attempt repaired; no canonical artifact was written"
+                    "--parser-attempt repaired; the initial-miss artifact was "
+                    "written but no canonical result was written"
                 ),
                 "terminal": False,
             }
+        repaired_attempt_is_qualified = (
+            parser_evidence["attempt"] == "repaired"
+            and parser_evidence.get("source_changed_from_initial") is True
+            and bool(parser_evidence.get("initial_miss_artifact_sha256"))
+            and INITIAL_PARSER_MISS_PATH.is_file()
+        )
+        if not repaired_attempt_is_qualified:
+            raise RuntimeError(
+                "terminal extraction-failure VOID requires a qualified repaired attempt"
+            )
         return {
             "token": "VOID",
             "reason": "repaired_extraction_failure_rate_above_5_percent",
@@ -622,7 +756,7 @@ def summarize(
     verification_wall_time_seconds: float,
     canonical_indices: Sequence[int],
     mode: str,
-    parser_attempt: str,
+    parser_evidence: dict[str, Any],
     dataset_provenance: dict[str, Any],
     leakage_check: dict[str, Any],
     batch_equivalence: dict[str, Any],
@@ -664,7 +798,7 @@ def summarize(
             correct_count=correct_count,
             valid_extracted_incorrect_count=valid_extracted_incorrect_count,
             extraction_failure_rate=extraction_failure_rate,
-            parser_attempt=parser_attempt,
+            parser_evidence=parser_evidence,
         )
     else:
         verdict = {
@@ -735,7 +869,9 @@ def summarize(
                 "primary": "first valid final-line #### answer in the first segment",
                 "fallback": "last numeric token inside that same first segment",
                 "normalization": "remove thousands separators and compare finite decimals exactly",
-                "parser_attempt": parser_attempt,
+                "parser_attempt": parser_evidence["attempt"],
+                "parser_source_sha256": parser_evidence["source_sha256"],
+                "parser_provenance": parser_evidence,
             },
             "thresholds": {
                 "correct_count_inclusive": [PASS_MIN_CORRECT, PASS_MAX_CORRECT],
@@ -784,22 +920,142 @@ def summarize(
     }
 
 
-def write_canonical_result(result: dict[str, Any]) -> None:
-    if RESULT_PATH.exists():
-        raise RuntimeError("canonical E1 evidence already exists and will not be overwritten")
-    RESULT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    temporary_path = RESULT_PATH.with_suffix(".json.tmp")
+def leakage_void_result(
+    trigger_mode: str,
+    canonical_indices: Sequence[int],
+    dataset_provenance: dict[str, Any],
+    leakage_check: dict[str, Any],
+    parser_evidence: dict[str, Any],
+) -> dict[str, Any]:
+    if leakage_check["status"] != "FAIL" or leakage_check["overlap_count"] < 1:
+        raise RuntimeError("leakage VOID requires positive leakage evidence")
+    return {
+        "experiment": EXPERIMENT,
+        "status": "COMPLETE",
+        "mode": "canonical",
+        "trigger_mode": trigger_mode,
+        "model": PUBLIC_MODEL_NAME,
+        "created_at_utc": datetime.now(timezone.utc).isoformat(),
+        "protocol": {
+            "dataset": "GSM8K",
+            "dataset_id": DATASET_ID,
+            "dataset_revision": DATASET_REVISION,
+            "dataset_config": DATASET_CONFIG,
+            "evaluation_split": TEST_SPLIT,
+            "dataset_provenance": dataset_provenance,
+            "leakage_preflight": leakage_check,
+            "selection": {
+                "method": "python_random_sample_without_replacement",
+                "seed": SEED,
+                "canonical_sample_count": CANONICAL_SAMPLE_COUNT,
+                "canonical_indices_sha256": selection_digest(canonical_indices),
+            },
+            "five_shot_demonstrations": {
+                "split": TRAIN_SPLIT,
+                "indices": list(DEMONSTRATION_INDICES),
+                "prompt_preamble": PROMPT_PREAMBLE,
+            },
+            "answer_extraction": {
+                "parser_attempt": parser_evidence["attempt"],
+                "parser_source_sha256": parser_evidence["source_sha256"],
+                "parser_provenance": parser_evidence,
+            },
+        },
+        "sample_count": 0,
+        "verdict": {
+            "token": "VOID",
+            "reason": "demonstration_or_cohort_leakage_detected",
+            "next_action": "stop the task-band program",
+            "terminal": True,
+        },
+        "per_example": [],
+    }
+
+
+def write_evidence_artifact(
+    path: Path,
+    result: dict[str, Any],
+    evidence_label: str,
+) -> None:
+    if path.exists():
+        raise RuntimeError(f"{evidence_label} already exists and will not be overwritten")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = path.with_suffix(".json.tmp")
     try:
         temporary_path.write_text(
             json.dumps(result, indent=2, sort_keys=False) + "\n",
             encoding="utf-8",
         )
-        if RESULT_PATH.exists():
-            raise RuntimeError("canonical E1 evidence appeared during the run")
-        temporary_path.replace(RESULT_PATH)
+        if path.exists():
+            raise RuntimeError(f"{evidence_label} appeared during the run")
+        temporary_path.replace(path)
     finally:
         if temporary_path.exists():
             temporary_path.unlink()
+
+
+def write_canonical_result(result: dict[str, Any]) -> None:
+    verdict = result.get("verdict", {})
+    if verdict.get("token") == "VOID":
+        reason = verdict.get("reason")
+        if reason == "repaired_extraction_failure_rate_above_5_percent":
+            parser_evidence = result.get("protocol", {}).get(
+                "answer_extraction", {}
+            ).get("parser_provenance", {})
+            recorded_artifact_hash = parser_evidence.get(
+                "initial_miss_artifact_sha256"
+            )
+            _, _, initial_source_fingerprint = load_initial_parser_miss()
+            current_source_fingerprint = sha256_text(parser_source_text())
+            qualified_repair = (
+                parser_evidence.get("attempt") == "repaired"
+                and parser_evidence.get("source_changed_from_initial") is True
+                and INITIAL_PARSER_MISS_PATH.is_file()
+                and recorded_artifact_hash == sha256_file(INITIAL_PARSER_MISS_PATH)
+                and parser_evidence.get("initial_source_sha256")
+                == initial_source_fingerprint
+                and parser_evidence.get("source_sha256")
+                == current_source_fingerprint
+                and initial_source_fingerprint != current_source_fingerprint
+            )
+            if not qualified_repair:
+                raise RuntimeError(
+                    "terminal extraction-failure VOID lacks qualified repair evidence"
+                )
+        elif reason == "demonstration_or_cohort_leakage_detected":
+            leakage_check = result.get("protocol", {}).get("leakage_preflight", {})
+            if (
+                leakage_check.get("status") != "FAIL"
+                or leakage_check.get("overlap_count", 0) < 1
+                or not leakage_check.get("overlaps")
+            ):
+                raise RuntimeError("terminal leakage VOID lacks leakage evidence")
+        else:
+            raise RuntimeError("unrecognized terminal VOID cannot be written")
+    write_evidence_artifact(RESULT_PATH, result, "canonical E1 evidence")
+
+
+def write_initial_parser_miss(result: dict[str, Any]) -> None:
+    parser_evidence = result.get("protocol", {}).get("answer_extraction", {}).get(
+        "parser_provenance", {}
+    )
+    if (
+        result.get("verdict", {}).get("token") != "PARSER-REPAIR-REQUIRED"
+        or result.get("sample_count") != CANONICAL_SAMPLE_COUNT
+        or len(result.get("per_example", [])) != CANONICAL_SAMPLE_COUNT
+        or result.get("extraction_failures", {}).get("rate", 0)
+        <= MAX_EXTRACTION_FAILURE_RATE
+        or parser_evidence.get("attempt") != "initial"
+        or sha256_text(parser_evidence.get("source_text", ""))
+        != parser_evidence.get("source_sha256")
+        or parser_evidence.get("source_sha256") != sha256_text(parser_source_text())
+    ):
+        raise RuntimeError("initial parser-miss evidence is incomplete")
+    write_evidence_artifact(
+        INITIAL_PARSER_MISS_PATH,
+        result,
+        "initial parser-miss evidence",
+    )
 
 
 def smoke_console_summary(result: dict[str, Any]) -> dict[str, Any]:
@@ -927,17 +1183,11 @@ def verify_batch_equivalence(
 def run(args: argparse.Namespace) -> int:
     run_started = time.perf_counter()
     configure_runtime()
-    if not torch.cuda.is_available():
-        raise RuntimeError("CUDA is required for the base-A task-band evaluator")
 
     mode = "smoke" if args.smoke is not None else "canonical"
     if mode == "canonical" and RESULT_PATH.exists():
         raise RuntimeError("canonical E1 evidence already exists and will not be overwritten")
-
-    model_identifier, model_revision = load_private_model_coordinates()
-    print(f"Loading {PUBLIC_MODEL_NAME} on CUDA.", flush=True)
-    device = torch.device("cuda:0")
-    tokenizer, model = load_base_a(model_identifier, model_revision, device)
+    parser_evidence = parser_provenance(mode, args.parser_attempt)
 
     print("Loading revision-pinned official GSM8K splits.", flush=True)
     dataset = load_dataset(
@@ -974,6 +1224,36 @@ def run(args: argparse.Namespace) -> int:
             selected_indices,
         ),
     }
+    if leakage_check["status"] == "FAIL":
+        result = leakage_void_result(
+            trigger_mode=mode,
+            canonical_indices=canonical_indices,
+            dataset_provenance=dataset_provenance,
+            leakage_check=leakage_check,
+            parser_evidence=parser_evidence,
+        )
+        write_canonical_result(result)
+        print(
+            json.dumps(
+                {
+                    "status": result["status"],
+                    "model": PUBLIC_MODEL_NAME,
+                    "sample_count": result["sample_count"],
+                    "verdict": result["verdict"],
+                    "leakage_evidence": leakage_check,
+                    "result_path": str(RESULT_PATH.relative_to(HERE.parent.parent)),
+                },
+                indent=2,
+            )
+        )
+        return 2
+
+    if not torch.cuda.is_available():
+        raise RuntimeError("CUDA is required for the base-A task-band evaluator")
+    model_identifier, model_revision = load_private_model_coordinates()
+    print(f"Loading {PUBLIC_MODEL_NAME} on CUDA.", flush=True)
+    device = torch.device("cuda:0")
+    tokenizer, model = load_base_a(model_identifier, model_revision, device)
 
     print(
         (
@@ -1027,7 +1307,7 @@ def run(args: argparse.Namespace) -> int:
         verification_wall_time_seconds=verification_wall_time_seconds,
         canonical_indices=canonical_indices,
         mode=mode,
-        parser_attempt=args.parser_attempt,
+        parser_evidence=parser_evidence,
         dataset_provenance=dataset_provenance,
         leakage_check=leakage_check,
         batch_equivalence=batch_equivalence,
@@ -1038,6 +1318,10 @@ def run(args: argparse.Namespace) -> int:
         wrote_result = result["verdict"]["token"] != "PARSER-REPAIR-REQUIRED"
         if wrote_result:
             write_canonical_result(result)
+            result_path = RESULT_PATH
+        else:
+            write_initial_parser_miss(result)
+            result_path = INITIAL_PARSER_MISS_PATH
         print(
             json.dumps(
                 {
@@ -1045,11 +1329,8 @@ def run(args: argparse.Namespace) -> int:
                     "model": PUBLIC_MODEL_NAME,
                     "sample_count": result["sample_count"],
                     "verdict": result["verdict"],
-                    "result_path": (
-                        str(RESULT_PATH.relative_to(HERE.parent.parent))
-                        if wrote_result
-                        else None
-                    ),
+                    "result_path": str(result_path.relative_to(HERE.parent.parent)),
+                    "canonical_result_written": wrote_result,
                 },
                 indent=2,
             )
