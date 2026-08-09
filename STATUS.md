@@ -18,7 +18,8 @@ Audited snapshot: commits `b1a3e5f` through `7b3f5a1` (2026-08-09 hygiene + cons
 | Line | State | Current verdict | Canonical evidence |
 |---|---|---|---|
 | 04 Circuit-viability pruning | FROZEN / AUDITED | Claim audit `234/234`; SynFlow pathology audit passes; mechanism supported within recorded scope. | `docs/CIRCUIT_VIABILITY_PRUNING_REPORT.md`, `docs/CLAIM_EVIDENCE_LEDGER.md`, `docs/CLAIM_AUDIT.md`, `results/04_criticality_pruning/` |
-| 06 UESD | CONVERGENCE ARC CLOSED NEGATIVE | D40 falsifies the tested self-consistency fixed-point thesis; the system behaves as a finite-time transient solver. Surviving core: D22 variable-T k-suppression. | D40 ledger entry, `experiments/06_uesd/results/exp_d40_extended_convergence.json`, `docs/UNIFIED_ERROR_SPACE.md` |
+| 06 UESD — fixed-point arc | CONVERGENCE ARC CLOSED NEGATIVE | D40 falsifies the tested self-consistency fixed-point thesis; the system behaves as a finite-time transient solver. Surviving core: D22 variable-T k-suppression. | D40 ledger entry, `experiments/06_uesd/results/exp_d40_extended_convergence.json`, `docs/UNIFIED_ERROR_SPACE.md` |
+| 06 UESD — semantic ratchet | PREREGISTERED / NOT YET RUN | Fresh transient-solver hypothesis: outcome-trained best-state memory must prevent overthinking and beat compute-matched independent sampling plus learned reranking. This is a new gated direction, not a continuation of the fixed-point arc and not empirical evidence. | `experiments/06_uesd/PREREGISTRATION.md` |
 | 01/02/03/05 pilots | FROZEN HISTORICAL | Single-run pilots; no active roadmap or runner. 01 failed; 02/03 modest wins on toy tasks; 05 efficiency win with failed DDM fit. | `results/01..05/pilot_result.json`, `results/pilot_suite_summary.json`, frozen-pilots table in `experiments/EXPERIMENTS.md` |
 
 ## 04 — Circuit-Viability Pruning
@@ -89,6 +90,10 @@ D22 variable-T training (compute-window robustness: T=32 accuracy 88.5% -> 99.9%
 - Anytime/transient-solver framing built on the D22 mechanism.
 - Either path requires a fresh preregistered hypothesis. **Do not continue the old fixed-point arc (no "D41 by inertia").**
 
+### Fresh Preregistered Direction
+
+The semantic-ratchet transient-solver hypothesis is **PREREGISTERED / NOT YET RUN** in `experiments/06_uesd/PREREGISTRATION.md`. The full program is conditional on a sub-hour task-band gate and a 30M latch-mechanics gate. The preregistration defines the frozen `base-A` architecture, critic-provenance constraints, compute-matched baselines, budgets, and exact CONFIRM/KILL/VOID rules. It creates no empirical result and does not reopen the D38-D40 fixed-point convergence arc.
+
 ### Canonical Documents and Evidence
 
 `docs/UNIFIED_ERROR_SPACE.md` (synthesis with current verdict), `experiments/EXPERIMENTS.md` (chronology D1-D40), `experiments/06_uesd/proofs/theory_summary.md` (theorem catalog, supporting only), `experiments/06_uesd/results/` (JSONs + Codex review corpus).
@@ -101,7 +106,7 @@ python experiments\06_uesd\audit_uesd_claims.py
 
 ### Frozen vs Open
 
-The fixed-point convergence arc is closed. D40 stands at 15/16; rerunning the crashed run (seed 512, λ_sc=3.0) is publication-completeness work, not a blocker to the negative conclusion. `exp_d14_scaling_laws.py` and `exp_d26_criticality_recovery.py` are reviewed-but-unexecuted designs with no result JSON; do not cite them as empirical evidence.
+The fixed-point convergence arc is closed. D40 stands at 15/16; rerunning the crashed run (seed 512, λ_sc=3.0) is publication-completeness work, not a blocker to the negative conclusion. The separately preregistered semantic-ratchet direction has not been run and is not evidence. `exp_d14_scaling_laws.py` and `exp_d26_criticality_recovery.py` are reviewed-but-unexecuted designs with no result JSON; do not cite them as empirical evidence.
 
 ## Canonical Document Map
 
@@ -113,6 +118,7 @@ The fixed-point convergence arc is closed. D40 stands at 15/16; rerunning the cr
 | 04 claim scope | `docs/CLAIM_EVIDENCE_LEDGER.md` |
 | 04 generated audit | `docs/CLAIM_AUDIT.md` |
 | UESD scientific synthesis | `docs/UNIFIED_ERROR_SPACE.md` |
+| UESD semantic-ratchet preregistration | `experiments/06_uesd/PREREGISTRATION.md` |
 | Experiment chronology | `experiments/EXPERIMENTS.md` + `experiments/ledger.jsonl` |
 | UESD theorem catalog | `experiments/06_uesd/proofs/theory_summary.md` (supporting only) |
 | Raw evidence | `results/` for 01-05 and 04; `experiments/06_uesd/results/` for 06 (do not relocate) |
