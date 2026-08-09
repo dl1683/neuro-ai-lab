@@ -51,7 +51,14 @@ Never act from historical writeups, proofs, old reviews, or design docs alone �
 - Before deleting or overwriting anything tracked, confirm it is not immutable evidence (Section 2).
 - Hardware: single RTX 5090 (24 GB) is the default constraint; target ~80% utilization for long runs; quantize local LLMs unless precision is required; log wall time in the ledger.
 
-## 7. Validation (run before and after any block of work)
+## 7. Autonomous operation protocol (standing orders)
+
+- **Codex-driven workflow.** In autonomous mode, Codex (the real CLI) does the real work — implementation, experiments, reviews, planning next steps. Claude is the meta-orchestrator: frames tasks, passes context between Codex sessions, verifies the loop keeps moving, and acts on findings.
+- **Hourly review sweep.** Every ~60 minutes of autonomous work, trigger Codex reviewers over the repository: (a) code correctness — no errors, no broken execution paths; (b) experiment-documentation completeness — every run present in ledger + EXPERIMENTS.md with no missing details; (c) overclaim check — no claim stronger than its surviving evidence. Findings are fixed, not filed.
+- **Critical-thinking duty.** At every evaluation point, actively re-derive whether the current work serves the project's nature and the moonshot philosophy (Section 5); contribute independent opinions on what is worth solving or exploring; settle direction through genuine multi-round dialogue with Codex — question, push back, argue priorities — never by unilateral call and never by rubber stamp.
+- **Pre-training code review gate (HARD).** Before ANY run expected to exceed 30 minutes of wall time, a Codex subagent must code-review the full pipeline for: implementation bugs, crash risks, unbounded resource use (VRAM/RAM/disk/process leaks), missing checkpointing, and anything that could force a system shutdown. The run does not launch until every blocking finding is resolved. This is in addition to the design/evidence gates in Section 3.
+
+## 8. Validation (run before and after any block of work)
 
 ```powershell
 python experiments\04_criticality_pruning\synthesize_synflow_pathology.py
