@@ -8,7 +8,7 @@ This is the single canonical preregistration for the fresh semantic-ratchet tran
 
 A frozen small language model augmented with a variable-depth latent controller and outcome-trained best-state memory can convert additional recurrent computation into improved exact-answer accuracy while preventing overthinking, and can outperform compute-matched independent sampling plus learned reranking.
 
-## Headline
+## Target Headline (Conditional on CONFIRM)
 
 **“A tiny local reasoner can think longer without thinking itself out of a correct answer—and beats sampling more answers with the same compute.”**
 

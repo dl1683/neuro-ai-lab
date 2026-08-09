@@ -1,6 +1,6 @@
 # Repository Status
 
-Audited snapshot: commits `b1a3e5f` through `7b3f5a1` (2026-08-09 hygiene + consolidation pass, Codex-verified).
+Audited snapshot: commits `b1a3e5f` through `3afec90`, plus the 2026-08-09 hourly-sweep documentation corrections (Codex-verified).
 
 **This file is the sole authority for current state.** Experiment writeups, proofs, and reviews are point-in-time evidence; earlier reviews and evidence gates may contain predictions that later experiments falsified.
 

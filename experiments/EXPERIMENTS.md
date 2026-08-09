@@ -23,6 +23,19 @@ Suite aggregate: `results/pilot_suite_summary.json`.
 
 Framework where AI generation happens in continuous embedding space via iterative dynamics, with no softmax collapse. Tests whether self-consistency energy E(s) = ||F_theta(s,c)||^2 produces correct, stable attractors.
 
+### E1 Task-Band Gate (DESIGNED / NOT YET RUN — PRE-RUN REVIEW PENDING)
+- **Config:** `experiments/06_uesd/exp_e1_task_band.py` (commit `3afec90`)
+- **Purpose:** Evaluate the frozen `base-A` checkpoint on exactly 256 held-out GSM8K examples before training and determine whether the preregistered task band is usable.
+- **Protocol:** Fixed five-shot prompt, greedy decoding, 256-token generation cap, exact-numeric extraction, and the frozen PASS / ABORT-AND-SWAP / VOID rules in `experiments/06_uesd/PREREGISTRATION.md`.
+- **Launch state:** Not launched. Independent pre-run review is pending; no metrics or result artifact exist.
+- **Evidence status:** Design/provenance only. This entry records an upcoming gate and makes no empirical claim.
+
+### Semantic-Ratchet Direction (PREREGISTERED / NOT YET RUN)
+- **Event:** Fresh transient-solver hypothesis preregistered in commit `698832b`.
+- **Purpose:** Test whether outcome-trained best-state memory prevents overthinking and beats compute-matched independent sampling plus learned reranking.
+- **Canonical protocol:** `experiments/06_uesd/PREREGISTRATION.md`.
+- **Evidence status:** Zero runs, zero metrics, and zero result artifacts. The preregistration is a frozen prospective protocol, not empirical evidence.
+
 ### Exp D40: Extended Convergence — Multi-T Evaluation, No Flow (COMPLETE 15/16 — KEY NEGATIVE FINDING)
 - **Config:** `experiments/06_uesd/exp_d40_extended_convergence.py`
 - **Purpose:** Test D39's extrapolation that convergence just needs more iterations (k≈0.96 predicted convergence at T≈22-36). Multi-T evaluation at T=[10, 25, 50, 100, 200], rectified-flow head removed (broken in 16/16 D38/D39 runs), λ_sc ∈ {0.0 (CE-only ablation), 0.5, 1.0, 3.0}.

@@ -41,13 +41,13 @@ Never act from historical writeups, proofs, old reviews, or design docs alone �
 - **Kills are fuel, never destinations.** After a kill: the next question-loop output must propose ≥3 new hypotheses informed by WHY it died. After 3-5 accumulated kills: produce a FAILURE SYNTHESIS (pattern across failures → what the solution space must look like → untested assumptions → predicted-to-work directions). Never respond to a kill by polishing, publishing, or framing the kill as the deliverable.
 - **Do not continue closed arcs by inertia.** New UESD work requires a fresh preregistered hypothesis (candidates on record: readout-coupled energy; anytime/transient-solver framing).
 - **Steering is a dialogue.** Direction decisions (pivot / kill / which-way-next) require 2-3 genuine rounds with Codex (`resume --last`), never a unilateral call.
-- **Evidence standard:** claims no stronger than surviving controls; matched budgets for comparisons; negative results are knowledge; costs and hardware reported.
+- **Evidence standard:** claims no stronger than surviving controls; matched budgets for comparisons; negative results are knowledge; compute usage (including wall time and hardware) reported. Provider billing and other financial cost data remain private under Section 6.
 
 ## 6. Git and operational discipline
 
 - Commit per logical change; message = one clear idea + `Committed by Devansh`.
 - Never commit: datasets, checkpoints (`*.pt`), raw run logs, `.claude/`, `__pycache__` (all gitignored).
-- OpSec: commit messages, branch names, and public docs never reveal model names, provider routing, or cost data.
+- OpSec: commit messages, branch names, and public docs never reveal model names, provider routing, or provider billing/financial cost data.
 - Before deleting or overwriting anything tracked, confirm it is not immutable evidence (Section 2).
 - Hardware: single RTX 5090 (24 GB) is the default constraint; target ~80% utilization for long runs; quantize local LLMs unless precision is required; log wall time in the ledger.
 
@@ -56,9 +56,9 @@ Never act from historical writeups, proofs, old reviews, or design docs alone �
 - **Codex-driven workflow.** In autonomous mode, Codex (the real CLI) does the real work — implementation, experiments, reviews, planning next steps. Claude is the meta-orchestrator: frames tasks, passes context between Codex sessions, verifies the loop keeps moving, and acts on findings.
 - **Hourly review sweep.** Every ~60 minutes of autonomous work, trigger Codex reviewers over the repository: (a) code correctness — no errors, no broken execution paths; (b) experiment-documentation completeness — every run present in ledger + EXPERIMENTS.md with no missing details; (c) overclaim check — no claim stronger than its surviving evidence. Findings are fixed, not filed.
 - **Critical-thinking duty.** At every evaluation point, actively re-derive whether the current work serves the project's nature and the moonshot philosophy (Section 5); contribute independent opinions on what is worth solving or exploring; settle direction through genuine multi-round dialogue with Codex — question, push back, argue priorities — never by unilateral call and never by rubber stamp.
-- **Full compute mandate.** The RTX 5090 is available around the clock — use it to get things done; do not idle waiting for permission. Every Codex worker prompt must state that Codex holds the same mandate: full authority to run code, experiments, and tools (subject only to the pre-training gate below).
+- **Full compute mandate.** The RTX 5090 is available around the clock — use it to get things done; do not idle waiting for permission. Every Codex worker prompt must state that Codex holds the same mandate: full authority to run code, experiments, and tools, subject to all frozen/open boundaries and gates in this file, including the pre-training gate below.
 - **No session hangover.** Priorities are re-derived at the start of each autonomous push through the Codex steering dialogue — never inherited from a previous session by default.
-- **Keep origin updated.** `origin` (github.com/dl1683/neuro-ai-lab, PUBLIC) is pushed at least once per completed work block. Every push is preceded by an OpSec diff audit of the unpushed range (Section 6): no model names, provider routing, or cost data may be published.
+- **Keep origin updated.** `origin` (github.com/dl1683/neuro-ai-lab, PUBLIC) is pushed at least once per completed work block. Every push is preceded by an OpSec diff audit of the unpushed range (Section 6): no model names, provider routing, or provider billing/financial cost data may be published.
 - **Pre-training code review gate (HARD).** Before ANY run expected to exceed 30 minutes of wall time, a Codex subagent must code-review the full pipeline for: implementation bugs, crash risks, unbounded resource use (VRAM/RAM/disk/process leaks), missing checkpointing, and anything that could force a system shutdown. The run does not launch until every blocking finding is resolved. This is in addition to the design/evidence gates in Section 3.
 
 ## 8. Validation (run before and after any block of work)
