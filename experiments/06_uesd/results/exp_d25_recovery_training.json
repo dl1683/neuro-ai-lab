@@ -1,0 +1,2098 @@
+{
+  "timestamp": "2026-05-24T06:09:00.576071+00:00",
+  "device": "cuda",
+  "purpose": "D25: Recovery-first training \u2014 targeting T6 causal repair",
+  "config": {
+    "d_model": 128,
+    "n_heads": 4,
+    "d_ff": 512,
+    "n_enc_layers": 2,
+    "vocab_size": 64,
+    "training_steps": 20000,
+    "train_T": 10,
+    "batch_size": 256,
+    "lr": 0.0003,
+    "seq_len": 8,
+    "t_range": [
+      4,
+      6,
+      8,
+      10,
+      12,
+      14,
+      16
+    ]
+  },
+  "variants": {
+    "variable_t_only": "D22-style variable-T baseline",
+    "recovery_gentle": "Variable-T + recovery (sigma 0.01\u21920.1, K=5, alpha=1.0 fixed)",
+    "recovery_stronger": "Variable-T + recovery (sigma 0.01\u21920.2, K=10, alpha=1.0 fixed)",
+    "recovery_weighted": "Variable-T + recovery (sigma 0.01\u21920.1, K=5, alpha 1.0\u21920.5)"
+  },
+  "runs": [
+    {
+      "variant": "variable_t_only",
+      "seed": 42,
+      "params": 694016,
+      "train_time_s": 1676.0,
+      "best_train_acc": 1.0,
+      "step_ablation": {
+        "T=1": {
+          "tok_acc": 0.8171,
+          "seq_acc": 0.4377
+        },
+        "T=2": {
+          "tok_acc": 0.9983,
+          "seq_acc": 0.9934
+        },
+        "T=3": {
+          "tok_acc": 0.9998,
+          "seq_acc": 0.9993
+        },
+        "T=5": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9995
+        },
+        "T=8": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9995
+        },
+        "T=10": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9995
+        },
+        "T=15": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9995
+        },
+        "T=20": {
+          "tok_acc": 0.9998,
+          "seq_acc": 0.9993
+        },
+        "T=32": {
+          "tok_acc": 0.9992,
+          "seq_acc": 0.9968
+        }
+      },
+      "recovery": {
+        "sigma=0.01": {
+          "WA_at_0": 0.0005,
+          "+1": {
+            "WA": 0.0005,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.0005,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 0.0007,
+            "recovery": -0.0002
+          },
+          "+20": {
+            "WA": 0.0029,
+            "recovery": -0.0024
+          }
+        },
+        "sigma=0.05": {
+          "WA_at_0": 0.0005,
+          "+1": {
+            "WA": 0.0005,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.0005,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 0.0005,
+            "recovery": 0.0
+          },
+          "+20": {
+            "WA": 0.0127,
+            "recovery": -0.0122
+          }
+        },
+        "sigma=0.1": {
+          "WA_at_0": 0.0029,
+          "+1": {
+            "WA": 0.0017,
+            "recovery": 0.0012
+          },
+          "+5": {
+            "WA": 0.0007,
+            "recovery": 0.0022
+          },
+          "+10": {
+            "WA": 0.0032,
+            "recovery": -0.0002
+          },
+          "+20": {
+            "WA": 0.0901,
+            "recovery": -0.0872
+          }
+        },
+        "sigma=0.2": {
+          "WA_at_0": 0.6411,
+          "+1": {
+            "WA": 0.5881,
+            "recovery": 0.053
+          },
+          "+5": {
+            "WA": 0.4324,
+            "recovery": 0.2087
+          },
+          "+10": {
+            "WA": 0.3665,
+            "recovery": 0.2747
+          },
+          "+20": {
+            "WA": 0.4822,
+            "recovery": 0.1589
+          }
+        },
+        "sigma=0.5": {
+          "WA_at_0": 0.9995,
+          "+1": {
+            "WA": 0.9993,
+            "recovery": 0.0002
+          },
+          "+5": {
+            "WA": 0.9985,
+            "recovery": 0.001
+          },
+          "+10": {
+            "WA": 0.998,
+            "recovery": 0.0015
+          },
+          "+20": {
+            "WA": 0.9963,
+            "recovery": 0.0032
+          }
+        },
+        "sigma=1.0": {
+          "WA_at_0": 1.0,
+          "+1": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+20": {
+            "WA": 1.0,
+            "recovery": 0.0
+          }
+        }
+      },
+      "noise_robustness": {
+        "tok_acc": 0.9999,
+        "seq_acc": 0.9995
+      },
+      "spectral_radius": {
+        "mean_rho": 1.0278,
+        "std_rho": 0.0147,
+        "nishimori_target": 0.4622,
+        "distance_to_nishimori": 0.5656,
+        "n_samples": 64
+      }
+    },
+    {
+      "variant": "variable_t_only",
+      "seed": 1337,
+      "params": 694016,
+      "train_time_s": 1681.7,
+      "best_train_acc": 1.0,
+      "step_ablation": {
+        "T=1": {
+          "tok_acc": 0.8932,
+          "seq_acc": 0.6404
+        },
+        "T=2": {
+          "tok_acc": 0.9971,
+          "seq_acc": 0.9883
+        },
+        "T=3": {
+          "tok_acc": 0.9998,
+          "seq_acc": 0.9993
+        },
+        "T=5": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9998
+        },
+        "T=8": {
+          "tok_acc": 1.0,
+          "seq_acc": 1.0
+        },
+        "T=10": {
+          "tok_acc": 1.0,
+          "seq_acc": 1.0
+        },
+        "T=15": {
+          "tok_acc": 1.0,
+          "seq_acc": 1.0
+        },
+        "T=20": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9998
+        },
+        "T=32": {
+          "tok_acc": 0.9984,
+          "seq_acc": 0.9934
+        }
+      },
+      "recovery": {
+        "sigma=0.01": {
+          "WA_at_0": 0.0,
+          "+1": {
+            "WA": 0.0,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.0,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 0.0002,
+            "recovery": -0.0002
+          },
+          "+20": {
+            "WA": 0.0051,
+            "recovery": -0.0051
+          }
+        },
+        "sigma=0.05": {
+          "WA_at_0": 0.0,
+          "+1": {
+            "WA": 0.0,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.0,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 0.0,
+            "recovery": 0.0
+          },
+          "+20": {
+            "WA": 0.0164,
+            "recovery": -0.0164
+          }
+        },
+        "sigma=0.1": {
+          "WA_at_0": 0.0012,
+          "+1": {
+            "WA": 0.0007,
+            "recovery": 0.0005
+          },
+          "+5": {
+            "WA": 0.0005,
+            "recovery": 0.0007
+          },
+          "+10": {
+            "WA": 0.0015,
+            "recovery": -0.0002
+          },
+          "+20": {
+            "WA": 0.0706,
+            "recovery": -0.0693
+          }
+        },
+        "sigma=0.2": {
+          "WA_at_0": 0.6023,
+          "+1": {
+            "WA": 0.5542,
+            "recovery": 0.0481
+          },
+          "+5": {
+            "WA": 0.4146,
+            "recovery": 0.1877
+          },
+          "+10": {
+            "WA": 0.3198,
+            "recovery": 0.2825
+          },
+          "+20": {
+            "WA": 0.3967,
+            "recovery": 0.2056
+          }
+        },
+        "sigma=0.5": {
+          "WA_at_0": 0.999,
+          "+1": {
+            "WA": 0.999,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.9983,
+            "recovery": 0.0007
+          },
+          "+10": {
+            "WA": 0.9973,
+            "recovery": 0.0017
+          },
+          "+20": {
+            "WA": 0.9951,
+            "recovery": 0.0039
+          }
+        },
+        "sigma=1.0": {
+          "WA_at_0": 1.0,
+          "+1": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+20": {
+            "WA": 1.0,
+            "recovery": 0.0
+          }
+        }
+      },
+      "noise_robustness": {
+        "tok_acc": 1.0,
+        "seq_acc": 1.0
+      },
+      "spectral_radius": {
+        "mean_rho": 1.0506,
+        "std_rho": 0.0299,
+        "nishimori_target": 0.4622,
+        "distance_to_nishimori": 0.5885,
+        "n_samples": 64
+      }
+    },
+    {
+      "variant": "variable_t_only",
+      "seed": 2024,
+      "params": 694016,
+      "train_time_s": 1666.1,
+      "best_train_acc": 1.0,
+      "step_ablation": {
+        "T=1": {
+          "tok_acc": 0.8071,
+          "seq_acc": 0.4221
+        },
+        "T=2": {
+          "tok_acc": 0.9987,
+          "seq_acc": 0.9946
+        },
+        "T=3": {
+          "tok_acc": 0.9998,
+          "seq_acc": 0.999
+        },
+        "T=5": {
+          "tok_acc": 1.0,
+          "seq_acc": 1.0
+        },
+        "T=8": {
+          "tok_acc": 1.0,
+          "seq_acc": 1.0
+        },
+        "T=10": {
+          "tok_acc": 1.0,
+          "seq_acc": 1.0
+        },
+        "T=15": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9998
+        },
+        "T=20": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9998
+        },
+        "T=32": {
+          "tok_acc": 0.9988,
+          "seq_acc": 0.9954
+        }
+      },
+      "recovery": {
+        "sigma=0.01": {
+          "WA_at_0": 0.0,
+          "+1": {
+            "WA": 0.0,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.0002,
+            "recovery": -0.0002
+          },
+          "+10": {
+            "WA": 0.0002,
+            "recovery": -0.0002
+          },
+          "+20": {
+            "WA": 0.0032,
+            "recovery": -0.0032
+          }
+        },
+        "sigma=0.05": {
+          "WA_at_0": 0.0,
+          "+1": {
+            "WA": 0.0,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.0002,
+            "recovery": -0.0002
+          },
+          "+10": {
+            "WA": 0.0002,
+            "recovery": -0.0002
+          },
+          "+20": {
+            "WA": 0.0183,
+            "recovery": -0.0183
+          }
+        },
+        "sigma=0.1": {
+          "WA_at_0": 0.0017,
+          "+1": {
+            "WA": 0.0012,
+            "recovery": 0.0005
+          },
+          "+5": {
+            "WA": 0.0015,
+            "recovery": 0.0002
+          },
+          "+10": {
+            "WA": 0.0051,
+            "recovery": -0.0034
+          },
+          "+20": {
+            "WA": 0.1145,
+            "recovery": -0.1128
+          }
+        },
+        "sigma=0.2": {
+          "WA_at_0": 0.5989,
+          "+1": {
+            "WA": 0.5569,
+            "recovery": 0.042
+          },
+          "+5": {
+            "WA": 0.4128,
+            "recovery": 0.186
+          },
+          "+10": {
+            "WA": 0.3604,
+            "recovery": 0.2385
+          },
+          "+20": {
+            "WA": 0.5059,
+            "recovery": 0.093
+          }
+        },
+        "sigma=0.5": {
+          "WA_at_0": 0.9993,
+          "+1": {
+            "WA": 0.999,
+            "recovery": 0.0002
+          },
+          "+5": {
+            "WA": 0.9993,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 0.9973,
+            "recovery": 0.002
+          },
+          "+20": {
+            "WA": 0.9966,
+            "recovery": 0.0027
+          }
+        },
+        "sigma=1.0": {
+          "WA_at_0": 0.9995,
+          "+1": {
+            "WA": 0.9995,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.9995,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 0.9995,
+            "recovery": 0.0
+          },
+          "+20": {
+            "WA": 0.9995,
+            "recovery": 0.0
+          }
+        }
+      },
+      "noise_robustness": {
+        "tok_acc": 1.0,
+        "seq_acc": 1.0
+      },
+      "spectral_radius": {
+        "mean_rho": 1.0477,
+        "std_rho": 0.0244,
+        "nishimori_target": 0.4622,
+        "distance_to_nishimori": 0.5855,
+        "n_samples": 64
+      }
+    },
+    {
+      "variant": "recovery_gentle",
+      "seed": 42,
+      "params": 694016,
+      "train_time_s": 2982.3,
+      "best_train_acc": 1.0,
+      "step_ablation": {
+        "T=1": {
+          "tok_acc": 0.6301,
+          "seq_acc": 0.1541
+        },
+        "T=2": {
+          "tok_acc": 0.9984,
+          "seq_acc": 0.9937
+        },
+        "T=3": {
+          "tok_acc": 0.9997,
+          "seq_acc": 0.9988
+        },
+        "T=5": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9998
+        },
+        "T=8": {
+          "tok_acc": 1.0,
+          "seq_acc": 1.0
+        },
+        "T=10": {
+          "tok_acc": 1.0,
+          "seq_acc": 1.0
+        },
+        "T=15": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9998
+        },
+        "T=20": {
+          "tok_acc": 0.9997,
+          "seq_acc": 0.9988
+        },
+        "T=32": {
+          "tok_acc": 0.9982,
+          "seq_acc": 0.9929
+        }
+      },
+      "recovery": {
+        "sigma=0.01": {
+          "WA_at_0": 0.0,
+          "+1": {
+            "WA": 0.0,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.0002,
+            "recovery": -0.0002
+          },
+          "+10": {
+            "WA": 0.001,
+            "recovery": -0.001
+          },
+          "+20": {
+            "WA": 0.0059,
+            "recovery": -0.0059
+          }
+        },
+        "sigma=0.05": {
+          "WA_at_0": 0.0,
+          "+1": {
+            "WA": 0.0,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.0,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 0.0012,
+            "recovery": -0.0012
+          },
+          "+20": {
+            "WA": 0.0098,
+            "recovery": -0.0098
+          }
+        },
+        "sigma=0.1": {
+          "WA_at_0": 0.0032,
+          "+1": {
+            "WA": 0.0022,
+            "recovery": 0.001
+          },
+          "+5": {
+            "WA": 0.001,
+            "recovery": 0.0022
+          },
+          "+10": {
+            "WA": 0.0037,
+            "recovery": -0.0005
+          },
+          "+20": {
+            "WA": 0.062,
+            "recovery": -0.0588
+          }
+        },
+        "sigma=0.2": {
+          "WA_at_0": 0.6636,
+          "+1": {
+            "WA": 0.6165,
+            "recovery": 0.0471
+          },
+          "+5": {
+            "WA": 0.5032,
+            "recovery": 0.1604
+          },
+          "+10": {
+            "WA": 0.4465,
+            "recovery": 0.217
+          },
+          "+20": {
+            "WA": 0.5427,
+            "recovery": 0.1208
+          }
+        },
+        "sigma=0.5": {
+          "WA_at_0": 0.999,
+          "+1": {
+            "WA": 0.999,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.9988,
+            "recovery": 0.0002
+          },
+          "+10": {
+            "WA": 0.9978,
+            "recovery": 0.0012
+          },
+          "+20": {
+            "WA": 0.9978,
+            "recovery": 0.0012
+          }
+        },
+        "sigma=1.0": {
+          "WA_at_0": 1.0,
+          "+1": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+20": {
+            "WA": 1.0,
+            "recovery": 0.0
+          }
+        }
+      },
+      "noise_robustness": {
+        "tok_acc": 1.0,
+        "seq_acc": 1.0
+      },
+      "spectral_radius": {
+        "mean_rho": 1.0184,
+        "std_rho": 0.0147,
+        "nishimori_target": 0.4622,
+        "distance_to_nishimori": 0.5563,
+        "n_samples": 64
+      }
+    },
+    {
+      "variant": "recovery_gentle",
+      "seed": 1337,
+      "params": 694016,
+      "train_time_s": 3215.0,
+      "best_train_acc": 0.9961,
+      "step_ablation": {
+        "T=1": {
+          "tok_acc": 0.881,
+          "seq_acc": 0.605
+        },
+        "T=2": {
+          "tok_acc": 0.9979,
+          "seq_acc": 0.9917
+        },
+        "T=3": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9995
+        },
+        "T=5": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9998
+        },
+        "T=8": {
+          "tok_acc": 1.0,
+          "seq_acc": 1.0
+        },
+        "T=10": {
+          "tok_acc": 1.0,
+          "seq_acc": 1.0
+        },
+        "T=15": {
+          "tok_acc": 1.0,
+          "seq_acc": 1.0
+        },
+        "T=20": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9998
+        },
+        "T=32": {
+          "tok_acc": 0.9997,
+          "seq_acc": 0.9988
+        }
+      },
+      "recovery": {
+        "sigma=0.01": {
+          "WA_at_0": 0.0,
+          "+1": {
+            "WA": 0.0,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.0,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 0.0002,
+            "recovery": -0.0002
+          },
+          "+20": {
+            "WA": 0.0015,
+            "recovery": -0.0015
+          }
+        },
+        "sigma=0.05": {
+          "WA_at_0": 0.0,
+          "+1": {
+            "WA": 0.0,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.0,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 0.0,
+            "recovery": 0.0
+          },
+          "+20": {
+            "WA": 0.0071,
+            "recovery": -0.0071
+          }
+        },
+        "sigma=0.1": {
+          "WA_at_0": 0.0024,
+          "+1": {
+            "WA": 0.001,
+            "recovery": 0.0015
+          },
+          "+5": {
+            "WA": 0.0,
+            "recovery": 0.0024
+          },
+          "+10": {
+            "WA": 0.0017,
+            "recovery": 0.0007
+          },
+          "+20": {
+            "WA": 0.0642,
+            "recovery": -0.0618
+          }
+        },
+        "sigma=0.2": {
+          "WA_at_0": 0.6094,
+          "+1": {
+            "WA": 0.5725,
+            "recovery": 0.0369
+          },
+          "+5": {
+            "WA": 0.4175,
+            "recovery": 0.1919
+          },
+          "+10": {
+            "WA": 0.3301,
+            "recovery": 0.2793
+          },
+          "+20": {
+            "WA": 0.4255,
+            "recovery": 0.1838
+          }
+        },
+        "sigma=0.5": {
+          "WA_at_0": 0.9988,
+          "+1": {
+            "WA": 0.9988,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.9983,
+            "recovery": 0.0005
+          },
+          "+10": {
+            "WA": 0.9988,
+            "recovery": 0.0
+          },
+          "+20": {
+            "WA": 0.9968,
+            "recovery": 0.002
+          }
+        },
+        "sigma=1.0": {
+          "WA_at_0": 1.0,
+          "+1": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+20": {
+            "WA": 1.0,
+            "recovery": 0.0
+          }
+        }
+      },
+      "noise_robustness": {
+        "tok_acc": 1.0,
+        "seq_acc": 1.0
+      },
+      "spectral_radius": {
+        "mean_rho": 1.0476,
+        "std_rho": 0.0154,
+        "nishimori_target": 0.4622,
+        "distance_to_nishimori": 0.5855,
+        "n_samples": 64
+      }
+    },
+    {
+      "variant": "recovery_gentle",
+      "seed": 2024,
+      "params": 694016,
+      "train_time_s": 3486.1,
+      "best_train_acc": 0.9961,
+      "step_ablation": {
+        "T=1": {
+          "tok_acc": 0.9118,
+          "seq_acc": 0.6875
+        },
+        "T=2": {
+          "tok_acc": 0.9983,
+          "seq_acc": 0.9932
+        },
+        "T=3": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9995
+        },
+        "T=5": {
+          "tok_acc": 1.0,
+          "seq_acc": 1.0
+        },
+        "T=8": {
+          "tok_acc": 1.0,
+          "seq_acc": 1.0
+        },
+        "T=10": {
+          "tok_acc": 1.0,
+          "seq_acc": 1.0
+        },
+        "T=15": {
+          "tok_acc": 1.0,
+          "seq_acc": 1.0
+        },
+        "T=20": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9998
+        },
+        "T=32": {
+          "tok_acc": 0.9994,
+          "seq_acc": 0.9976
+        }
+      },
+      "recovery": {
+        "sigma=0.01": {
+          "WA_at_0": 0.0,
+          "+1": {
+            "WA": 0.0,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.0,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 0.0002,
+            "recovery": -0.0002
+          },
+          "+20": {
+            "WA": 0.0017,
+            "recovery": -0.0017
+          }
+        },
+        "sigma=0.05": {
+          "WA_at_0": 0.0,
+          "+1": {
+            "WA": 0.0,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.0002,
+            "recovery": -0.0002
+          },
+          "+10": {
+            "WA": 0.0002,
+            "recovery": -0.0002
+          },
+          "+20": {
+            "WA": 0.0061,
+            "recovery": -0.0061
+          }
+        },
+        "sigma=0.1": {
+          "WA_at_0": 0.0017,
+          "+1": {
+            "WA": 0.0007,
+            "recovery": 0.001
+          },
+          "+5": {
+            "WA": 0.0002,
+            "recovery": 0.0015
+          },
+          "+10": {
+            "WA": 0.0022,
+            "recovery": -0.0005
+          },
+          "+20": {
+            "WA": 0.0686,
+            "recovery": -0.0669
+          }
+        },
+        "sigma=0.2": {
+          "WA_at_0": 0.6113,
+          "+1": {
+            "WA": 0.5684,
+            "recovery": 0.043
+          },
+          "+5": {
+            "WA": 0.4299,
+            "recovery": 0.1814
+          },
+          "+10": {
+            "WA": 0.3484,
+            "recovery": 0.2629
+          },
+          "+20": {
+            "WA": 0.4441,
+            "recovery": 0.1672
+          }
+        },
+        "sigma=0.5": {
+          "WA_at_0": 0.9995,
+          "+1": {
+            "WA": 0.9995,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.9993,
+            "recovery": 0.0002
+          },
+          "+10": {
+            "WA": 0.9993,
+            "recovery": 0.0002
+          },
+          "+20": {
+            "WA": 0.9968,
+            "recovery": 0.0027
+          }
+        },
+        "sigma=1.0": {
+          "WA_at_0": 1.0,
+          "+1": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+20": {
+            "WA": 1.0,
+            "recovery": 0.0
+          }
+        }
+      },
+      "noise_robustness": {
+        "tok_acc": 1.0,
+        "seq_acc": 1.0
+      },
+      "spectral_radius": {
+        "mean_rho": 1.0244,
+        "std_rho": 0.0167,
+        "nishimori_target": 0.4622,
+        "distance_to_nishimori": 0.5623,
+        "n_samples": 64
+      }
+    },
+    {
+      "variant": "recovery_stronger",
+      "seed": 42,
+      "params": 694016,
+      "train_time_s": 5364.0,
+      "best_train_acc": 1.0,
+      "step_ablation": {
+        "T=1": {
+          "tok_acc": 0.874,
+          "seq_acc": 0.583
+        },
+        "T=2": {
+          "tok_acc": 0.9975,
+          "seq_acc": 0.9902
+        },
+        "T=3": {
+          "tok_acc": 0.9993,
+          "seq_acc": 0.9973
+        },
+        "T=5": {
+          "tok_acc": 1.0,
+          "seq_acc": 1.0
+        },
+        "T=8": {
+          "tok_acc": 1.0,
+          "seq_acc": 1.0
+        },
+        "T=10": {
+          "tok_acc": 1.0,
+          "seq_acc": 1.0
+        },
+        "T=15": {
+          "tok_acc": 1.0,
+          "seq_acc": 1.0
+        },
+        "T=20": {
+          "tok_acc": 1.0,
+          "seq_acc": 1.0
+        },
+        "T=32": {
+          "tok_acc": 0.9984,
+          "seq_acc": 0.9934
+        }
+      },
+      "recovery": {
+        "sigma=0.01": {
+          "WA_at_0": 0.0,
+          "+1": {
+            "WA": 0.0,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.0,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 0.0,
+            "recovery": 0.0
+          },
+          "+20": {
+            "WA": 0.0054,
+            "recovery": -0.0054
+          }
+        },
+        "sigma=0.05": {
+          "WA_at_0": 0.0,
+          "+1": {
+            "WA": 0.0,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.0,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 0.0005,
+            "recovery": -0.0005
+          },
+          "+20": {
+            "WA": 0.0098,
+            "recovery": -0.0098
+          }
+        },
+        "sigma=0.1": {
+          "WA_at_0": 0.0032,
+          "+1": {
+            "WA": 0.0024,
+            "recovery": 0.0007
+          },
+          "+5": {
+            "WA": 0.0007,
+            "recovery": 0.0024
+          },
+          "+10": {
+            "WA": 0.0039,
+            "recovery": -0.0007
+          },
+          "+20": {
+            "WA": 0.0579,
+            "recovery": -0.0547
+          }
+        },
+        "sigma=0.2": {
+          "WA_at_0": 0.6787,
+          "+1": {
+            "WA": 0.6421,
+            "recovery": 0.0366
+          },
+          "+5": {
+            "WA": 0.4961,
+            "recovery": 0.1826
+          },
+          "+10": {
+            "WA": 0.3889,
+            "recovery": 0.2898
+          },
+          "+20": {
+            "WA": 0.4165,
+            "recovery": 0.2622
+          }
+        },
+        "sigma=0.5": {
+          "WA_at_0": 0.9995,
+          "+1": {
+            "WA": 0.9995,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.9993,
+            "recovery": 0.0002
+          },
+          "+10": {
+            "WA": 0.9985,
+            "recovery": 0.001
+          },
+          "+20": {
+            "WA": 0.9963,
+            "recovery": 0.0032
+          }
+        },
+        "sigma=1.0": {
+          "WA_at_0": 1.0,
+          "+1": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+20": {
+            "WA": 1.0,
+            "recovery": 0.0
+          }
+        }
+      },
+      "noise_robustness": {
+        "tok_acc": 1.0,
+        "seq_acc": 1.0
+      },
+      "spectral_radius": {
+        "mean_rho": 1.0346,
+        "std_rho": 0.0202,
+        "nishimori_target": 0.4622,
+        "distance_to_nishimori": 0.5724,
+        "n_samples": 64
+      }
+    },
+    {
+      "variant": "recovery_stronger",
+      "seed": 1337,
+      "params": 694016,
+      "train_time_s": 4557.7,
+      "best_train_acc": 1.0,
+      "step_ablation": {
+        "T=1": {
+          "tok_acc": 0.6455,
+          "seq_acc": 0.1655
+        },
+        "T=2": {
+          "tok_acc": 0.995,
+          "seq_acc": 0.98
+        },
+        "T=3": {
+          "tok_acc": 0.9985,
+          "seq_acc": 0.9939
+        },
+        "T=5": {
+          "tok_acc": 0.9997,
+          "seq_acc": 0.9988
+        },
+        "T=8": {
+          "tok_acc": 0.9998,
+          "seq_acc": 0.999
+        },
+        "T=10": {
+          "tok_acc": 0.9998,
+          "seq_acc": 0.999
+        },
+        "T=15": {
+          "tok_acc": 0.9998,
+          "seq_acc": 0.999
+        },
+        "T=20": {
+          "tok_acc": 0.9996,
+          "seq_acc": 0.9985
+        },
+        "T=32": {
+          "tok_acc": 0.9992,
+          "seq_acc": 0.9968
+        }
+      },
+      "recovery": {
+        "sigma=0.01": {
+          "WA_at_0": 0.001,
+          "+1": {
+            "WA": 0.001,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.001,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 0.0015,
+            "recovery": -0.0005
+          },
+          "+20": {
+            "WA": 0.0029,
+            "recovery": -0.002
+          }
+        },
+        "sigma=0.05": {
+          "WA_at_0": 0.001,
+          "+1": {
+            "WA": 0.001,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.0017,
+            "recovery": -0.0007
+          },
+          "+10": {
+            "WA": 0.0017,
+            "recovery": -0.0007
+          },
+          "+20": {
+            "WA": 0.0054,
+            "recovery": -0.0044
+          }
+        },
+        "sigma=0.1": {
+          "WA_at_0": 0.0078,
+          "+1": {
+            "WA": 0.0032,
+            "recovery": 0.0046
+          },
+          "+5": {
+            "WA": 0.0027,
+            "recovery": 0.0051
+          },
+          "+10": {
+            "WA": 0.012,
+            "recovery": -0.0042
+          },
+          "+20": {
+            "WA": 0.092,
+            "recovery": -0.0842
+          }
+        },
+        "sigma=0.2": {
+          "WA_at_0": 0.7358,
+          "+1": {
+            "WA": 0.6873,
+            "recovery": 0.0486
+          },
+          "+5": {
+            "WA": 0.532,
+            "recovery": 0.2039
+          },
+          "+10": {
+            "WA": 0.4607,
+            "recovery": 0.2751
+          },
+          "+20": {
+            "WA": 0.5828,
+            "recovery": 0.1531
+          }
+        },
+        "sigma=0.5": {
+          "WA_at_0": 0.9998,
+          "+1": {
+            "WA": 0.9998,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.9993,
+            "recovery": 0.0005
+          },
+          "+10": {
+            "WA": 0.9993,
+            "recovery": 0.0005
+          },
+          "+20": {
+            "WA": 0.9971,
+            "recovery": 0.0027
+          }
+        },
+        "sigma=1.0": {
+          "WA_at_0": 1.0,
+          "+1": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+20": {
+            "WA": 1.0,
+            "recovery": 0.0
+          }
+        }
+      },
+      "noise_robustness": {
+        "tok_acc": 0.9998,
+        "seq_acc": 0.999
+      },
+      "spectral_radius": {
+        "mean_rho": 1.0711,
+        "std_rho": 0.0388,
+        "nishimori_target": 0.4622,
+        "distance_to_nishimori": 0.6089,
+        "n_samples": 64
+      }
+    },
+    {
+      "variant": "recovery_stronger",
+      "seed": 2024,
+      "params": 694016,
+      "train_time_s": 4303.8,
+      "best_train_acc": 1.0,
+      "step_ablation": {
+        "T=1": {
+          "tok_acc": 0.9565,
+          "seq_acc": 0.833
+        },
+        "T=2": {
+          "tok_acc": 0.9977,
+          "seq_acc": 0.991
+        },
+        "T=3": {
+          "tok_acc": 0.9996,
+          "seq_acc": 0.9985
+        },
+        "T=5": {
+          "tok_acc": 0.9998,
+          "seq_acc": 0.999
+        },
+        "T=8": {
+          "tok_acc": 0.9998,
+          "seq_acc": 0.9993
+        },
+        "T=10": {
+          "tok_acc": 0.9998,
+          "seq_acc": 0.9993
+        },
+        "T=15": {
+          "tok_acc": 0.9998,
+          "seq_acc": 0.9993
+        },
+        "T=20": {
+          "tok_acc": 0.9997,
+          "seq_acc": 0.9988
+        },
+        "T=32": {
+          "tok_acc": 0.9985,
+          "seq_acc": 0.9941
+        }
+      },
+      "recovery": {
+        "sigma=0.01": {
+          "WA_at_0": 0.0007,
+          "+1": {
+            "WA": 0.0007,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.001,
+            "recovery": -0.0002
+          },
+          "+10": {
+            "WA": 0.001,
+            "recovery": -0.0002
+          },
+          "+20": {
+            "WA": 0.0042,
+            "recovery": -0.0034
+          }
+        },
+        "sigma=0.05": {
+          "WA_at_0": 0.0007,
+          "+1": {
+            "WA": 0.0007,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.0007,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 0.0007,
+            "recovery": 0.0
+          },
+          "+20": {
+            "WA": 0.0105,
+            "recovery": -0.0098
+          }
+        },
+        "sigma=0.1": {
+          "WA_at_0": 0.0024,
+          "+1": {
+            "WA": 0.0015,
+            "recovery": 0.001
+          },
+          "+5": {
+            "WA": 0.0012,
+            "recovery": 0.0012
+          },
+          "+10": {
+            "WA": 0.0029,
+            "recovery": -0.0005
+          },
+          "+20": {
+            "WA": 0.0645,
+            "recovery": -0.062
+          }
+        },
+        "sigma=0.2": {
+          "WA_at_0": 0.575,
+          "+1": {
+            "WA": 0.5278,
+            "recovery": 0.0471
+          },
+          "+5": {
+            "WA": 0.3806,
+            "recovery": 0.1943
+          },
+          "+10": {
+            "WA": 0.3208,
+            "recovery": 0.2542
+          },
+          "+20": {
+            "WA": 0.4326,
+            "recovery": 0.1423
+          }
+        },
+        "sigma=0.5": {
+          "WA_at_0": 0.9993,
+          "+1": {
+            "WA": 0.999,
+            "recovery": 0.0002
+          },
+          "+5": {
+            "WA": 0.9983,
+            "recovery": 0.001
+          },
+          "+10": {
+            "WA": 0.9973,
+            "recovery": 0.002
+          },
+          "+20": {
+            "WA": 0.9946,
+            "recovery": 0.0046
+          }
+        },
+        "sigma=1.0": {
+          "WA_at_0": 1.0,
+          "+1": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+20": {
+            "WA": 1.0,
+            "recovery": 0.0
+          }
+        }
+      },
+      "noise_robustness": {
+        "tok_acc": 0.9998,
+        "seq_acc": 0.9993
+      },
+      "spectral_radius": {
+        "mean_rho": 1.028,
+        "std_rho": 0.0144,
+        "nishimori_target": 0.4622,
+        "distance_to_nishimori": 0.5659,
+        "n_samples": 64
+      }
+    },
+    {
+      "variant": "recovery_weighted",
+      "seed": 42,
+      "params": 694016,
+      "train_time_s": 4121.9,
+      "best_train_acc": 1.0,
+      "step_ablation": {
+        "T=1": {
+          "tok_acc": 0.8831,
+          "seq_acc": 0.6069
+        },
+        "T=2": {
+          "tok_acc": 0.9977,
+          "seq_acc": 0.9907
+        },
+        "T=3": {
+          "tok_acc": 0.999,
+          "seq_acc": 0.9958
+        },
+        "T=5": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9998
+        },
+        "T=8": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9998
+        },
+        "T=10": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9998
+        },
+        "T=15": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9998
+        },
+        "T=20": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9998
+        },
+        "T=32": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9995
+        }
+      },
+      "recovery": {
+        "sigma=0.01": {
+          "WA_at_0": 0.0002,
+          "+1": {
+            "WA": 0.0002,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.0002,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 0.0002,
+            "recovery": 0.0
+          },
+          "+20": {
+            "WA": 0.0002,
+            "recovery": 0.0
+          }
+        },
+        "sigma=0.05": {
+          "WA_at_0": 0.0002,
+          "+1": {
+            "WA": 0.0002,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.0002,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 0.0005,
+            "recovery": -0.0002
+          },
+          "+20": {
+            "WA": 0.001,
+            "recovery": -0.0007
+          }
+        },
+        "sigma=0.1": {
+          "WA_at_0": 0.0007,
+          "+1": {
+            "WA": 0.0007,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.0007,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 0.001,
+            "recovery": -0.0002
+          },
+          "+20": {
+            "WA": 0.0051,
+            "recovery": -0.0044
+          }
+        },
+        "sigma=0.2": {
+          "WA_at_0": 0.1907,
+          "+1": {
+            "WA": 0.1797,
+            "recovery": 0.011
+          },
+          "+5": {
+            "WA": 0.1521,
+            "recovery": 0.0386
+          },
+          "+10": {
+            "WA": 0.1545,
+            "recovery": 0.0361
+          },
+          "+20": {
+            "WA": 0.2295,
+            "recovery": -0.0388
+          }
+        },
+        "sigma=0.5": {
+          "WA_at_0": 0.9944,
+          "+1": {
+            "WA": 0.9944,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.9924,
+            "recovery": 0.002
+          },
+          "+10": {
+            "WA": 0.9907,
+            "recovery": 0.0037
+          },
+          "+20": {
+            "WA": 0.9883,
+            "recovery": 0.0061
+          }
+        },
+        "sigma=1.0": {
+          "WA_at_0": 1.0,
+          "+1": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+20": {
+            "WA": 1.0,
+            "recovery": 0.0
+          }
+        }
+      },
+      "noise_robustness": {
+        "tok_acc": 0.9999,
+        "seq_acc": 0.9998
+      },
+      "spectral_radius": {
+        "mean_rho": 1.1615,
+        "std_rho": 0.0597,
+        "nishimori_target": 0.4622,
+        "distance_to_nishimori": 0.6993,
+        "n_samples": 64
+      }
+    },
+    {
+      "variant": "recovery_weighted",
+      "seed": 1337,
+      "params": 694016,
+      "train_time_s": 4169.1,
+      "best_train_acc": 1.0,
+      "step_ablation": {
+        "T=1": {
+          "tok_acc": 0.9354,
+          "seq_acc": 0.762
+        },
+        "T=2": {
+          "tok_acc": 0.9962,
+          "seq_acc": 0.9851
+        },
+        "T=3": {
+          "tok_acc": 0.9971,
+          "seq_acc": 0.9883
+        },
+        "T=5": {
+          "tok_acc": 0.9991,
+          "seq_acc": 0.9966
+        },
+        "T=8": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9995
+        },
+        "T=10": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9995
+        },
+        "T=15": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9998
+        },
+        "T=20": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9998
+        },
+        "T=32": {
+          "tok_acc": 0.9999,
+          "seq_acc": 0.9995
+        }
+      },
+      "recovery": {
+        "sigma=0.01": {
+          "WA_at_0": 0.0005,
+          "+1": {
+            "WA": 0.0002,
+            "recovery": 0.0002
+          },
+          "+5": {
+            "WA": 0.0002,
+            "recovery": 0.0002
+          },
+          "+10": {
+            "WA": 0.0002,
+            "recovery": 0.0002
+          },
+          "+20": {
+            "WA": 0.0005,
+            "recovery": 0.0
+          }
+        },
+        "sigma=0.05": {
+          "WA_at_0": 0.0002,
+          "+1": {
+            "WA": 0.0,
+            "recovery": 0.0002
+          },
+          "+5": {
+            "WA": 0.0,
+            "recovery": 0.0002
+          },
+          "+10": {
+            "WA": 0.0002,
+            "recovery": 0.0
+          },
+          "+20": {
+            "WA": 0.0007,
+            "recovery": -0.0005
+          }
+        },
+        "sigma=0.1": {
+          "WA_at_0": 0.0002,
+          "+1": {
+            "WA": 0.0002,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.0005,
+            "recovery": -0.0002
+          },
+          "+10": {
+            "WA": 0.0005,
+            "recovery": -0.0002
+          },
+          "+20": {
+            "WA": 0.0017,
+            "recovery": -0.0015
+          }
+        },
+        "sigma=0.2": {
+          "WA_at_0": 0.1558,
+          "+1": {
+            "WA": 0.1416,
+            "recovery": 0.0142
+          },
+          "+5": {
+            "WA": 0.1113,
+            "recovery": 0.0444
+          },
+          "+10": {
+            "WA": 0.1077,
+            "recovery": 0.0481
+          },
+          "+20": {
+            "WA": 0.1738,
+            "recovery": -0.0181
+          }
+        },
+        "sigma=0.5": {
+          "WA_at_0": 0.9939,
+          "+1": {
+            "WA": 0.9934,
+            "recovery": 0.0005
+          },
+          "+5": {
+            "WA": 0.9915,
+            "recovery": 0.0024
+          },
+          "+10": {
+            "WA": 0.9897,
+            "recovery": 0.0042
+          },
+          "+20": {
+            "WA": 0.9873,
+            "recovery": 0.0066
+          }
+        },
+        "sigma=1.0": {
+          "WA_at_0": 1.0,
+          "+1": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+20": {
+            "WA": 1.0,
+            "recovery": 0.0
+          }
+        }
+      },
+      "noise_robustness": {
+        "tok_acc": 0.9999,
+        "seq_acc": 0.9995
+      },
+      "spectral_radius": {
+        "mean_rho": 1.1083,
+        "std_rho": 0.0276,
+        "nishimori_target": 0.4622,
+        "distance_to_nishimori": 0.6461,
+        "n_samples": 64
+      }
+    },
+    {
+      "variant": "recovery_weighted",
+      "seed": 2024,
+      "params": 694016,
+      "train_time_s": 3553.5,
+      "best_train_acc": 0.9961,
+      "step_ablation": {
+        "T=1": {
+          "tok_acc": 0.9575,
+          "seq_acc": 0.8406
+        },
+        "T=2": {
+          "tok_acc": 0.9974,
+          "seq_acc": 0.9897
+        },
+        "T=3": {
+          "tok_acc": 0.9993,
+          "seq_acc": 0.9971
+        },
+        "T=5": {
+          "tok_acc": 0.9997,
+          "seq_acc": 0.9988
+        },
+        "T=8": {
+          "tok_acc": 0.9998,
+          "seq_acc": 0.9993
+        },
+        "T=10": {
+          "tok_acc": 0.9998,
+          "seq_acc": 0.9993
+        },
+        "T=15": {
+          "tok_acc": 0.9998,
+          "seq_acc": 0.9993
+        },
+        "T=20": {
+          "tok_acc": 0.9998,
+          "seq_acc": 0.9993
+        },
+        "T=32": {
+          "tok_acc": 0.9998,
+          "seq_acc": 0.999
+        }
+      },
+      "recovery": {
+        "sigma=0.01": {
+          "WA_at_0": 0.0007,
+          "+1": {
+            "WA": 0.0007,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.0007,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 0.0007,
+            "recovery": 0.0
+          },
+          "+20": {
+            "WA": 0.0007,
+            "recovery": 0.0
+          }
+        },
+        "sigma=0.05": {
+          "WA_at_0": 0.001,
+          "+1": {
+            "WA": 0.0007,
+            "recovery": 0.0002
+          },
+          "+5": {
+            "WA": 0.0007,
+            "recovery": 0.0002
+          },
+          "+10": {
+            "WA": 0.001,
+            "recovery": 0.0
+          },
+          "+20": {
+            "WA": 0.001,
+            "recovery": 0.0
+          }
+        },
+        "sigma=0.1": {
+          "WA_at_0": 0.0007,
+          "+1": {
+            "WA": 0.0007,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 0.0007,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 0.0007,
+            "recovery": 0.0
+          },
+          "+20": {
+            "WA": 0.002,
+            "recovery": -0.0012
+          }
+        },
+        "sigma=0.2": {
+          "WA_at_0": 0.1445,
+          "+1": {
+            "WA": 0.1277,
+            "recovery": 0.0168
+          },
+          "+5": {
+            "WA": 0.1006,
+            "recovery": 0.0439
+          },
+          "+10": {
+            "WA": 0.0942,
+            "recovery": 0.0503
+          },
+          "+20": {
+            "WA": 0.1487,
+            "recovery": -0.0042
+          }
+        },
+        "sigma=0.5": {
+          "WA_at_0": 0.9934,
+          "+1": {
+            "WA": 0.9929,
+            "recovery": 0.0005
+          },
+          "+5": {
+            "WA": 0.991,
+            "recovery": 0.0024
+          },
+          "+10": {
+            "WA": 0.9883,
+            "recovery": 0.0051
+          },
+          "+20": {
+            "WA": 0.9814,
+            "recovery": 0.012
+          }
+        },
+        "sigma=1.0": {
+          "WA_at_0": 1.0,
+          "+1": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+5": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+10": {
+            "WA": 1.0,
+            "recovery": 0.0
+          },
+          "+20": {
+            "WA": 1.0,
+            "recovery": 0.0
+          }
+        }
+      },
+      "noise_robustness": {
+        "tok_acc": 0.9998,
+        "seq_acc": 0.9993
+      },
+      "spectral_radius": {
+        "mean_rho": 1.1042,
+        "std_rho": 0.0261,
+        "nishimori_target": 0.4622,
+        "distance_to_nishimori": 0.6421,
+        "n_samples": 64
+      }
+    }
+  ]
+}

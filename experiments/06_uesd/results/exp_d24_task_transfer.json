@@ -1,0 +1,301 @@
+{
+  "timestamp": "2026-05-23T18:30:03.538497+00:00",
+  "device": "cuda",
+  "purpose": "D24: Task transfer \u2014 do dynamics learn generalizable algebraic structure?",
+  "config": {
+    "d_model": 128,
+    "n_heads": 4,
+    "d_ff": 512,
+    "n_enc_layers": 2,
+    "vocab_size": 64,
+    "seq_len": 8,
+    "training_steps": 20000,
+    "batch_size": 256,
+    "lr": 0.0003,
+    "seed": 42,
+    "train_T": 10
+  },
+  "addition_accuracy": 1.0,
+  "train_time_s": 1129.5,
+  "encoder_addition_accuracy": 0.9829,
+  "transfer": {
+    "subtraction": {
+      "uesd_trained": {
+        "T=1": {
+          "tok_acc": 0.0164,
+          "seq_acc": 0.0,
+          "pos0": 0.019,
+          "pos1": 0.014,
+          "pos2": 0.017,
+          "pos3": 0.016
+        },
+        "T=3": {
+          "tok_acc": 0.019,
+          "seq_acc": 0.0,
+          "pos0": 0.014,
+          "pos1": 0.014,
+          "pos2": 0.017,
+          "pos3": 0.031
+        },
+        "T=5": {
+          "tok_acc": 0.0194,
+          "seq_acc": 0.0,
+          "pos0": 0.014,
+          "pos1": 0.015,
+          "pos2": 0.018,
+          "pos3": 0.031
+        },
+        "T=8": {
+          "tok_acc": 0.0195,
+          "seq_acc": 0.0,
+          "pos0": 0.014,
+          "pos1": 0.015,
+          "pos2": 0.018,
+          "pos3": 0.031
+        },
+        "T=10": {
+          "tok_acc": 0.0195,
+          "seq_acc": 0.0,
+          "pos0": 0.014,
+          "pos1": 0.015,
+          "pos2": 0.018,
+          "pos3": 0.031
+        },
+        "T=15": {
+          "tok_acc": 0.0195,
+          "seq_acc": 0.0,
+          "pos0": 0.014,
+          "pos1": 0.015,
+          "pos2": 0.018,
+          "pos3": 0.031
+        },
+        "T=20": {
+          "tok_acc": 0.0195,
+          "seq_acc": 0.0,
+          "pos0": 0.014,
+          "pos1": 0.015,
+          "pos2": 0.018,
+          "pos3": 0.031
+        }
+      },
+      "uesd_untrained": {
+        "tok_acc": 0.0153,
+        "seq_acc": 0.0,
+        "pos0": 0.015,
+        "pos1": 0.014,
+        "pos2": 0.017,
+        "pos3": 0.015
+      },
+      "encoder_trained": {
+        "tok_acc": 0.0194,
+        "seq_acc": 0.0
+      }
+    },
+    "xor": {
+      "uesd_trained": {
+        "T=1": {
+          "tok_acc": 0.07,
+          "seq_acc": 0.0,
+          "pos0": 0.058,
+          "pos1": 0.043,
+          "pos2": 0.065,
+          "pos3": 0.114
+        },
+        "T=3": {
+          "tok_acc": 0.148,
+          "seq_acc": 0.0012,
+          "pos0": 0.117,
+          "pos1": 0.117,
+          "pos2": 0.117,
+          "pos3": 0.24
+        },
+        "T=5": {
+          "tok_acc": 0.149,
+          "seq_acc": 0.0012,
+          "pos0": 0.119,
+          "pos1": 0.119,
+          "pos2": 0.117,
+          "pos3": 0.24
+        },
+        "T=8": {
+          "tok_acc": 0.1489,
+          "seq_acc": 0.0012,
+          "pos0": 0.119,
+          "pos1": 0.119,
+          "pos2": 0.117,
+          "pos3": 0.24
+        },
+        "T=10": {
+          "tok_acc": 0.1489,
+          "seq_acc": 0.0012,
+          "pos0": 0.119,
+          "pos1": 0.119,
+          "pos2": 0.117,
+          "pos3": 0.24
+        },
+        "T=15": {
+          "tok_acc": 0.1489,
+          "seq_acc": 0.0012,
+          "pos0": 0.119,
+          "pos1": 0.119,
+          "pos2": 0.117,
+          "pos3": 0.24
+        },
+        "T=20": {
+          "tok_acc": 0.149,
+          "seq_acc": 0.0012,
+          "pos0": 0.119,
+          "pos1": 0.119,
+          "pos2": 0.117,
+          "pos3": 0.24
+        }
+      },
+      "uesd_untrained": {
+        "tok_acc": 0.0155,
+        "seq_acc": 0.0,
+        "pos0": 0.015,
+        "pos1": 0.015,
+        "pos2": 0.016,
+        "pos3": 0.016
+      },
+      "encoder_trained": {
+        "tok_acc": 0.1484,
+        "seq_acc": 0.0005
+      }
+    },
+    "element_max": {
+      "uesd_trained": {
+        "T=1": {
+          "tok_acc": 0.0148,
+          "seq_acc": 0.0,
+          "pos0": 0.017,
+          "pos1": 0.012,
+          "pos2": 0.01,
+          "pos3": 0.021
+        },
+        "T=3": {
+          "tok_acc": 0.0196,
+          "seq_acc": 0.0,
+          "pos0": 0.016,
+          "pos1": 0.014,
+          "pos2": 0.015,
+          "pos3": 0.033
+        },
+        "T=5": {
+          "tok_acc": 0.0201,
+          "seq_acc": 0.0,
+          "pos0": 0.016,
+          "pos1": 0.015,
+          "pos2": 0.016,
+          "pos3": 0.033
+        },
+        "T=8": {
+          "tok_acc": 0.0201,
+          "seq_acc": 0.0,
+          "pos0": 0.016,
+          "pos1": 0.015,
+          "pos2": 0.016,
+          "pos3": 0.033
+        },
+        "T=10": {
+          "tok_acc": 0.0201,
+          "seq_acc": 0.0,
+          "pos0": 0.016,
+          "pos1": 0.015,
+          "pos2": 0.016,
+          "pos3": 0.033
+        },
+        "T=15": {
+          "tok_acc": 0.0201,
+          "seq_acc": 0.0,
+          "pos0": 0.016,
+          "pos1": 0.015,
+          "pos2": 0.016,
+          "pos3": 0.033
+        },
+        "T=20": {
+          "tok_acc": 0.02,
+          "seq_acc": 0.0,
+          "pos0": 0.016,
+          "pos1": 0.015,
+          "pos2": 0.016,
+          "pos3": 0.033
+        }
+      },
+      "uesd_untrained": {
+        "tok_acc": 0.0184,
+        "seq_acc": 0.0,
+        "pos0": 0.02,
+        "pos1": 0.013,
+        "pos2": 0.022,
+        "pos3": 0.018
+      },
+      "encoder_trained": {
+        "tok_acc": 0.02,
+        "seq_acc": 0.0
+      }
+    }
+  },
+  "finetune": {
+    "subtraction": {
+      "from_addition": {
+        "step_10": 0.0,
+        "step_50": 0.0,
+        "step_100": 0.0,
+        "step_500": 0.0029,
+        "step_1000": 0.0603,
+        "step_2000": 0.9934,
+        "step_5000": 1.0
+      },
+      "from_scratch": {
+        "step_10": 0.0,
+        "step_50": 0.0,
+        "step_100": 0.0,
+        "step_500": 0.0,
+        "step_1000": 0.0,
+        "step_2000": 0.0408,
+        "step_5000": 0.886
+      }
+    },
+    "xor": {
+      "from_addition": {
+        "step_10": 0.0012,
+        "step_50": 0.0002,
+        "step_100": 0.0007,
+        "step_500": 0.1357,
+        "step_1000": 0.9185,
+        "step_2000": 1.0,
+        "step_5000": 1.0
+      },
+      "from_scratch": {
+        "step_10": 0.0,
+        "step_50": 0.0,
+        "step_100": 0.0,
+        "step_500": 0.0,
+        "step_1000": 0.0,
+        "step_2000": 0.9998,
+        "step_5000": 1.0
+      }
+    },
+    "element_max": {
+      "from_addition": {
+        "step_10": 0.0,
+        "step_50": 0.0,
+        "step_100": 0.0,
+        "step_500": 0.9993,
+        "step_1000": 1.0,
+        "step_2000": 1.0,
+        "step_5000": 1.0
+      },
+      "from_scratch": {
+        "step_10": 0.0002,
+        "step_50": 0.627,
+        "step_100": 0.9507,
+        "step_500": 1.0,
+        "step_1000": 1.0,
+        "step_2000": 0.9993,
+        "step_5000": 1.0
+      }
+    }
+  }
+}
