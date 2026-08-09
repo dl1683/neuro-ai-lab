@@ -1,0 +1,1259 @@
+{
+  "timestamp": "2026-05-25T15:10:36.808007+00:00",
+  "device": "cuda",
+  "purpose": "D36: Architecture sweep for VT k-contraction setpoint robustness. Tests whether k~0.988 is specific to d=128/h=4 or generalizes across architectures. Codex 9/10 bar requirement #1.",
+  "config": {
+    "task": "addition",
+    "carry_depth": 6,
+    "seq_len": 12,
+    "vocab_size": 64,
+    "n_enc_layers": 2,
+    "training_steps": 20000,
+    "train_T": 10,
+    "batch_size": 256,
+    "lr": 0.0003,
+    "variable_t_range": [
+      4,
+      6,
+      8,
+      10,
+      12,
+      14,
+      16
+    ],
+    "seeds": [
+      42,
+      137
+    ],
+    "architectures": [
+      {
+        "name": "small",
+        "d_model": 64,
+        "n_heads": 2,
+        "d_ff": 256
+      },
+      {
+        "name": "baseline",
+        "d_model": 128,
+        "n_heads": 4,
+        "d_ff": 512
+      },
+      {
+        "name": "large",
+        "d_model": 256,
+        "n_heads": 8,
+        "d_ff": 1024
+      },
+      {
+        "name": "many_heads",
+        "d_model": 128,
+        "n_heads": 8,
+        "d_ff": 512
+      },
+      {
+        "name": "few_heads",
+        "d_model": 128,
+        "n_heads": 2,
+        "d_ff": 512
+      }
+    ],
+    "q_checkpoint_interval": 2000,
+    "fp_steps": 100,
+    "trajectory_steps": 30
+  },
+  "runs": [
+    {
+      "key": "small_fixed_t_s42",
+      "arch_name": "small",
+      "d_model": 64,
+      "n_heads": 2,
+      "d_ff": 256,
+      "head_dim": 32,
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "fixed_t",
+      "seed": 42,
+      "params": 183168,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 1.0364,
+        "std": 0.0011
+      },
+      "contraction": {
+        "mean_k": 0.989,
+        "std_k": 0.0038,
+        "T_99": 5
+      },
+      "train_time_s": 1637.9,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.0,
+        "4000": 0.0,
+        "6000": 0.04,
+        "8000": 0.5117,
+        "10000": 0.665,
+        "12000": 0.752,
+        "14000": 0.7949,
+        "16000": 0.9004,
+        "18000": 0.8711,
+        "20000": 0.8994
+      },
+      "mean_tmin_acc": 0.494,
+      "phase_transition_step": 8000,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    },
+    {
+      "key": "small_variable_t_s42",
+      "arch_name": "small",
+      "d_model": 64,
+      "n_heads": 2,
+      "d_ff": 256,
+      "head_dim": 32,
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "variable_t",
+      "seed": 42,
+      "params": 183168,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 1.0142,
+        "std": 0.0007
+      },
+      "contraction": {
+        "mean_k": 0.9894,
+        "std_k": 0.0013,
+        "T_99": 3
+      },
+      "train_time_s": 1637.1,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.0,
+        "4000": 0.0,
+        "6000": 0.0039,
+        "8000": 0.998,
+        "10000": 0.9971,
+        "12000": 1.0,
+        "14000": 0.999,
+        "16000": 1.0,
+        "18000": 1.0,
+        "20000": 1.0
+      },
+      "mean_tmin_acc": 0.6362,
+      "phase_transition_step": 8000,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    },
+    {
+      "key": "small_fixed_t_s137",
+      "arch_name": "small",
+      "d_model": 64,
+      "n_heads": 2,
+      "d_ff": 256,
+      "head_dim": 32,
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "fixed_t",
+      "seed": 137,
+      "params": 183168,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 1.0244,
+        "std": 0.0016
+      },
+      "contraction": {
+        "mean_k": 0.9878,
+        "std_k": 0.0018,
+        "T_99": 5
+      },
+      "train_time_s": 1658.1,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.0,
+        "4000": 0.0,
+        "6000": 0.0,
+        "8000": 0.875,
+        "10000": 0.834,
+        "12000": 0.8643,
+        "14000": 0.8877,
+        "16000": 0.9307,
+        "18000": 0.9629,
+        "20000": 0.9668
+      },
+      "mean_tmin_acc": 0.5747,
+      "phase_transition_step": 8000,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    },
+    {
+      "key": "small_variable_t_s137",
+      "arch_name": "small",
+      "d_model": 64,
+      "n_heads": 2,
+      "d_ff": 256,
+      "head_dim": 32,
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "variable_t",
+      "seed": 137,
+      "params": 183168,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 1.0093,
+        "std": 0.0004
+      },
+      "contraction": {
+        "mean_k": 0.989,
+        "std_k": 0.0007,
+        "T_99": 3
+      },
+      "train_time_s": 1762.2,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.0,
+        "4000": 0.0,
+        "6000": 0.0,
+        "8000": 0.9639,
+        "10000": 0.9648,
+        "12000": 0.9961,
+        "14000": 0.999,
+        "16000": 1.0,
+        "18000": 1.0,
+        "20000": 0.999
+      },
+      "mean_tmin_acc": 0.6293,
+      "phase_transition_step": 8000,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    },
+    {
+      "key": "baseline_fixed_t_s42",
+      "arch_name": "baseline",
+      "d_model": 128,
+      "n_heads": 4,
+      "d_ff": 512,
+      "head_dim": 32,
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "fixed_t",
+      "seed": 42,
+      "params": 702208,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 1.0019,
+        "std": 0.0002
+      },
+      "contraction": {
+        "mean_k": 0.99,
+        "std_k": 0.0004,
+        "T_99": 4
+      },
+      "train_time_s": 1645.2,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.0,
+        "4000": 0.9414,
+        "6000": 0.9629,
+        "8000": 0.9766,
+        "10000": 0.9893,
+        "12000": 0.9824,
+        "14000": 0.9902,
+        "16000": 0.9912,
+        "18000": 0.9893,
+        "20000": 0.9961
+      },
+      "mean_tmin_acc": 0.8018,
+      "phase_transition_step": 4000,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    },
+    {
+      "key": "baseline_variable_t_s42",
+      "arch_name": "baseline",
+      "d_model": 128,
+      "n_heads": 4,
+      "d_ff": 512,
+      "head_dim": 32,
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "variable_t",
+      "seed": 42,
+      "params": 702208,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 1.0004,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9885,
+        "std_k": 0.0001,
+        "T_99": 3
+      },
+      "train_time_s": 1677.7,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.0,
+        "4000": 0.9668,
+        "6000": 0.9834,
+        "8000": 0.9912,
+        "10000": 0.9941,
+        "12000": 0.999,
+        "14000": 0.998,
+        "16000": 1.0,
+        "18000": 1.0,
+        "20000": 1.0
+      },
+      "mean_tmin_acc": 0.812,
+      "phase_transition_step": 4000,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    },
+    {
+      "key": "baseline_fixed_t_s137",
+      "arch_name": "baseline",
+      "d_model": 128,
+      "n_heads": 4,
+      "d_ff": 512,
+      "head_dim": 32,
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "fixed_t",
+      "seed": 137,
+      "params": 702208,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 1.0019,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9913,
+        "std_k": 0.0004,
+        "T_99": 5
+      },
+      "train_time_s": 1745.2,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.0,
+        "4000": 0.9023,
+        "6000": 0.9521,
+        "8000": 0.9443,
+        "10000": 0.9785,
+        "12000": 0.9814,
+        "14000": 0.9863,
+        "16000": 0.9688,
+        "18000": 0.9941,
+        "20000": 0.9736
+      },
+      "mean_tmin_acc": 0.7892,
+      "phase_transition_step": 4000,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    },
+    {
+      "key": "baseline_variable_t_s137",
+      "arch_name": "baseline",
+      "d_model": 128,
+      "n_heads": 4,
+      "d_ff": 512,
+      "head_dim": 32,
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "variable_t",
+      "seed": 137,
+      "params": 702208,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 1.0021,
+        "std": 0.0002
+      },
+      "contraction": {
+        "mean_k": 0.9873,
+        "std_k": 0.0003,
+        "T_99": 3
+      },
+      "train_time_s": 1849.8,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.0,
+        "4000": 0.9668,
+        "6000": 0.9834,
+        "8000": 0.998,
+        "10000": 0.9961,
+        "12000": 0.998,
+        "14000": 1.0,
+        "16000": 1.0,
+        "18000": 1.0,
+        "20000": 1.0
+      },
+      "mean_tmin_acc": 0.8129,
+      "phase_transition_step": 4000,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    },
+    {
+      "key": "large_fixed_t_s42",
+      "arch_name": "large",
+      "d_model": 256,
+      "n_heads": 8,
+      "d_ff": 1024,
+      "head_dim": 32,
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "fixed_t",
+      "seed": 42,
+      "params": 2747904,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 1.0029,
+        "std": 0.0002
+      },
+      "contraction": {
+        "mean_k": 0.9886,
+        "std_k": 0.0004,
+        "T_99": 3
+      },
+      "train_time_s": 1498.2,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.9131,
+        "4000": 0.9951,
+        "6000": 0.9922,
+        "8000": 0.9941,
+        "10000": 0.9932,
+        "12000": 0.9951,
+        "14000": 0.9971,
+        "16000": 0.998,
+        "18000": 0.998,
+        "20000": 0.998
+      },
+      "mean_tmin_acc": 0.8976,
+      "phase_transition_step": 2000,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    },
+    {
+      "key": "large_variable_t_s42",
+      "arch_name": "large",
+      "d_model": 256,
+      "n_heads": 8,
+      "d_ff": 1024,
+      "head_dim": 32,
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "variable_t",
+      "seed": 42,
+      "params": 2747904,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 1.0007,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9888,
+        "std_k": 0.0002,
+        "T_99": 2
+      },
+      "train_time_s": 1718.1,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.9531,
+        "4000": 0.9941,
+        "6000": 0.999,
+        "8000": 0.9951,
+        "10000": 0.9961,
+        "12000": 0.9941,
+        "14000": 0.999,
+        "16000": 0.999,
+        "18000": 0.998,
+        "20000": 1.0
+      },
+      "mean_tmin_acc": 0.9025,
+      "phase_transition_step": 2000,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    },
+    {
+      "key": "large_fixed_t_s137",
+      "arch_name": "large",
+      "d_model": 256,
+      "n_heads": 8,
+      "d_ff": 1024,
+      "head_dim": 32,
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "fixed_t",
+      "seed": 137,
+      "params": 2747904,
+      "accuracy": 0.0,
+      "spectral_radius": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "contraction": {
+        "mean_k": 0.9895,
+        "std_k": 0.0003,
+        "T_99": null
+      },
+      "train_time_s": 1677.5,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.0,
+        "4000": 0.0,
+        "6000": 0.0,
+        "8000": 0.0,
+        "10000": 0.0,
+        "12000": 0.0,
+        "14000": 0.0,
+        "16000": 0.0,
+        "18000": 0.0,
+        "20000": 0.0
+      },
+      "mean_tmin_acc": 0.0,
+      "phase_transition_step": null,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    },
+    {
+      "key": "large_variable_t_s137",
+      "arch_name": "large",
+      "d_model": 256,
+      "n_heads": 8,
+      "d_ff": 1024,
+      "head_dim": 32,
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "variable_t",
+      "seed": 137,
+      "params": 2747904,
+      "accuracy": 0.0,
+      "spectral_radius": {
+        "mean": 1.2626,
+        "std": 0.0014
+      },
+      "contraction": {
+        "mean_k": 0.9898,
+        "std_k": 0.0004,
+        "T_99": null
+      },
+      "train_time_s": 1586.8,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.0,
+        "4000": 0.0,
+        "6000": 0.0,
+        "8000": 0.0,
+        "10000": 0.0,
+        "12000": 0.0,
+        "14000": 0.0,
+        "16000": 0.002,
+        "18000": 0.001,
+        "20000": 0.001
+      },
+      "mean_tmin_acc": 0.0004,
+      "phase_transition_step": null,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    },
+    {
+      "key": "many_heads_fixed_t_s42",
+      "arch_name": "many_heads",
+      "d_model": 128,
+      "n_heads": 8,
+      "d_ff": 512,
+      "head_dim": 16,
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "fixed_t",
+      "seed": 42,
+      "params": 702208,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 1.0076,
+        "std": 0.0003
+      },
+      "contraction": {
+        "mean_k": 0.9916,
+        "std_k": 0.0003,
+        "T_99": 6
+      },
+      "train_time_s": 1475.4,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.0,
+        "4000": 0.0391,
+        "6000": 0.4736,
+        "8000": 0.6064,
+        "10000": 0.7559,
+        "12000": 0.7314,
+        "14000": 0.8574,
+        "16000": 0.8428,
+        "18000": 0.8633,
+        "20000": 0.8564
+      },
+      "mean_tmin_acc": 0.5478,
+      "phase_transition_step": 6000,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    },
+    {
+      "key": "many_heads_variable_t_s42",
+      "arch_name": "many_heads",
+      "d_model": 128,
+      "n_heads": 8,
+      "d_ff": 512,
+      "head_dim": 16,
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "variable_t",
+      "seed": 42,
+      "params": 702208,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 1.0002,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9883,
+        "std_k": 0.0002,
+        "T_99": 2
+      },
+      "train_time_s": 1469.9,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.0,
+        "4000": 0.6396,
+        "6000": 0.9688,
+        "8000": 0.9775,
+        "10000": 0.9873,
+        "12000": 0.9941,
+        "14000": 0.998,
+        "16000": 0.9922,
+        "18000": 0.9971,
+        "20000": 0.998
+      },
+      "mean_tmin_acc": 0.7775,
+      "phase_transition_step": 4000,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    },
+    {
+      "key": "many_heads_fixed_t_s137",
+      "arch_name": "many_heads",
+      "d_model": 128,
+      "n_heads": 8,
+      "d_ff": 512,
+      "head_dim": 16,
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "fixed_t",
+      "seed": 137,
+      "params": 702208,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 1.0032,
+        "std": 0.0002
+      },
+      "contraction": {
+        "mean_k": 0.9898,
+        "std_k": 0.0004,
+        "T_99": 4
+      },
+      "train_time_s": 1675.9,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.0,
+        "4000": 0.0059,
+        "6000": 0.9717,
+        "8000": 0.9863,
+        "10000": 0.9883,
+        "12000": 0.9873,
+        "14000": 0.9902,
+        "16000": 0.9932,
+        "18000": 0.9951,
+        "20000": 0.9951
+      },
+      "mean_tmin_acc": 0.7194,
+      "phase_transition_step": 6000,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    },
+    {
+      "key": "many_heads_variable_t_s137",
+      "arch_name": "many_heads",
+      "d_model": 128,
+      "n_heads": 8,
+      "d_ff": 512,
+      "head_dim": 16,
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "variable_t",
+      "seed": 137,
+      "params": 702208,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 1.0008,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9873,
+        "std_k": 0.0004,
+        "T_99": 3
+      },
+      "train_time_s": 1524.2,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.0,
+        "4000": 0.0205,
+        "6000": 0.9873,
+        "8000": 0.9971,
+        "10000": 0.9971,
+        "12000": 1.0,
+        "14000": 1.0,
+        "16000": 1.0,
+        "18000": 0.999,
+        "20000": 1.0
+      },
+      "mean_tmin_acc": 0.7274,
+      "phase_transition_step": 6000,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    },
+    {
+      "key": "few_heads_fixed_t_s42",
+      "arch_name": "few_heads",
+      "d_model": 128,
+      "n_heads": 2,
+      "d_ff": 512,
+      "head_dim": 64,
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "fixed_t",
+      "seed": 42,
+      "params": 702208,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 1.0024,
+        "std": 0.0002
+      },
+      "contraction": {
+        "mean_k": 0.9926,
+        "std_k": 0.0003,
+        "T_99": 6
+      },
+      "train_time_s": 1451.5,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.0,
+        "4000": 0.3604,
+        "6000": 0.5166,
+        "8000": 0.6406,
+        "10000": 0.7627,
+        "12000": 0.7832,
+        "14000": 0.9336,
+        "16000": 0.8848,
+        "18000": 0.9082,
+        "20000": 0.8604
+      },
+      "mean_tmin_acc": 0.6046,
+      "phase_transition_step": 4000,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    },
+    {
+      "key": "few_heads_variable_t_s42",
+      "arch_name": "few_heads",
+      "d_model": 128,
+      "n_heads": 2,
+      "d_ff": 512,
+      "head_dim": 64,
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "variable_t",
+      "seed": 42,
+      "params": 702208,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 1.0015,
+        "std": 0.0002
+      },
+      "contraction": {
+        "mean_k": 0.9881,
+        "std_k": 0.0002,
+        "T_99": 4
+      },
+      "train_time_s": 1225.8,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.0,
+        "4000": 0.9648,
+        "6000": 0.9727,
+        "8000": 0.9736,
+        "10000": 0.9805,
+        "12000": 0.9795,
+        "14000": 0.9912,
+        "16000": 0.9971,
+        "18000": 0.9932,
+        "20000": 0.9951
+      },
+      "mean_tmin_acc": 0.8043,
+      "phase_transition_step": 4000,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    },
+    {
+      "key": "few_heads_fixed_t_s137",
+      "arch_name": "few_heads",
+      "d_model": 128,
+      "n_heads": 2,
+      "d_ff": 512,
+      "head_dim": 64,
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "fixed_t",
+      "seed": 137,
+      "params": 702208,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 1.0033,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9891,
+        "std_k": 0.0004,
+        "T_99": 4
+      },
+      "train_time_s": 1233.0,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.0,
+        "4000": 0.9688,
+        "6000": 0.9736,
+        "8000": 0.9287,
+        "10000": 0.9678,
+        "12000": 0.9648,
+        "14000": 0.9863,
+        "16000": 0.9941,
+        "18000": 0.9775,
+        "20000": 0.998
+      },
+      "mean_tmin_acc": 0.7963,
+      "phase_transition_step": 4000,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    },
+    {
+      "key": "few_heads_variable_t_s137",
+      "arch_name": "few_heads",
+      "d_model": 128,
+      "n_heads": 2,
+      "d_ff": 512,
+      "head_dim": 64,
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "variable_t",
+      "seed": 137,
+      "params": 702208,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 1.001,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9882,
+        "std_k": 0.0004,
+        "T_99": 3
+      },
+      "train_time_s": 1111.1,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.0,
+        "4000": 0.9688,
+        "6000": 0.9688,
+        "8000": 0.9961,
+        "10000": 0.998,
+        "12000": 1.0,
+        "14000": 0.999,
+        "16000": 1.0,
+        "18000": 1.0,
+        "20000": 1.0
+      },
+      "mean_tmin_acc": 0.8119,
+      "phase_transition_step": 4000,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    }
+  ],
+  "completed": "2026-05-25T23:52:41.590062+00:00",
+  "architecture_analysis": [
+    {
+      "arch_name": "small",
+      "d_model": 64,
+      "n_heads": 2,
+      "d_ff": 256,
+      "head_dim": 32,
+      "mean_ft_k": 0.9884,
+      "mean_vt_k": 0.9892,
+      "mean_dk": 0.0008,
+      "mean_ft_rho": 1.0304,
+      "mean_vt_rho": 1.0118,
+      "mean_drho": -0.0186,
+      "n_seeds": 2,
+      "all_dk": [
+        0.0004,
+        0.0012
+      ],
+      "all_vt_k": [
+        0.9894,
+        0.989
+      ]
+    },
+    {
+      "arch_name": "baseline",
+      "d_model": 128,
+      "n_heads": 4,
+      "d_ff": 512,
+      "head_dim": 32,
+      "mean_ft_k": 0.9907,
+      "mean_vt_k": 0.9879,
+      "mean_dk": -0.0027,
+      "mean_ft_rho": 1.0019,
+      "mean_vt_rho": 1.0012,
+      "mean_drho": -0.0007,
+      "n_seeds": 2,
+      "all_dk": [
+        -0.0015,
+        -0.004
+      ],
+      "all_vt_k": [
+        0.9885,
+        0.9873
+      ]
+    },
+    {
+      "arch_name": "large",
+      "d_model": 256,
+      "n_heads": 8,
+      "d_ff": 1024,
+      "head_dim": 32,
+      "mean_ft_k": 0.989,
+      "mean_vt_k": 0.9893,
+      "mean_dk": 0.0002,
+      "mean_ft_rho": 1.0014,
+      "mean_vt_rho": 1.1317,
+      "mean_drho": 0.1302,
+      "n_seeds": 2,
+      "all_dk": [
+        0.0002,
+        0.0003
+      ],
+      "all_vt_k": [
+        0.9888,
+        0.9898
+      ]
+    },
+    {
+      "arch_name": "many_heads",
+      "d_model": 128,
+      "n_heads": 8,
+      "d_ff": 512,
+      "head_dim": 16,
+      "mean_ft_k": 0.9907,
+      "mean_vt_k": 0.9878,
+      "mean_dk": -0.0029,
+      "mean_ft_rho": 1.0054,
+      "mean_vt_rho": 1.0005,
+      "mean_drho": -0.0049,
+      "n_seeds": 2,
+      "all_dk": [
+        -0.0033,
+        -0.0025
+      ],
+      "all_vt_k": [
+        0.9883,
+        0.9873
+      ]
+    },
+    {
+      "arch_name": "few_heads",
+      "d_model": 128,
+      "n_heads": 2,
+      "d_ff": 512,
+      "head_dim": 64,
+      "mean_ft_k": 0.9909,
+      "mean_vt_k": 0.9881,
+      "mean_dk": -0.0027,
+      "mean_ft_rho": 1.0029,
+      "mean_vt_rho": 1.0012,
+      "mean_drho": -0.0016,
+      "n_seeds": 2,
+      "all_dk": [
+        -0.0045,
+        -0.0009
+      ],
+      "all_vt_k": [
+        0.9881,
+        0.9882
+      ]
+    }
+  ]
+}

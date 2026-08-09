@@ -1,0 +1,491 @@
+{
+  "experiment": "D37_alt_k_estimator",
+  "models": {
+    "baseline_ft_D8": {
+      "config": {
+        "source": "D33",
+        "arch": {
+          "d_model": 128,
+          "n_heads": 4,
+          "d_ff": 512
+        },
+        "carry_depth": 8,
+        "seq_len": 16,
+        "variant": "fixed_t",
+        "seed": 42,
+        "vocab_size": 64,
+        "n_enc_layers": 2,
+        "max_len": 64
+      },
+      "train_time_s": 1834.0,
+      "estimators": {
+        "standard": {
+          "method": "standard",
+          "mean_k": 0.991046,
+          "std_k": 0.000244,
+          "k_trajectory": [
+            0.992165,
+            0.991584,
+            0.991317,
+            0.991127,
+            0.991017,
+            0.990953,
+            0.990912,
+            0.990877,
+            0.990837,
+            0.990788,
+            0.990729,
+            0.990661,
+            0.990583,
+            0.990497,
+            0.990403,
+            0.990301,
+            0.990192,
+            0.990074,
+            0.989949,
+            0.989816,
+            0.989675,
+            0.989527,
+            0.98937,
+            0.989206,
+            0.989033,
+            0.988853,
+            0.988664,
+            0.988467,
+            0.988263,
+            0.98805
+          ],
+          "time_s": 1.0
+        },
+        "random_direction": {
+          "method": "random_direction",
+          "mean_k": 0.994749,
+          "std_k": 1e-06,
+          "per_scale": {
+            "0.001": {
+              "mean_k": 0.994751,
+              "std_k": 2.3e-05,
+              "n_directions": 20
+            },
+            "0.01": {
+              "mean_k": 0.994748,
+              "std_k": 2.3e-05,
+              "n_directions": 20
+            },
+            "0.03": {
+              "mean_k": 0.994748,
+              "std_k": 2.3e-05,
+              "n_directions": 20
+            }
+          },
+          "scale_range": 3e-06,
+          "scale_stable": true,
+          "time_s": 2.5
+        },
+        "pairwise": {
+          "method": "pairwise",
+          "mean_k": 1.014405,
+          "std_k": 9e-05,
+          "per_pair_k": [
+            1.014252,
+            1.014492,
+            1.014336,
+            1.014414,
+            1.014488,
+            1.01442,
+            1.014305,
+            1.014486,
+            1.014526,
+            1.014329
+          ],
+          "n_pairs": 10,
+          "burn_in_steps": 3,
+          "time_s": 0.8
+        }
+      },
+      "timestamp": "2026-05-25T18:31:45.642501+00:00"
+    },
+    "baseline_vt_D8": {
+      "config": {
+        "source": "D33",
+        "arch": {
+          "d_model": 128,
+          "n_heads": 4,
+          "d_ff": 512
+        },
+        "carry_depth": 8,
+        "seq_len": 16,
+        "variant": "variable_t",
+        "seed": 42,
+        "vocab_size": 64,
+        "n_enc_layers": 2,
+        "max_len": 64
+      },
+      "train_time_s": 1912.4,
+      "estimators": {
+        "standard": {
+          "method": "standard",
+          "mean_k": 0.988172,
+          "std_k": 0.000235,
+          "k_trajectory": [
+            0.988288,
+            0.987655,
+            0.987851,
+            0.988174,
+            0.988304,
+            0.988351,
+            0.988356,
+            0.988332,
+            0.98829,
+            0.988233,
+            0.988166,
+            0.988089,
+            0.988004,
+            0.987912,
+            0.987813,
+            0.987709,
+            0.987598,
+            0.987482,
+            0.987361,
+            0.987234,
+            0.987101,
+            0.986964,
+            0.986821,
+            0.986673,
+            0.986519,
+            0.98636,
+            0.986195,
+            0.986025,
+            0.985849,
+            0.985666
+          ],
+          "time_s": 1.1
+        },
+        "random_direction": {
+          "method": "random_direction",
+          "mean_k": 0.995048,
+          "std_k": 1e-06,
+          "per_scale": {
+            "0.001": {
+              "mean_k": 0.995049,
+              "std_k": 3.2e-05,
+              "n_directions": 20
+            },
+            "0.01": {
+              "mean_k": 0.995047,
+              "std_k": 3.2e-05,
+              "n_directions": 20
+            },
+            "0.03": {
+              "mean_k": 0.995047,
+              "std_k": 3.2e-05,
+              "n_directions": 20
+            }
+          },
+          "scale_range": 2e-06,
+          "scale_stable": true,
+          "time_s": 2.6
+        },
+        "pairwise": {
+          "method": "pairwise",
+          "mean_k": 1.02661,
+          "std_k": 0.000245,
+          "per_pair_k": [
+            1.026958,
+            1.026149,
+            1.026804,
+            1.02651,
+            1.026611,
+            1.026664,
+            1.026687,
+            1.026337,
+            1.026444,
+            1.026936
+          ],
+          "n_pairs": 10,
+          "burn_in_steps": 3,
+          "time_s": 0.9
+        }
+      },
+      "timestamp": "2026-05-25T19:03:42.672973+00:00"
+    },
+    "small_ft": {
+      "config": {
+        "source": "D36",
+        "arch": {
+          "d_model": 64,
+          "n_heads": 2,
+          "d_ff": 256
+        },
+        "carry_depth": 6,
+        "seq_len": 12,
+        "variant": "fixed_t",
+        "seed": 42,
+        "vocab_size": 64,
+        "n_enc_layers": 2,
+        "max_len": 64
+      },
+      "train_time_s": 2961.2,
+      "estimators": {
+        "standard": {
+          "method": "standard",
+          "mean_k": 0.989942,
+          "std_k": 0.003098,
+          "k_trajectory": [
+            0.978735,
+            0.982989,
+            0.986444,
+            0.98901,
+            0.990401,
+            0.991371,
+            0.992041,
+            0.992384,
+            0.992464,
+            0.992375,
+            0.992193,
+            0.99196,
+            0.991702,
+            0.991435,
+            0.991167,
+            0.990904,
+            0.990651,
+            0.990411,
+            0.990182,
+            0.989964,
+            0.989757,
+            0.989558,
+            0.989367,
+            0.98918,
+            0.988997,
+            0.988819,
+            0.988643,
+            0.988469,
+            0.988294,
+            0.988113
+          ],
+          "time_s": 0.4
+        },
+        "random_direction": {
+          "method": "random_direction",
+          "mean_k": 1.007544,
+          "std_k": 0.007521,
+          "per_scale": {
+            "0.001": {
+              "mean_k": 1.016729,
+              "std_k": 0.001036,
+              "n_directions": 20
+            },
+            "0.01": {
+              "mean_k": 1.007596,
+              "std_k": 0.001146,
+              "n_directions": 20
+            },
+            "0.03": {
+              "mean_k": 0.998306,
+              "std_k": 0.000736,
+              "n_directions": 20
+            }
+          },
+          "scale_range": 0.018423,
+          "scale_stable": false,
+          "time_s": 4.0
+        },
+        "pairwise": {
+          "method": "pairwise",
+          "mean_k": 0.973556,
+          "std_k": 0.000244,
+          "per_pair_k": [
+            0.973297,
+            0.974037,
+            0.973509,
+            0.973368,
+            0.973743,
+            0.973909,
+            0.973301,
+            0.973387,
+            0.973507,
+            0.973502
+          ],
+          "n_pairs": 10,
+          "burn_in_steps": 3,
+          "time_s": 1.4
+        },
+        "full_jacobian": {
+          "method": "full_jacobian",
+          "skipped": false,
+          "mean_spectral_radius": 1.224905,
+          "std_spectral_radius": 0.2283,
+          "per_sample_rho": [
+            1.036004,
+            1.591236,
+            1.029278,
+            1.243104
+          ],
+          "state_dim": 768,
+          "n_samples": 4,
+          "time_s": 19.0
+        }
+      },
+      "timestamp": "2026-05-25T19:53:28.695327+00:00"
+    },
+    "small_vt": {
+      "config": {
+        "source": "D36",
+        "arch": {
+          "d_model": 64,
+          "n_heads": 2,
+          "d_ff": 256
+        },
+        "carry_depth": 6,
+        "seq_len": 12,
+        "variant": "variable_t",
+        "seed": 42,
+        "vocab_size": 64,
+        "n_enc_layers": 2,
+        "max_len": 64
+      },
+      "train_time_s": 2811.3,
+      "estimators": {
+        "standard": {
+          "method": "standard",
+          "mean_k": 0.986948,
+          "std_k": 0.001411,
+          "k_trajectory": [
+            0.982448,
+            0.983808,
+            0.985336,
+            0.98652,
+            0.987152,
+            0.987551,
+            0.98782,
+            0.988002,
+            0.988127,
+            0.988212,
+            0.988269,
+            0.988302,
+            0.988317,
+            0.988316,
+            0.988301,
+            0.988273,
+            0.988234,
+            0.988183,
+            0.988122,
+            0.98805,
+            0.987969,
+            0.987878,
+            0.987778,
+            0.987669,
+            0.987552,
+            0.987426,
+            0.987292,
+            0.98715,
+            0.987,
+            0.986841
+          ],
+          "time_s": 0.4
+        },
+        "random_direction": {
+          "method": "random_direction",
+          "mean_k": 0.986596,
+          "std_k": 1e-06,
+          "per_scale": {
+            "0.001": {
+              "mean_k": 0.986597,
+              "std_k": 0.000128,
+              "n_directions": 20
+            },
+            "0.01": {
+              "mean_k": 0.986596,
+              "std_k": 0.000128,
+              "n_directions": 20
+            },
+            "0.03": {
+              "mean_k": 0.986595,
+              "std_k": 0.000128,
+              "n_directions": 20
+            }
+          },
+          "scale_range": 2e-06,
+          "scale_stable": true,
+          "time_s": 3.9
+        },
+        "pairwise": {
+          "method": "pairwise",
+          "mean_k": 1.012167,
+          "std_k": 0.000307,
+          "per_pair_k": [
+            1.011849,
+            1.012491,
+            1.011949,
+            1.012105,
+            1.012809,
+            1.011949,
+            1.012152,
+            1.011924,
+            1.012503,
+            1.011942
+          ],
+          "n_pairs": 10,
+          "burn_in_steps": 3,
+          "time_s": 1.3
+        },
+        "full_jacobian": {
+          "method": "full_jacobian",
+          "skipped": false,
+          "mean_spectral_radius": 1.034014,
+          "std_spectral_radius": 0.013323,
+          "per_sample_rho": [
+            1.022772,
+            1.043347,
+            1.050697,
+            1.019241
+          ],
+          "state_dim": 768,
+          "n_samples": 4,
+          "time_s": 17.7
+        }
+      },
+      "timestamp": "2026-05-25T20:40:43.354905+00:00"
+    }
+  },
+  "n_complete": 4,
+  "n_total": 4,
+  "analysis": {
+    "models": {
+      "baseline_ft_D8": {
+        "k_standard": 0.991046,
+        "k_random_direction": 0.994749,
+        "k_pairwise": 1.014405,
+        "k_jacobian_rho": null,
+        "max_disagreement": 0.023359
+      },
+      "baseline_vt_D8": {
+        "k_standard": 0.988172,
+        "k_random_direction": 0.995048,
+        "k_pairwise": 1.02661,
+        "k_jacobian_rho": null,
+        "max_disagreement": 0.038438
+      },
+      "small_ft": {
+        "k_standard": 0.989942,
+        "k_random_direction": 1.007544,
+        "k_pairwise": 0.973556,
+        "k_jacobian_rho": 1.224905,
+        "max_disagreement": 0.017602
+      },
+      "small_vt": {
+        "k_standard": 0.986948,
+        "k_random_direction": 0.986596,
+        "k_pairwise": 1.012167,
+        "k_jacobian_rho": 1.034014,
+        "max_disagreement": 0.025219
+      }
+    },
+    "verdict": "ESTIMATOR_ARTIFACT",
+    "max_cross_model_disagreement": 0.038438,
+    "verdict_detail": "Max disagreement 0.0384 \u2014 LARGE. The standard k estimator has a significant bias. The k\u22480.988 setpoint may be an artifact.",
+    "dk_standard": -0.002934,
+    "dk_random_direction": -0.010324,
+    "dk_pairwise": 0.025408
+  }
+}

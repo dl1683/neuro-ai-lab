@@ -1,0 +1,2240 @@
+{
+  "timestamp": "2026-05-24T16:47:46.499171+00:00",
+  "device": "cuda",
+  "purpose": "D32: Multi-task mechanism test. Tests whether readout-stable manifold mechanism generalizes beyond single-task addition. 3 arms (baseline, no-layernorm, iter-dropout) x 4 depths x 2 variants.",
+  "config": {
+    "d_model": 128,
+    "n_heads": 4,
+    "d_ff": 512,
+    "n_enc_layers": 2,
+    "vocab_size": 64,
+    "training_steps": 20000,
+    "train_T": 10,
+    "variable_t_range": [
+      4,
+      6,
+      8,
+      10,
+      12,
+      14,
+      16
+    ],
+    "seed": 42,
+    "iter_dropout_p": 0.2,
+    "tasks": [
+      "addition",
+      "subtraction"
+    ]
+  },
+  "runs": [
+    {
+      "key": "D6_baseline_fixed_t",
+      "carry_depth": 6,
+      "seq_len": 12,
+      "arm": "baseline",
+      "variant": "fixed_t",
+      "seed": 42,
+      "params": 702208,
+      "train_time_s": 2064.0,
+      "best_addition_acc": 0.0586,
+      "best_subtraction_acc": 0.0039,
+      "effective_t_ratio": 1.0,
+      "per_task": {
+        "addition": {
+          "spectral_radius": {
+            "mean": 1.0035,
+            "std": 0.0002
+          },
+          "mean_k": 0.9911,
+          "std_k": 0.0006,
+          "T_99": null,
+          "fp_relative_residual": 0.11808965,
+          "step_accuracies": [
+            0.0,
+            0.0017,
+            0.0227,
+            0.0386,
+            0.0437,
+            0.0491,
+            0.0547,
+            0.0559,
+            0.0564,
+            0.0547,
+            0.051,
+            0.0479,
+            0.0444,
+            0.04,
+            0.0386
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.02
+        },
+        "subtraction": {
+          "spectral_radius": {
+            "mean": 1.0035,
+            "std": 0.0002
+          },
+          "mean_k": 0.9911,
+          "std_k": 0.0006,
+          "T_99": null,
+          "fp_relative_residual": 0.11808965,
+          "step_accuracies": [
+            0.0,
+            0.0012,
+            0.0063,
+            0.0049,
+            0.0039,
+            0.0044,
+            0.0039,
+            0.0044,
+            0.0042,
+            0.0059,
+            0.0061,
+            0.0068,
+            0.0066,
+            0.0068,
+            0.0068
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0083
+        }
+      },
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "iter_dropout_p": 0.0,
+        "tasks": [
+          "addition",
+          "subtraction"
+        ]
+      }
+    },
+    {
+      "key": "D6_baseline_variable_t",
+      "carry_depth": 6,
+      "seq_len": 12,
+      "arm": "baseline",
+      "variant": "variable_t",
+      "seed": 42,
+      "params": 702208,
+      "train_time_s": 1774.9,
+      "best_addition_acc": 0.0312,
+      "best_subtraction_acc": 0.0137,
+      "effective_t_ratio": 1.0,
+      "per_task": {
+        "addition": {
+          "spectral_radius": {
+            "mean": 1.0028,
+            "std": 0.0002
+          },
+          "mean_k": 0.9879,
+          "std_k": 0.0008,
+          "T_99": null,
+          "fp_relative_residual": 0.09640587,
+          "step_accuracies": [
+            0.0015,
+            0.0322,
+            0.0361,
+            0.0322,
+            0.0342,
+            0.0352,
+            0.0347,
+            0.032,
+            0.0291,
+            0.0288,
+            0.0288,
+            0.0291,
+            0.0295,
+            0.0291,
+            0.0269
+          ],
+          "wrong_attractor_rate": 0.9846,
+          "final_acc": 0.0293
+        },
+        "subtraction": {
+          "spectral_radius": {
+            "mean": 1.0028,
+            "std": 0.0002
+          },
+          "mean_k": 0.9879,
+          "std_k": 0.0008,
+          "T_99": null,
+          "fp_relative_residual": 0.09640587,
+          "step_accuracies": [
+            0.001,
+            0.0066,
+            0.0063,
+            0.0081,
+            0.0098,
+            0.0103,
+            0.0095,
+            0.0103,
+            0.0107,
+            0.0112,
+            0.0115,
+            0.0112,
+            0.0112,
+            0.0112,
+            0.012
+          ],
+          "wrong_attractor_rate": 0.9944,
+          "final_acc": 0.011
+        }
+      },
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "iter_dropout_p": 0.0,
+        "tasks": [
+          "addition",
+          "subtraction"
+        ]
+      }
+    },
+    {
+      "key": "D6_no_layernorm_fixed_t",
+      "carry_depth": 6,
+      "seq_len": 12,
+      "arm": "no_layernorm",
+      "variant": "fixed_t",
+      "seed": 42,
+      "params": 701440,
+      "train_time_s": 1532.1,
+      "best_addition_acc": 0.0,
+      "best_subtraction_acc": 0.0,
+      "effective_t_ratio": 1.0,
+      "per_task": {
+        "addition": {
+          "spectral_radius": {
+            "mean": NaN,
+            "std": NaN
+          },
+          "mean_k": NaN,
+          "std_k": NaN,
+          "T_99": null,
+          "fp_relative_residual": NaN,
+          "step_accuracies": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0
+        },
+        "subtraction": {
+          "spectral_radius": {
+            "mean": NaN,
+            "std": NaN
+          },
+          "mean_k": NaN,
+          "std_k": NaN,
+          "T_99": null,
+          "fp_relative_residual": NaN,
+          "step_accuracies": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0
+        }
+      },
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "iter_dropout_p": 0.0,
+        "tasks": [
+          "addition",
+          "subtraction"
+        ]
+      }
+    },
+    {
+      "key": "D6_no_layernorm_variable_t",
+      "carry_depth": 6,
+      "seq_len": 12,
+      "arm": "no_layernorm",
+      "variant": "variable_t",
+      "seed": 42,
+      "params": 701440,
+      "train_time_s": 1484.2,
+      "best_addition_acc": 0.0,
+      "best_subtraction_acc": 0.0,
+      "effective_t_ratio": 1.0,
+      "per_task": {
+        "addition": {
+          "spectral_radius": {
+            "mean": NaN,
+            "std": NaN
+          },
+          "mean_k": NaN,
+          "std_k": NaN,
+          "T_99": null,
+          "fp_relative_residual": NaN,
+          "step_accuracies": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0
+        },
+        "subtraction": {
+          "spectral_radius": {
+            "mean": NaN,
+            "std": NaN
+          },
+          "mean_k": NaN,
+          "std_k": NaN,
+          "T_99": null,
+          "fp_relative_residual": NaN,
+          "step_accuracies": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0
+        }
+      },
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "iter_dropout_p": 0.0,
+        "tasks": [
+          "addition",
+          "subtraction"
+        ]
+      }
+    },
+    {
+      "key": "D6_iter_dropout_fixed_t",
+      "carry_depth": 6,
+      "seq_len": 12,
+      "arm": "iter_dropout",
+      "variant": "fixed_t",
+      "seed": 42,
+      "params": 702208,
+      "train_time_s": 1317.4,
+      "best_addition_acc": 0.0332,
+      "best_subtraction_acc": 0.0098,
+      "effective_t_ratio": 0.8006,
+      "per_task": {
+        "addition": {
+          "spectral_radius": {
+            "mean": 1.0067,
+            "std": 0.0002
+          },
+          "mean_k": 0.9848,
+          "std_k": 0.0025,
+          "T_99": null,
+          "fp_relative_residual": 0.09020786,
+          "step_accuracies": [
+            0.0015,
+            0.0232,
+            0.0337,
+            0.0388,
+            0.0342,
+            0.0354,
+            0.0322,
+            0.03,
+            0.0298,
+            0.0286,
+            0.0293,
+            0.0269,
+            0.0237,
+            0.0237,
+            0.0244
+          ],
+          "wrong_attractor_rate": 0.9995,
+          "final_acc": 0.0156
+        },
+        "subtraction": {
+          "spectral_radius": {
+            "mean": 1.0067,
+            "std": 0.0002
+          },
+          "mean_k": 0.9848,
+          "std_k": 0.0025,
+          "T_99": null,
+          "fp_relative_residual": 0.09020786,
+          "step_accuracies": [
+            0.0002,
+            0.0061,
+            0.0054,
+            0.0059,
+            0.0085,
+            0.0098,
+            0.0098,
+            0.01,
+            0.0095,
+            0.0122,
+            0.0117,
+            0.012,
+            0.0112,
+            0.0105,
+            0.0095
+          ],
+          "wrong_attractor_rate": 0.9998,
+          "final_acc": 0.0142
+        }
+      },
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "iter_dropout_p": 0.2,
+        "tasks": [
+          "addition",
+          "subtraction"
+        ]
+      }
+    },
+    {
+      "key": "D6_iter_dropout_variable_t",
+      "carry_depth": 6,
+      "seq_len": 12,
+      "arm": "iter_dropout",
+      "variant": "variable_t",
+      "seed": 42,
+      "params": 702208,
+      "train_time_s": 1370.4,
+      "best_addition_acc": 0.0508,
+      "best_subtraction_acc": 0.0078,
+      "effective_t_ratio": 0.8005,
+      "per_task": {
+        "addition": {
+          "spectral_radius": {
+            "mean": 1.0008,
+            "std": 0.0002
+          },
+          "mean_k": 0.9885,
+          "std_k": 0.0005,
+          "T_99": null,
+          "fp_relative_residual": 0.09904948,
+          "step_accuracies": [
+            0.0525,
+            0.0737,
+            0.0757,
+            0.064,
+            0.0608,
+            0.0598,
+            0.0596,
+            0.0579,
+            0.0576,
+            0.0557,
+            0.0557,
+            0.0569,
+            0.0574,
+            0.0583,
+            0.0559
+          ],
+          "wrong_attractor_rate": 0.9519,
+          "final_acc": 0.0515
+        },
+        "subtraction": {
+          "spectral_radius": {
+            "mean": 1.0008,
+            "std": 0.0002
+          },
+          "mean_k": 0.9885,
+          "std_k": 0.0005,
+          "T_99": null,
+          "fp_relative_residual": 0.09904948,
+          "step_accuracies": [
+            0.0032,
+            0.0024,
+            0.0039,
+            0.0029,
+            0.0037,
+            0.0039,
+            0.0042,
+            0.0042,
+            0.0049,
+            0.0049,
+            0.0049,
+            0.0051,
+            0.0046,
+            0.0044,
+            0.0042
+          ],
+          "wrong_attractor_rate": 0.9939,
+          "final_acc": 0.0044
+        }
+      },
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "iter_dropout_p": 0.2,
+        "tasks": [
+          "addition",
+          "subtraction"
+        ]
+      }
+    },
+    {
+      "key": "D8_baseline_fixed_t",
+      "carry_depth": 8,
+      "seq_len": 16,
+      "arm": "baseline",
+      "variant": "fixed_t",
+      "seed": 42,
+      "params": 702208,
+      "train_time_s": 1705.3,
+      "best_addition_acc": 0.0117,
+      "best_subtraction_acc": 0.0039,
+      "effective_t_ratio": 1.0,
+      "per_task": {
+        "addition": {
+          "spectral_radius": {
+            "mean": 1.0086,
+            "std": 0.0002
+          },
+          "mean_k": 0.9852,
+          "std_k": 0.0015,
+          "T_99": null,
+          "fp_relative_residual": 0.09379304,
+          "step_accuracies": [
+            0.0,
+            0.0,
+            0.002,
+            0.0046,
+            0.0059,
+            0.0056,
+            0.0049,
+            0.0046,
+            0.0059,
+            0.0061,
+            0.0042,
+            0.0042,
+            0.0056,
+            0.0049,
+            0.0049
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0029
+        },
+        "subtraction": {
+          "spectral_radius": {
+            "mean": 1.0086,
+            "std": 0.0002
+          },
+          "mean_k": 0.9852,
+          "std_k": 0.0015,
+          "T_99": null,
+          "fp_relative_residual": 0.09379304,
+          "step_accuracies": [
+            0.0,
+            0.0002,
+            0.002,
+            0.0032,
+            0.0034,
+            0.0024,
+            0.0046,
+            0.0049,
+            0.0044,
+            0.0044,
+            0.0039,
+            0.0032,
+            0.0042,
+            0.0039,
+            0.0046
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0029
+        }
+      },
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "iter_dropout_p": 0.0,
+        "tasks": [
+          "addition",
+          "subtraction"
+        ]
+      }
+    },
+    {
+      "key": "D8_baseline_variable_t",
+      "carry_depth": 8,
+      "seq_len": 16,
+      "arm": "baseline",
+      "variant": "variable_t",
+      "seed": 42,
+      "params": 702208,
+      "train_time_s": 1611.6,
+      "best_addition_acc": 0.0137,
+      "best_subtraction_acc": 0.002,
+      "effective_t_ratio": 1.0,
+      "per_task": {
+        "addition": {
+          "spectral_radius": {
+            "mean": 1.0024,
+            "std": 0.0001
+          },
+          "mean_k": 0.9873,
+          "std_k": 0.001,
+          "T_99": null,
+          "fp_relative_residual": 0.09458522,
+          "step_accuracies": [
+            0.0022,
+            0.0066,
+            0.0098,
+            0.0076,
+            0.009,
+            0.0085,
+            0.0071,
+            0.0071,
+            0.0076,
+            0.0073,
+            0.0078,
+            0.0078,
+            0.0073,
+            0.0071,
+            0.0073
+          ],
+          "wrong_attractor_rate": 0.9937,
+          "final_acc": 0.0085
+        },
+        "subtraction": {
+          "spectral_radius": {
+            "mean": 1.0024,
+            "std": 0.0001
+          },
+          "mean_k": 0.9873,
+          "std_k": 0.001,
+          "T_99": null,
+          "fp_relative_residual": 0.09458522,
+          "step_accuracies": [
+            0.0007,
+            0.0007,
+            0.0012,
+            0.0015,
+            0.0022,
+            0.0029,
+            0.0029,
+            0.0037,
+            0.0027,
+            0.0024,
+            0.0017,
+            0.0015,
+            0.0015,
+            0.001,
+            0.0012
+          ],
+          "wrong_attractor_rate": 0.9978,
+          "final_acc": 0.0017
+        }
+      },
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "iter_dropout_p": 0.0,
+        "tasks": [
+          "addition",
+          "subtraction"
+        ]
+      }
+    },
+    {
+      "key": "D8_no_layernorm_fixed_t",
+      "carry_depth": 8,
+      "seq_len": 16,
+      "arm": "no_layernorm",
+      "variant": "fixed_t",
+      "seed": 42,
+      "params": 701440,
+      "train_time_s": 1639.0,
+      "best_addition_acc": 0.0,
+      "best_subtraction_acc": 0.0,
+      "effective_t_ratio": 1.0,
+      "per_task": {
+        "addition": {
+          "spectral_radius": {
+            "mean": NaN,
+            "std": NaN
+          },
+          "mean_k": NaN,
+          "std_k": NaN,
+          "T_99": null,
+          "fp_relative_residual": NaN,
+          "step_accuracies": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0
+        },
+        "subtraction": {
+          "spectral_radius": {
+            "mean": NaN,
+            "std": NaN
+          },
+          "mean_k": NaN,
+          "std_k": NaN,
+          "T_99": null,
+          "fp_relative_residual": NaN,
+          "step_accuracies": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0
+        }
+      },
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "iter_dropout_p": 0.0,
+        "tasks": [
+          "addition",
+          "subtraction"
+        ]
+      }
+    },
+    {
+      "key": "D8_no_layernorm_variable_t",
+      "carry_depth": 8,
+      "seq_len": 16,
+      "arm": "no_layernorm",
+      "variant": "variable_t",
+      "seed": 42,
+      "params": 701440,
+      "train_time_s": 1528.3,
+      "best_addition_acc": 0.0,
+      "best_subtraction_acc": 0.0,
+      "effective_t_ratio": 1.0,
+      "per_task": {
+        "addition": {
+          "spectral_radius": {
+            "mean": NaN,
+            "std": NaN
+          },
+          "mean_k": NaN,
+          "std_k": NaN,
+          "T_99": null,
+          "fp_relative_residual": NaN,
+          "step_accuracies": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0
+        },
+        "subtraction": {
+          "spectral_radius": {
+            "mean": NaN,
+            "std": NaN
+          },
+          "mean_k": NaN,
+          "std_k": NaN,
+          "T_99": null,
+          "fp_relative_residual": NaN,
+          "step_accuracies": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0
+        }
+      },
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "iter_dropout_p": 0.0,
+        "tasks": [
+          "addition",
+          "subtraction"
+        ]
+      }
+    },
+    {
+      "key": "D8_iter_dropout_fixed_t",
+      "carry_depth": 8,
+      "seq_len": 16,
+      "arm": "iter_dropout",
+      "variant": "fixed_t",
+      "seed": 42,
+      "params": 702208,
+      "train_time_s": 1389.6,
+      "best_addition_acc": 0.0078,
+      "best_subtraction_acc": 0.0039,
+      "effective_t_ratio": 0.8006,
+      "per_task": {
+        "addition": {
+          "spectral_radius": {
+            "mean": 1.0087,
+            "std": 0.0002
+          },
+          "mean_k": 0.9866,
+          "std_k": 0.0022,
+          "T_99": null,
+          "fp_relative_residual": 0.10038492,
+          "step_accuracies": [
+            0.0007,
+            0.0146,
+            0.0164,
+            0.0208,
+            0.0164,
+            0.0164,
+            0.0122,
+            0.012,
+            0.0122,
+            0.0103,
+            0.011,
+            0.011,
+            0.0103,
+            0.0105,
+            0.0098
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0049
+        },
+        "subtraction": {
+          "spectral_radius": {
+            "mean": 1.0087,
+            "std": 0.0002
+          },
+          "mean_k": 0.9866,
+          "std_k": 0.0022,
+          "T_99": null,
+          "fp_relative_residual": 0.10038492,
+          "step_accuracies": [
+            0.0002,
+            0.001,
+            0.0007,
+            0.0012,
+            0.0015,
+            0.0024,
+            0.0015,
+            0.0005,
+            0.001,
+            0.001,
+            0.001,
+            0.001,
+            0.0007,
+            0.001,
+            0.001
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0029
+        }
+      },
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "iter_dropout_p": 0.2,
+        "tasks": [
+          "addition",
+          "subtraction"
+        ]
+      }
+    },
+    {
+      "key": "D8_iter_dropout_variable_t",
+      "carry_depth": 8,
+      "seq_len": 16,
+      "arm": "iter_dropout",
+      "variant": "variable_t",
+      "seed": 42,
+      "params": 702208,
+      "train_time_s": 1497.7,
+      "best_addition_acc": 0.0117,
+      "best_subtraction_acc": 0.0078,
+      "effective_t_ratio": 0.8005,
+      "per_task": {
+        "addition": {
+          "spectral_radius": {
+            "mean": 1.0022,
+            "std": 0.0002
+          },
+          "mean_k": 0.9875,
+          "std_k": 0.0006,
+          "T_99": null,
+          "fp_relative_residual": 0.09463597,
+          "step_accuracies": [
+            0.0063,
+            0.0078,
+            0.0103,
+            0.01,
+            0.0095,
+            0.0071,
+            0.0078,
+            0.0088,
+            0.0088,
+            0.0088,
+            0.0083,
+            0.0078,
+            0.0083,
+            0.0081,
+            0.0076
+          ],
+          "wrong_attractor_rate": 0.9961,
+          "final_acc": 0.0054
+        },
+        "subtraction": {
+          "spectral_radius": {
+            "mean": 1.0022,
+            "std": 0.0002
+          },
+          "mean_k": 0.9875,
+          "std_k": 0.0006,
+          "T_99": null,
+          "fp_relative_residual": 0.09463597,
+          "step_accuracies": [
+            0.001,
+            0.0027,
+            0.0051,
+            0.0042,
+            0.0032,
+            0.0029,
+            0.0022,
+            0.0027,
+            0.0029,
+            0.0024,
+            0.0022,
+            0.0022,
+            0.002,
+            0.0022,
+            0.0024
+          ],
+          "wrong_attractor_rate": 0.9973,
+          "final_acc": 0.0024
+        }
+      },
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "iter_dropout_p": 0.2,
+        "tasks": [
+          "addition",
+          "subtraction"
+        ]
+      }
+    },
+    {
+      "key": "D10_baseline_fixed_t",
+      "carry_depth": 10,
+      "seq_len": 20,
+      "arm": "baseline",
+      "variant": "fixed_t",
+      "seed": 42,
+      "params": 702208,
+      "train_time_s": 1774.2,
+      "best_addition_acc": 0.0039,
+      "best_subtraction_acc": 0.0059,
+      "effective_t_ratio": 1.0,
+      "per_task": {
+        "addition": {
+          "spectral_radius": {
+            "mean": 1.0107,
+            "std": 0.0002
+          },
+          "mean_k": 0.9868,
+          "std_k": 0.0022,
+          "T_99": null,
+          "fp_relative_residual": 0.10718474,
+          "step_accuracies": [
+            0.0,
+            0.0,
+            0.0005,
+            0.0015,
+            0.0027,
+            0.002,
+            0.002,
+            0.0017,
+            0.0034,
+            0.0027,
+            0.0017,
+            0.002,
+            0.0017,
+            0.0017,
+            0.0017
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0002
+        },
+        "subtraction": {
+          "spectral_radius": {
+            "mean": 1.0107,
+            "std": 0.0002
+          },
+          "mean_k": 0.9868,
+          "std_k": 0.0022,
+          "T_99": null,
+          "fp_relative_residual": 0.10718474,
+          "step_accuracies": [
+            0.0,
+            0.0,
+            0.0005,
+            0.0,
+            0.0002,
+            0.0,
+            0.0005,
+            0.0007,
+            0.0007,
+            0.0005,
+            0.0002,
+            0.0,
+            0.0002,
+            0.0007,
+            0.001
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0002
+        }
+      },
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "iter_dropout_p": 0.0,
+        "tasks": [
+          "addition",
+          "subtraction"
+        ]
+      }
+    },
+    {
+      "key": "D10_baseline_variable_t",
+      "carry_depth": 10,
+      "seq_len": 20,
+      "arm": "baseline",
+      "variant": "variable_t",
+      "seed": 42,
+      "params": 702208,
+      "train_time_s": 1779.8,
+      "best_addition_acc": 0.0,
+      "best_subtraction_acc": 0.002,
+      "effective_t_ratio": 1.0,
+      "per_task": {
+        "addition": {
+          "spectral_radius": {
+            "mean": 1.0029,
+            "std": 0.0001
+          },
+          "mean_k": 0.9876,
+          "std_k": 0.0006,
+          "T_99": null,
+          "fp_relative_residual": 0.09523886,
+          "step_accuracies": [
+            0.0017,
+            0.0034,
+            0.0042,
+            0.0029,
+            0.0032,
+            0.002,
+            0.002,
+            0.0015,
+            0.0017,
+            0.002,
+            0.0022,
+            0.002,
+            0.0022,
+            0.0024,
+            0.0022
+          ],
+          "wrong_attractor_rate": 0.9983,
+          "final_acc": 0.0027
+        },
+        "subtraction": {
+          "spectral_radius": {
+            "mean": 1.0029,
+            "std": 0.0001
+          },
+          "mean_k": 0.9876,
+          "std_k": 0.0006,
+          "T_99": null,
+          "fp_relative_residual": 0.09523886,
+          "step_accuracies": [
+            0.0,
+            0.0,
+            0.0005,
+            0.0005,
+            0.0005,
+            0.0002,
+            0.0005,
+            0.0005,
+            0.001,
+            0.001,
+            0.001,
+            0.001,
+            0.0007,
+            0.0007,
+            0.0007
+          ],
+          "wrong_attractor_rate": 0.999,
+          "final_acc": 0.0005
+        }
+      },
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "iter_dropout_p": 0.0,
+        "tasks": [
+          "addition",
+          "subtraction"
+        ]
+      }
+    },
+    {
+      "key": "D10_no_layernorm_fixed_t",
+      "carry_depth": 10,
+      "seq_len": 20,
+      "arm": "no_layernorm",
+      "variant": "fixed_t",
+      "seed": 42,
+      "params": 701440,
+      "train_time_s": 1692.7,
+      "best_addition_acc": 0.0,
+      "best_subtraction_acc": 0.0,
+      "effective_t_ratio": 1.0,
+      "per_task": {
+        "addition": {
+          "spectral_radius": {
+            "mean": NaN,
+            "std": NaN
+          },
+          "mean_k": NaN,
+          "std_k": NaN,
+          "T_99": null,
+          "fp_relative_residual": NaN,
+          "step_accuracies": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0
+        },
+        "subtraction": {
+          "spectral_radius": {
+            "mean": NaN,
+            "std": NaN
+          },
+          "mean_k": NaN,
+          "std_k": NaN,
+          "T_99": null,
+          "fp_relative_residual": NaN,
+          "step_accuracies": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0
+        }
+      },
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "iter_dropout_p": 0.0,
+        "tasks": [
+          "addition",
+          "subtraction"
+        ]
+      }
+    },
+    {
+      "key": "D10_no_layernorm_variable_t",
+      "carry_depth": 10,
+      "seq_len": 20,
+      "arm": "no_layernorm",
+      "variant": "variable_t",
+      "seed": 42,
+      "params": 701440,
+      "train_time_s": 1683.3,
+      "best_addition_acc": 0.0,
+      "best_subtraction_acc": 0.0,
+      "effective_t_ratio": 1.0,
+      "per_task": {
+        "addition": {
+          "spectral_radius": {
+            "mean": NaN,
+            "std": NaN
+          },
+          "mean_k": NaN,
+          "std_k": NaN,
+          "T_99": null,
+          "fp_relative_residual": NaN,
+          "step_accuracies": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0
+        },
+        "subtraction": {
+          "spectral_radius": {
+            "mean": NaN,
+            "std": NaN
+          },
+          "mean_k": NaN,
+          "std_k": NaN,
+          "T_99": null,
+          "fp_relative_residual": NaN,
+          "step_accuracies": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0
+        }
+      },
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "iter_dropout_p": 0.0,
+        "tasks": [
+          "addition",
+          "subtraction"
+        ]
+      }
+    },
+    {
+      "key": "D10_iter_dropout_fixed_t",
+      "carry_depth": 10,
+      "seq_len": 20,
+      "arm": "iter_dropout",
+      "variant": "fixed_t",
+      "seed": 42,
+      "params": 702208,
+      "train_time_s": 1471.0,
+      "best_addition_acc": 0.0039,
+      "best_subtraction_acc": 0.002,
+      "effective_t_ratio": 0.8006,
+      "per_task": {
+        "addition": {
+          "spectral_radius": {
+            "mean": 1.0071,
+            "std": 0.0001
+          },
+          "mean_k": 0.987,
+          "std_k": 0.0008,
+          "T_99": null,
+          "fp_relative_residual": 0.09839372,
+          "step_accuracies": [
+            0.0,
+            0.0017,
+            0.0024,
+            0.0022,
+            0.0029,
+            0.0017,
+            0.0022,
+            0.0022,
+            0.0027,
+            0.002,
+            0.0029,
+            0.0015,
+            0.0005,
+            0.001,
+            0.0022
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.001
+        },
+        "subtraction": {
+          "spectral_radius": {
+            "mean": 1.0071,
+            "std": 0.0001
+          },
+          "mean_k": 0.987,
+          "std_k": 0.0008,
+          "T_99": null,
+          "fp_relative_residual": 0.09839372,
+          "step_accuracies": [
+            0.0,
+            0.0002,
+            0.0005,
+            0.0002,
+            0.0,
+            0.0002,
+            0.001,
+            0.001,
+            0.0012,
+            0.0012,
+            0.001,
+            0.0007,
+            0.0007,
+            0.0007,
+            0.0007
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0007
+        }
+      },
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "iter_dropout_p": 0.2,
+        "tasks": [
+          "addition",
+          "subtraction"
+        ]
+      }
+    },
+    {
+      "key": "D10_iter_dropout_variable_t",
+      "carry_depth": 10,
+      "seq_len": 20,
+      "arm": "iter_dropout",
+      "variant": "variable_t",
+      "seed": 42,
+      "params": 702208,
+      "train_time_s": 1476.3,
+      "best_addition_acc": 0.0059,
+      "best_subtraction_acc": 0.0,
+      "effective_t_ratio": 0.8005,
+      "per_task": {
+        "addition": {
+          "spectral_radius": {
+            "mean": 1.0057,
+            "std": 0.0002
+          },
+          "mean_k": 0.9868,
+          "std_k": 0.002,
+          "T_99": null,
+          "fp_relative_residual": 0.09638295,
+          "step_accuracies": [
+            0.0027,
+            0.0081,
+            0.0078,
+            0.0085,
+            0.0078,
+            0.0068,
+            0.0073,
+            0.0078,
+            0.0071,
+            0.0059,
+            0.0063,
+            0.0071,
+            0.0071,
+            0.0068,
+            0.0063
+          ],
+          "wrong_attractor_rate": 0.9995,
+          "final_acc": 0.0044
+        },
+        "subtraction": {
+          "spectral_radius": {
+            "mean": 1.0057,
+            "std": 0.0002
+          },
+          "mean_k": 0.9868,
+          "std_k": 0.002,
+          "T_99": null,
+          "fp_relative_residual": 0.09638295,
+          "step_accuracies": [
+            0.0002,
+            0.0002,
+            0.0005,
+            0.0002,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0002,
+            0.0002,
+            0.0002,
+            0.0002,
+            0.0002
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0002
+        }
+      },
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "iter_dropout_p": 0.2,
+        "tasks": [
+          "addition",
+          "subtraction"
+        ]
+      }
+    },
+    {
+      "key": "D12_baseline_fixed_t",
+      "carry_depth": 12,
+      "seq_len": 24,
+      "arm": "baseline",
+      "variant": "fixed_t",
+      "seed": 42,
+      "params": 702208,
+      "train_time_s": 1708.8,
+      "best_addition_acc": 0.002,
+      "best_subtraction_acc": 0.0039,
+      "effective_t_ratio": 1.0,
+      "per_task": {
+        "addition": {
+          "spectral_radius": {
+            "mean": 1.005,
+            "std": 0.0001
+          },
+          "mean_k": 0.9898,
+          "std_k": 0.0004,
+          "T_99": null,
+          "fp_relative_residual": 0.11181711,
+          "step_accuracies": [
+            0.0,
+            0.0002,
+            0.0007,
+            0.0015,
+            0.0012,
+            0.0007,
+            0.0002,
+            0.0005,
+            0.0005,
+            0.001,
+            0.001,
+            0.0007,
+            0.0005,
+            0.0005,
+            0.0005
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0002
+        },
+        "subtraction": {
+          "spectral_radius": {
+            "mean": 1.005,
+            "std": 0.0001
+          },
+          "mean_k": 0.9898,
+          "std_k": 0.0004,
+          "T_99": null,
+          "fp_relative_residual": 0.11181711,
+          "step_accuracies": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0002,
+            0.0002,
+            0.0002,
+            0.0007,
+            0.0007,
+            0.0007,
+            0.0002,
+            0.0002,
+            0.0002,
+            0.0005
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0002
+        }
+      },
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "iter_dropout_p": 0.0,
+        "tasks": [
+          "addition",
+          "subtraction"
+        ]
+      }
+    },
+    {
+      "key": "D12_baseline_variable_t",
+      "carry_depth": 12,
+      "seq_len": 24,
+      "arm": "baseline",
+      "variant": "variable_t",
+      "seed": 42,
+      "params": 702208,
+      "train_time_s": 1493.5,
+      "best_addition_acc": 0.0,
+      "best_subtraction_acc": 0.0,
+      "effective_t_ratio": 1.0,
+      "per_task": {
+        "addition": {
+          "spectral_radius": {
+            "mean": 1.0048,
+            "std": 0.0002
+          },
+          "mean_k": 0.9837,
+          "std_k": 0.0032,
+          "T_99": null,
+          "fp_relative_residual": 0.0889441,
+          "step_accuracies": [
+            0.0,
+            0.0017,
+            0.001,
+            0.0005,
+            0.0002,
+            0.0005,
+            0.0005,
+            0.0005,
+            0.001,
+            0.001,
+            0.0012,
+            0.0012,
+            0.001,
+            0.001,
+            0.001
+          ],
+          "wrong_attractor_rate": 0.9995,
+          "final_acc": 0.001
+        },
+        "subtraction": {
+          "spectral_radius": {
+            "mean": 1.0048,
+            "std": 0.0002
+          },
+          "mean_k": 0.9837,
+          "std_k": 0.0032,
+          "T_99": null,
+          "fp_relative_residual": 0.0889441,
+          "step_accuracies": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0002,
+            0.0002,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0002
+        }
+      },
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "iter_dropout_p": 0.0,
+        "tasks": [
+          "addition",
+          "subtraction"
+        ]
+      }
+    },
+    {
+      "key": "D12_no_layernorm_fixed_t",
+      "carry_depth": 12,
+      "seq_len": 24,
+      "arm": "no_layernorm",
+      "variant": "fixed_t",
+      "seed": 42,
+      "params": 701440,
+      "train_time_s": 1533.6,
+      "best_addition_acc": 0.0,
+      "best_subtraction_acc": 0.0,
+      "effective_t_ratio": 1.0,
+      "per_task": {
+        "addition": {
+          "spectral_radius": {
+            "mean": NaN,
+            "std": NaN
+          },
+          "mean_k": NaN,
+          "std_k": NaN,
+          "T_99": null,
+          "fp_relative_residual": NaN,
+          "step_accuracies": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0
+        },
+        "subtraction": {
+          "spectral_radius": {
+            "mean": NaN,
+            "std": NaN
+          },
+          "mean_k": NaN,
+          "std_k": NaN,
+          "T_99": null,
+          "fp_relative_residual": NaN,
+          "step_accuracies": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0
+        }
+      },
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "iter_dropout_p": 0.0,
+        "tasks": [
+          "addition",
+          "subtraction"
+        ]
+      }
+    },
+    {
+      "key": "D12_no_layernorm_variable_t",
+      "carry_depth": 12,
+      "seq_len": 24,
+      "arm": "no_layernorm",
+      "variant": "variable_t",
+      "seed": 42,
+      "params": 701440,
+      "train_time_s": 1563.4,
+      "best_addition_acc": 0.0,
+      "best_subtraction_acc": 0.0,
+      "effective_t_ratio": 1.0,
+      "per_task": {
+        "addition": {
+          "spectral_radius": {
+            "mean": NaN,
+            "std": NaN
+          },
+          "mean_k": NaN,
+          "std_k": NaN,
+          "T_99": null,
+          "fp_relative_residual": NaN,
+          "step_accuracies": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0
+        },
+        "subtraction": {
+          "spectral_radius": {
+            "mean": NaN,
+            "std": NaN
+          },
+          "mean_k": NaN,
+          "std_k": NaN,
+          "T_99": null,
+          "fp_relative_residual": NaN,
+          "step_accuracies": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0
+        }
+      },
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "iter_dropout_p": 0.0,
+        "tasks": [
+          "addition",
+          "subtraction"
+        ]
+      }
+    },
+    {
+      "key": "D12_iter_dropout_fixed_t",
+      "carry_depth": 12,
+      "seq_len": 24,
+      "arm": "iter_dropout",
+      "variant": "fixed_t",
+      "seed": 42,
+      "params": 702208,
+      "train_time_s": 1395.2,
+      "best_addition_acc": 0.002,
+      "best_subtraction_acc": 0.0,
+      "effective_t_ratio": 0.8006,
+      "per_task": {
+        "addition": {
+          "spectral_radius": {
+            "mean": 1.0044,
+            "std": 0.0001
+          },
+          "mean_k": 0.987,
+          "std_k": 0.0014,
+          "T_99": null,
+          "fp_relative_residual": 0.09612025,
+          "step_accuracies": [
+            0.0,
+            0.001,
+            0.0017,
+            0.0024,
+            0.0027,
+            0.0022,
+            0.0017,
+            0.0012,
+            0.0012,
+            0.0015,
+            0.0015,
+            0.001,
+            0.0005,
+            0.0002,
+            0.0002
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0002
+        },
+        "subtraction": {
+          "spectral_radius": {
+            "mean": 1.0044,
+            "std": 0.0001
+          },
+          "mean_k": 0.987,
+          "std_k": 0.0014,
+          "T_99": null,
+          "fp_relative_residual": 0.09612025,
+          "step_accuracies": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0
+        }
+      },
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "iter_dropout_p": 0.2,
+        "tasks": [
+          "addition",
+          "subtraction"
+        ]
+      }
+    },
+    {
+      "key": "D12_iter_dropout_variable_t",
+      "carry_depth": 12,
+      "seq_len": 24,
+      "arm": "iter_dropout",
+      "variant": "variable_t",
+      "seed": 42,
+      "params": 702208,
+      "train_time_s": 989.3,
+      "best_addition_acc": 0.0,
+      "best_subtraction_acc": 0.0,
+      "effective_t_ratio": 0.8005,
+      "per_task": {
+        "addition": {
+          "spectral_radius": {
+            "mean": 1.0088,
+            "std": 0.0002
+          },
+          "mean_k": 0.9863,
+          "std_k": 0.0017,
+          "T_99": null,
+          "fp_relative_residual": 0.10083643,
+          "step_accuracies": [
+            0.0005,
+            0.0007,
+            0.0017,
+            0.0005,
+            0.0007,
+            0.0007,
+            0.0007,
+            0.0005,
+            0.0007,
+            0.0005,
+            0.0005,
+            0.0005,
+            0.0007,
+            0.0005,
+            0.0007
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0007
+        },
+        "subtraction": {
+          "spectral_radius": {
+            "mean": 1.0088,
+            "std": 0.0002
+          },
+          "mean_k": 0.9863,
+          "std_k": 0.0017,
+          "T_99": null,
+          "fp_relative_residual": 0.10083643,
+          "step_accuracies": [
+            0.0,
+            0.0,
+            0.0002,
+            0.0,
+            0.0,
+            0.0002,
+            0.0002,
+            0.0002,
+            0.0002,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "wrong_attractor_rate": 1.0,
+          "final_acc": 0.0
+        }
+      },
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "iter_dropout_p": 0.2,
+        "tasks": [
+          "addition",
+          "subtraction"
+        ]
+      }
+    }
+  ],
+  "completed": "2026-05-25T03:15:04.114842+00:00"
+}

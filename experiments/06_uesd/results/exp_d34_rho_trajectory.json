@@ -1,0 +1,251 @@
+{
+  "timestamp": "2026-05-25T08:40:12.094126+00:00",
+  "device": "cuda",
+  "purpose": "D34: Track rho trajectory during extended multi-task training. Tests VT ceiling hypothesis: does VT constrain rho independently of task learning?",
+  "config": {
+    "d_model": 128,
+    "n_heads": 4,
+    "d_ff": 512,
+    "n_enc_layers": 2,
+    "vocab_size": 64,
+    "training_steps": 60000,
+    "batch_size": 256,
+    "lr": 0.0003,
+    "train_T": 10,
+    "variable_t_range": [
+      4,
+      6,
+      8,
+      10,
+      12,
+      14,
+      16
+    ],
+    "carry_depth": 6,
+    "seq_len": 12,
+    "seed": 42,
+    "tasks": [
+      "addition",
+      "subtraction"
+    ],
+    "checkpoint_interval": 5000
+  },
+  "runs": [
+    {
+      "variant": "fixed_t",
+      "seed": 42,
+      "params": 702208,
+      "train_time_s": 3755.0,
+      "checkpoints": [
+        {
+          "step": 5000,
+          "rho_mean": 1.0044,
+          "rho_std": 0.0001,
+          "addition_acc": 0.0007,
+          "subtraction_acc": 0.0,
+          "loss": 2.3107
+        },
+        {
+          "step": 10000,
+          "rho_mean": 1.0059,
+          "rho_std": 0.0001,
+          "addition_acc": 0.043,
+          "subtraction_acc": 0.0059,
+          "loss": 1.1011
+        },
+        {
+          "step": 15000,
+          "rho_mean": 1.0062,
+          "rho_std": 0.0002,
+          "addition_acc": 0.0149,
+          "subtraction_acc": 0.0193,
+          "loss": 0.8576
+        },
+        {
+          "step": 20000,
+          "rho_mean": 1.006,
+          "rho_std": 0.0002,
+          "addition_acc": 0.031,
+          "subtraction_acc": 0.0093,
+          "loss": 0.8479
+        },
+        {
+          "step": 25000,
+          "rho_mean": 1.0056,
+          "rho_std": 0.0002,
+          "addition_acc": 0.0244,
+          "subtraction_acc": 0.012,
+          "loss": 0.8353
+        },
+        {
+          "step": 30000,
+          "rho_mean": 1.0056,
+          "rho_std": 0.0002,
+          "addition_acc": 0.0278,
+          "subtraction_acc": 0.0098,
+          "loss": 0.8299
+        },
+        {
+          "step": 35000,
+          "rho_mean": 1.0065,
+          "rho_std": 0.0002,
+          "addition_acc": 0.0244,
+          "subtraction_acc": 0.0098,
+          "loss": 0.7958
+        },
+        {
+          "step": 40000,
+          "rho_mean": 1.0073,
+          "rho_std": 0.0002,
+          "addition_acc": 0.0178,
+          "subtraction_acc": 0.0151,
+          "loss": 0.7697
+        },
+        {
+          "step": 45000,
+          "rho_mean": 1.0087,
+          "rho_std": 0.0002,
+          "addition_acc": 0.0122,
+          "subtraction_acc": 0.0188,
+          "loss": 0.7611
+        },
+        {
+          "step": 50000,
+          "rho_mean": 1.0049,
+          "rho_std": 0.0002,
+          "addition_acc": 0.009,
+          "subtraction_acc": 0.0269,
+          "loss": 0.7577
+        },
+        {
+          "step": 55000,
+          "rho_mean": 1.0091,
+          "rho_std": 0.0004,
+          "addition_acc": 0.0205,
+          "subtraction_acc": 0.0142,
+          "loss": 0.7513
+        },
+        {
+          "step": 60000,
+          "rho_mean": 1.0062,
+          "rho_std": 0.0002,
+          "addition_acc": 0.0142,
+          "subtraction_acc": 0.02,
+          "loss": 0.7516
+        }
+      ]
+    },
+    {
+      "variant": "variable_t",
+      "seed": 42,
+      "params": 702208,
+      "train_time_s": 4640.7,
+      "checkpoints": [
+        {
+          "step": 5000,
+          "rho_mean": 1.0032,
+          "rho_std": 0.0001,
+          "addition_acc": 0.0002,
+          "subtraction_acc": 0.0,
+          "loss": 2.2986
+        },
+        {
+          "step": 10000,
+          "rho_mean": 1.0021,
+          "rho_std": 0.0002,
+          "addition_acc": 0.0598,
+          "subtraction_acc": 0.0034,
+          "loss": 1.1971
+        },
+        {
+          "step": 15000,
+          "rho_mean": 1.0017,
+          "rho_std": 0.0002,
+          "addition_acc": 0.0142,
+          "subtraction_acc": 0.0229,
+          "loss": 0.987
+        },
+        {
+          "step": 20000,
+          "rho_mean": 1.0012,
+          "rho_std": 0.0001,
+          "addition_acc": 0.0337,
+          "subtraction_acc": 0.01,
+          "loss": 0.8366
+        },
+        {
+          "step": 25000,
+          "rho_mean": 1.0011,
+          "rho_std": 0.0002,
+          "addition_acc": 0.0293,
+          "subtraction_acc": 0.009,
+          "loss": 0.8225
+        },
+        {
+          "step": 30000,
+          "rho_mean": 1.0014,
+          "rho_std": 0.0002,
+          "addition_acc": 0.031,
+          "subtraction_acc": 0.0073,
+          "loss": 0.807
+        },
+        {
+          "step": 35000,
+          "rho_mean": 1.0016,
+          "rho_std": 0.0002,
+          "addition_acc": 0.0281,
+          "subtraction_acc": 0.0115,
+          "loss": 0.8035
+        },
+        {
+          "step": 40000,
+          "rho_mean": 1.0013,
+          "rho_std": 0.0002,
+          "addition_acc": 0.0159,
+          "subtraction_acc": 0.0151,
+          "loss": 0.7485
+        },
+        {
+          "step": 45000,
+          "rho_mean": 1.0022,
+          "rho_std": 0.0002,
+          "addition_acc": 0.0105,
+          "subtraction_acc": 0.0188,
+          "loss": 0.7826
+        },
+        {
+          "step": 50000,
+          "rho_mean": 1.0023,
+          "rho_std": 0.0002,
+          "addition_acc": 0.0068,
+          "subtraction_acc": 0.0388,
+          "loss": 0.7246
+        },
+        {
+          "step": 55000,
+          "rho_mean": 1.0021,
+          "rho_std": 0.0002,
+          "addition_acc": 0.0234,
+          "subtraction_acc": 0.011,
+          "loss": 0.7478
+        },
+        {
+          "step": 60000,
+          "rho_mean": 1.0029,
+          "rho_std": 0.0002,
+          "addition_acc": 0.0151,
+          "subtraction_acc": 0.0215,
+          "loss": 0.7912
+        }
+      ]
+    }
+  ],
+  "analysis": {
+    "vt_rho_std": 0.0006,
+    "ft_rho_trend": 0.0018,
+    "vt_rho_mean": 1.0019,
+    "ft_rho_first": 1.0044,
+    "ft_rho_last": 1.0062
+  },
+  "completed": "2026-05-25T11:00:09.312052+00:00"
+}

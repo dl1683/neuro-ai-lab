@@ -1,0 +1,422 @@
+{
+  "timestamp": "2026-05-24T12:26:43.100523+00:00",
+  "device": "cuda",
+  "purpose": "D30: T_min control experiment - tests Proposition 32",
+  "seq_len": 8,
+  "carry_depth": 4,
+  "architecture": {
+    "d_model": 128,
+    "n_heads": 4,
+    "d_ff": 512,
+    "n_enc_layers": 2,
+    "vocab_size": 64
+  },
+  "training": {
+    "steps": 20000,
+    "batch_size": 256,
+    "lr": 0.0003,
+    "seed": 42
+  },
+  "runs": [
+    {
+      "config": "A_tmin2",
+      "label": "T_min=2",
+      "t_range": [
+        2,
+        4,
+        6,
+        8,
+        10,
+        12,
+        14
+      ],
+      "t_min": 2,
+      "params": 702208,
+      "train_time_s": 2003.5,
+      "best_train_acc": 0.9492,
+      "step_ablation": {
+        "T=1": {
+          "tok_acc": 0.959045,
+          "seq_acc": 0.846191
+        },
+        "T=2": {
+          "tok_acc": 0.998596,
+          "seq_acc": 0.994385
+        },
+        "T=3": {
+          "tok_acc": 0.999023,
+          "seq_acc": 0.996094
+        },
+        "T=4": {
+          "tok_acc": 0.999329,
+          "seq_acc": 0.997314
+        },
+        "T=5": {
+          "tok_acc": 0.999451,
+          "seq_acc": 0.997803
+        },
+        "T=6": {
+          "tok_acc": 0.999573,
+          "seq_acc": 0.998291
+        },
+        "T=7": {
+          "tok_acc": 0.999512,
+          "seq_acc": 0.998047
+        },
+        "T=8": {
+          "tok_acc": 0.999512,
+          "seq_acc": 0.998047
+        },
+        "T=9": {
+          "tok_acc": 0.999451,
+          "seq_acc": 0.997803
+        },
+        "T=10": {
+          "tok_acc": 0.99939,
+          "seq_acc": 0.997559
+        },
+        "T=11": {
+          "tok_acc": 0.99939,
+          "seq_acc": 0.997559
+        },
+        "T=12": {
+          "tok_acc": 0.99939,
+          "seq_acc": 0.997559
+        },
+        "T=15": {
+          "tok_acc": 0.99939,
+          "seq_acc": 0.997559
+        },
+        "T=20": {
+          "tok_acc": 0.999329,
+          "seq_acc": 0.997314
+        }
+      },
+      "T_99": 2,
+      "spectral_radius": {
+        "mean": 0.9992,
+        "std": 0.0001
+      }
+    },
+    {
+      "config": "B_tmin4",
+      "label": "T_min=4 (standard)",
+      "t_range": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16
+      ],
+      "t_min": 4,
+      "params": 702208,
+      "train_time_s": 2280.6,
+      "best_train_acc": 0.9805,
+      "step_ablation": {
+        "T=1": {
+          "tok_acc": 0.50415,
+          "seq_acc": 0.06665
+        },
+        "T=2": {
+          "tok_acc": 0.984192,
+          "seq_acc": 0.938232
+        },
+        "T=3": {
+          "tok_acc": 0.996826,
+          "seq_acc": 0.987305
+        },
+        "T=4": {
+          "tok_acc": 0.998108,
+          "seq_acc": 0.992432
+        },
+        "T=5": {
+          "tok_acc": 0.998962,
+          "seq_acc": 0.99585
+        },
+        "T=6": {
+          "tok_acc": 0.999207,
+          "seq_acc": 0.996826
+        },
+        "T=7": {
+          "tok_acc": 0.999329,
+          "seq_acc": 0.997314
+        },
+        "T=8": {
+          "tok_acc": 0.999573,
+          "seq_acc": 0.998291
+        },
+        "T=9": {
+          "tok_acc": 0.999634,
+          "seq_acc": 0.998535
+        },
+        "T=10": {
+          "tok_acc": 0.999573,
+          "seq_acc": 0.998535
+        },
+        "T=11": {
+          "tok_acc": 0.999451,
+          "seq_acc": 0.998047
+        },
+        "T=12": {
+          "tok_acc": 0.999451,
+          "seq_acc": 0.998047
+        },
+        "T=15": {
+          "tok_acc": 0.999451,
+          "seq_acc": 0.998047
+        },
+        "T=20": {
+          "tok_acc": 0.999451,
+          "seq_acc": 0.998047
+        }
+      },
+      "T_99": 4,
+      "spectral_radius": {
+        "mean": 1.0001,
+        "std": 0.0001
+      }
+    },
+    {
+      "config": "C_tmin6",
+      "label": "T_min=6",
+      "t_range": [
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18
+      ],
+      "t_min": 6,
+      "params": 702208,
+      "train_time_s": 2848.7,
+      "best_train_acc": 0.9453,
+      "step_ablation": {
+        "T=1": {
+          "tok_acc": 0.298035,
+          "seq_acc": 0.009521
+        },
+        "T=2": {
+          "tok_acc": 0.721619,
+          "seq_acc": 0.272949
+        },
+        "T=3": {
+          "tok_acc": 0.987793,
+          "seq_acc": 0.951904
+        },
+        "T=4": {
+          "tok_acc": 0.997986,
+          "seq_acc": 0.991943
+        },
+        "T=5": {
+          "tok_acc": 0.998169,
+          "seq_acc": 0.992676
+        },
+        "T=6": {
+          "tok_acc": 0.998718,
+          "seq_acc": 0.994873
+        },
+        "T=7": {
+          "tok_acc": 0.999084,
+          "seq_acc": 0.996338
+        },
+        "T=8": {
+          "tok_acc": 0.999329,
+          "seq_acc": 0.997314
+        },
+        "T=9": {
+          "tok_acc": 0.99939,
+          "seq_acc": 0.997559
+        },
+        "T=10": {
+          "tok_acc": 0.999512,
+          "seq_acc": 0.998047
+        },
+        "T=11": {
+          "tok_acc": 0.999573,
+          "seq_acc": 0.998291
+        },
+        "T=12": {
+          "tok_acc": 0.999512,
+          "seq_acc": 0.998047
+        },
+        "T=15": {
+          "tok_acc": 0.999573,
+          "seq_acc": 0.998291
+        },
+        "T=20": {
+          "tok_acc": 0.999573,
+          "seq_acc": 0.998291
+        }
+      },
+      "T_99": 4,
+      "spectral_radius": {
+        "mean": 1.0006,
+        "std": 0.0002
+      }
+    },
+    {
+      "config": "D_tmin8",
+      "label": "T_min=8",
+      "t_range": [
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20
+      ],
+      "t_min": 8,
+      "params": 702208,
+      "train_time_s": 3790.1,
+      "best_train_acc": 0.9883,
+      "step_ablation": {
+        "T=1": {
+          "tok_acc": 0.180725,
+          "seq_acc": 0.000732
+        },
+        "T=2": {
+          "tok_acc": 0.611572,
+          "seq_acc": 0.13208
+        },
+        "T=3": {
+          "tok_acc": 0.930054,
+          "seq_acc": 0.744141
+        },
+        "T=4": {
+          "tok_acc": 0.994934,
+          "seq_acc": 0.97998
+        },
+        "T=5": {
+          "tok_acc": 0.99823,
+          "seq_acc": 0.993164
+        },
+        "T=6": {
+          "tok_acc": 0.999023,
+          "seq_acc": 0.996338
+        },
+        "T=7": {
+          "tok_acc": 0.999146,
+          "seq_acc": 0.996826
+        },
+        "T=8": {
+          "tok_acc": 0.999329,
+          "seq_acc": 0.997559
+        },
+        "T=9": {
+          "tok_acc": 0.999451,
+          "seq_acc": 0.998047
+        },
+        "T=10": {
+          "tok_acc": 0.999512,
+          "seq_acc": 0.998291
+        },
+        "T=11": {
+          "tok_acc": 0.999695,
+          "seq_acc": 0.998779
+        },
+        "T=12": {
+          "tok_acc": 0.999695,
+          "seq_acc": 0.998779
+        },
+        "T=15": {
+          "tok_acc": 0.999573,
+          "seq_acc": 0.998291
+        },
+        "T=20": {
+          "tok_acc": 0.999634,
+          "seq_acc": 0.998535
+        }
+      },
+      "T_99": 5,
+      "spectral_radius": {
+        "mean": 1.0017,
+        "std": 0.0002
+      }
+    },
+    {
+      "config": "E_fixed",
+      "label": "Fixed T=10 (baseline)",
+      "t_range": null,
+      "t_min": 10,
+      "params": 702208,
+      "train_time_s": 3024.2,
+      "best_train_acc": 0.9727,
+      "step_ablation": {
+        "T=1": {
+          "tok_acc": 0.196838,
+          "seq_acc": 0.000732
+        },
+        "T=2": {
+          "tok_acc": 0.526367,
+          "seq_acc": 0.075684
+        },
+        "T=3": {
+          "tok_acc": 0.810791,
+          "seq_acc": 0.43457
+        },
+        "T=4": {
+          "tok_acc": 0.970154,
+          "seq_acc": 0.887207
+        },
+        "T=5": {
+          "tok_acc": 0.996643,
+          "seq_acc": 0.986572
+        },
+        "T=6": {
+          "tok_acc": 0.998657,
+          "seq_acc": 0.994629
+        },
+        "T=7": {
+          "tok_acc": 0.99884,
+          "seq_acc": 0.995361
+        },
+        "T=8": {
+          "tok_acc": 0.998901,
+          "seq_acc": 0.995605
+        },
+        "T=9": {
+          "tok_acc": 0.999146,
+          "seq_acc": 0.996582
+        },
+        "T=10": {
+          "tok_acc": 0.999084,
+          "seq_acc": 0.996338
+        },
+        "T=11": {
+          "tok_acc": 0.999084,
+          "seq_acc": 0.996338
+        },
+        "T=12": {
+          "tok_acc": 0.999146,
+          "seq_acc": 0.996582
+        },
+        "T=15": {
+          "tok_acc": 0.999084,
+          "seq_acc": 0.996338
+        },
+        "T=20": {
+          "tok_acc": 0.996704,
+          "seq_acc": 0.987061
+        }
+      },
+      "T_99": 6,
+      "spectral_radius": {
+        "mean": 1.0026,
+        "std": 0.0003
+      }
+    }
+  ],
+  "prop32_tests": {
+    "t99_leq_tmin": true,
+    "monotonic": true,
+    "rho_independent": true,
+    "rho_range": 0.0034,
+    "none_count": 0,
+    "verdict": "CONFIRMED"
+  }
+}

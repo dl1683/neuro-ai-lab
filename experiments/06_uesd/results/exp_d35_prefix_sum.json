@@ -1,0 +1,284 @@
+{
+  "timestamp": "2026-05-25T09:25:03.975263+00:00",
+  "device": "cuda",
+  "purpose": "D35: Non-arithmetic generalization test (prefix sum). Tests whether VT k-suppression from D31 generalizes to left-to-right cumulative accumulation (vs right-to-left carry in addition). P5 falsification experiment.",
+  "config": {
+    "task": "prefix_sum",
+    "d_model": 128,
+    "n_heads": 4,
+    "d_ff": 512,
+    "n_enc_layers": 2,
+    "vocab_size": 64,
+    "training_steps": 20000,
+    "train_T": 10,
+    "batch_size": 256,
+    "lr": 0.0003,
+    "variable_t_range": [
+      4,
+      6,
+      8,
+      10,
+      12,
+      14,
+      16
+    ],
+    "seeds": [
+      42,
+      137,
+      256,
+      512
+    ],
+    "seq_lens": [
+      6,
+      8,
+      10,
+      12
+    ],
+    "q_checkpoint_interval": 2000,
+    "fp_steps": 100,
+    "trajectory_steps": 30,
+    "loss_over": "full_sequence"
+  },
+  "runs": [
+    {
+      "key": "L6_fixed_t_s42",
+      "seq_len": 6,
+      "variant": "fixed_t",
+      "seed": 42,
+      "params": 702208,
+      "accuracy": 0.0,
+      "spectral_radius": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "contraction": {
+        "mean_k": 0.9894,
+        "std_k": 0.0003,
+        "T_99": null
+      },
+      "train_time_s": 1934.2,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.0,
+        "4000": 0.0,
+        "6000": 0.0,
+        "8000": 0.0,
+        "10000": 0.0,
+        "12000": 0.0,
+        "14000": 0.0,
+        "16000": 0.0,
+        "18000": 0.0,
+        "20000": 0.0
+      },
+      "mean_tmin_acc": 0.0,
+      "phase_transition_step": null,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    },
+    {
+      "key": "L6_variable_t_s42",
+      "seq_len": 6,
+      "variant": "variable_t",
+      "seed": 42,
+      "params": 702208,
+      "accuracy": 0.0,
+      "spectral_radius": {
+        "mean": 1.0004,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9895,
+        "std_k": 0.0003,
+        "T_99": null
+      },
+      "train_time_s": 1933.9,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.0,
+        "4000": 0.0,
+        "6000": 0.0,
+        "8000": 0.0,
+        "10000": 0.0,
+        "12000": 0.0,
+        "14000": 0.0,
+        "16000": 0.0,
+        "18000": 0.0,
+        "20000": 0.0
+      },
+      "mean_tmin_acc": 0.0,
+      "phase_transition_step": null,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    },
+    {
+      "key": "L6_fixed_t_s137",
+      "seq_len": 6,
+      "variant": "fixed_t",
+      "seed": 137,
+      "params": 702208,
+      "accuracy": 0.0,
+      "spectral_radius": {
+        "mean": 0.9998,
+        "std": 0.0
+      },
+      "contraction": {
+        "mean_k": 0.9895,
+        "std_k": 0.0003,
+        "T_99": null
+      },
+      "train_time_s": 1904.7,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.0,
+        "4000": 0.0,
+        "6000": 0.0,
+        "8000": 0.0,
+        "10000": 0.0,
+        "12000": 0.0,
+        "14000": 0.0,
+        "16000": 0.0,
+        "18000": 0.0,
+        "20000": 0.0
+      },
+      "mean_tmin_acc": 0.0,
+      "phase_transition_step": null,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    },
+    {
+      "key": "L6_variable_t_s137",
+      "seq_len": 6,
+      "variant": "variable_t",
+      "seed": 137,
+      "params": 702208,
+      "accuracy": 0.0,
+      "spectral_radius": {
+        "mean": 1.0004,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9891,
+        "std_k": 0.0001,
+        "T_99": null
+      },
+      "train_time_s": 1119.1,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.0,
+        "4000": 0.0,
+        "6000": 0.0,
+        "8000": 0.0,
+        "10000": 0.0,
+        "12000": 0.0,
+        "14000": 0.0,
+        "16000": 0.0,
+        "18000": 0.0,
+        "20000": 0.0
+      },
+      "mean_tmin_acc": 0.0,
+      "phase_transition_step": null,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    },
+    {
+      "key": "L6_fixed_t_s256",
+      "seq_len": 6,
+      "variant": "fixed_t",
+      "seed": 256,
+      "params": 702208,
+      "accuracy": 0.0,
+      "spectral_radius": {
+        "mean": 1.0029,
+        "std": 0.0002
+      },
+      "contraction": {
+        "mean_k": 0.9864,
+        "std_k": 0.0011,
+        "T_99": null
+      },
+      "train_time_s": 1119.2,
+      "q_trajectory": {
+        "1": 0.0,
+        "2000": 0.0,
+        "4000": 0.0,
+        "6000": 0.0,
+        "8000": 0.0,
+        "10000": 0.0,
+        "12000": 0.0,
+        "14000": 0.0,
+        "16000": 0.0,
+        "18000": 0.0,
+        "20000": 0.0
+      },
+      "mean_tmin_acc": 0.0,
+      "phase_transition_step": null,
+      "run_signature": {
+        "training_steps": 20000,
+        "batch_size": 256,
+        "lr": 0.0003,
+        "train_T": 10,
+        "variable_t_range": [
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,585 @@
+{
+  "timestamp": "2026-05-24T16:16:54.583699+00:00",
+  "device": "cuda",
+  "purpose": "D31: Multi-seed D=8 replication -- is delta_rho>0 at D=8 real or seed anomaly? 8 seeds x 2 variants at D=8, plus 3-seed controls at D=6,D=10.",
+  "config": {
+    "d_model": 128,
+    "n_heads": 4,
+    "d_ff": 512,
+    "n_enc_layers": 2,
+    "vocab_size": 64,
+    "training_steps": 20000,
+    "train_T": 10,
+    "variable_t_range": [
+      4,
+      6,
+      8,
+      10,
+      12,
+      14,
+      16
+    ],
+    "batch_size": 256,
+    "lr": 0.0003,
+    "primary_seeds": [
+      42,
+      137,
+      256,
+      512,
+      1024,
+      1337,
+      2024,
+      7777
+    ],
+    "control_seeds": [
+      42,
+      137,
+      256
+    ]
+  },
+  "runs": [
+    {
+      "carry_depth": 8,
+      "seq_len": 16,
+      "variant": "fixed_t",
+      "seed": 42,
+      "accuracy": 0.9844,
+      "spectral_radius": {
+        "mean": 1.0016,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9911,
+        "std_k": 0.0002,
+        "T_99": 6,
+        "fp_relative_residual": 0.11624758
+      },
+      "train_time_s": 2079.0,
+      "role": "primary"
+    },
+    {
+      "carry_depth": 8,
+      "seq_len": 16,
+      "variant": "fixed_t",
+      "seed": 137,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 1.0027,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9898,
+        "std_k": 0.0003,
+        "T_99": 4,
+        "fp_relative_residual": 0.10593132
+      },
+      "train_time_s": 2019.8,
+      "role": "primary"
+    },
+    {
+      "carry_depth": 8,
+      "seq_len": 16,
+      "variant": "fixed_t",
+      "seed": 256,
+      "accuracy": 0.9961,
+      "spectral_radius": {
+        "mean": 1.0034,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9903,
+        "std_k": 0.0003,
+        "T_99": 5,
+        "fp_relative_residual": 0.11103057
+      },
+      "train_time_s": 1753.6,
+      "role": "primary"
+    },
+    {
+      "carry_depth": 8,
+      "seq_len": 16,
+      "variant": "fixed_t",
+      "seed": 512,
+      "accuracy": 0.9961,
+      "spectral_radius": {
+        "mean": 1.0038,
+        "std": 0.0002
+      },
+      "contraction": {
+        "mean_k": 0.9901,
+        "std_k": 0.0001,
+        "T_99": 6,
+        "fp_relative_residual": 0.11384778
+      },
+      "train_time_s": 1632.5,
+      "role": "primary"
+    },
+    {
+      "carry_depth": 8,
+      "seq_len": 16,
+      "variant": "fixed_t",
+      "seed": 1024,
+      "accuracy": 0.957,
+      "spectral_radius": {
+        "mean": 1.0044,
+        "std": 0.0002
+      },
+      "contraction": {
+        "mean_k": 0.9903,
+        "std_k": 0.0003,
+        "T_99": 5,
+        "fp_relative_residual": 0.10952331
+      },
+      "train_time_s": 1594.7,
+      "role": "primary"
+    },
+    {
+      "carry_depth": 8,
+      "seq_len": 16,
+      "variant": "fixed_t",
+      "seed": 1337,
+      "accuracy": 0.9961,
+      "spectral_radius": {
+        "mean": 1.004,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9892,
+        "std_k": 0.0002,
+        "T_99": 5,
+        "fp_relative_residual": 0.10338403
+      },
+      "train_time_s": 1627.6,
+      "role": "primary"
+    },
+    {
+      "carry_depth": 8,
+      "seq_len": 16,
+      "variant": "fixed_t",
+      "seed": 2024,
+      "accuracy": 0.9727,
+      "spectral_radius": {
+        "mean": 1.0041,
+        "std": 0.0002
+      },
+      "contraction": {
+        "mean_k": 0.9908,
+        "std_k": 0.0005,
+        "T_99": 6,
+        "fp_relative_residual": 0.11189639
+      },
+      "train_time_s": 1689.5,
+      "role": "primary"
+    },
+    {
+      "carry_depth": 8,
+      "seq_len": 16,
+      "variant": "fixed_t",
+      "seed": 7777,
+      "accuracy": 0.9766,
+      "spectral_radius": {
+        "mean": 1.0057,
+        "std": 0.0002
+      },
+      "contraction": {
+        "mean_k": 0.99,
+        "std_k": 0.0003,
+        "T_99": 4,
+        "fp_relative_residual": 0.11170844
+      },
+      "train_time_s": 1640.9,
+      "role": "primary"
+    },
+    {
+      "carry_depth": 8,
+      "seq_len": 16,
+      "variant": "variable_t",
+      "seed": 42,
+      "accuracy": 0.9648,
+      "spectral_radius": {
+        "mean": 1.003,
+        "std": 0.0002
+      },
+      "contraction": {
+        "mean_k": 0.988,
+        "std_k": 0.0002,
+        "T_99": 3,
+        "fp_relative_residual": 0.09540089
+      },
+      "train_time_s": 1698.5,
+      "role": "primary"
+    },
+    {
+      "carry_depth": 8,
+      "seq_len": 16,
+      "variant": "variable_t",
+      "seed": 137,
+      "accuracy": 0.9961,
+      "spectral_radius": {
+        "mean": 1.003,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9867,
+        "std_k": 0.0005,
+        "T_99": 3,
+        "fp_relative_residual": 0.09231663
+      },
+      "train_time_s": 1664.6,
+      "role": "primary"
+    },
+    {
+      "carry_depth": 8,
+      "seq_len": 16,
+      "variant": "variable_t",
+      "seed": 256,
+      "accuracy": 0.8516,
+      "spectral_radius": {
+        "mean": 1.0044,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9888,
+        "std_k": 0.0001,
+        "T_99": 9,
+        "fp_relative_residual": 0.09788416
+      },
+      "train_time_s": 1653.2,
+      "role": "primary"
+    },
+    {
+      "carry_depth": 8,
+      "seq_len": 16,
+      "variant": "variable_t",
+      "seed": 512,
+      "accuracy": 0.9688,
+      "spectral_radius": {
+        "mean": 1.0023,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9884,
+        "std_k": 0.0001,
+        "T_99": 2,
+        "fp_relative_residual": 0.09643583
+      },
+      "train_time_s": 1768.6,
+      "role": "primary"
+    },
+    {
+      "carry_depth": 8,
+      "seq_len": 16,
+      "variant": "variable_t",
+      "seed": 1024,
+      "accuracy": 0.9922,
+      "spectral_radius": {
+        "mean": 1.0019,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9883,
+        "std_k": 0.0001,
+        "T_99": 3,
+        "fp_relative_residual": 0.0965315
+      },
+      "train_time_s": 1783.3,
+      "role": "primary"
+    },
+    {
+      "carry_depth": 8,
+      "seq_len": 16,
+      "variant": "variable_t",
+      "seed": 1337,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 1.0034,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9869,
+        "std_k": 0.0003,
+        "T_99": 3,
+        "fp_relative_residual": 0.09297229
+      },
+      "train_time_s": 1782.7,
+      "role": "primary"
+    },
+    {
+      "carry_depth": 8,
+      "seq_len": 16,
+      "variant": "variable_t",
+      "seed": 2024,
+      "accuracy": 0.9922,
+      "spectral_radius": {
+        "mean": 1.0016,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9883,
+        "std_k": 0.0002,
+        "T_99": 3,
+        "fp_relative_residual": 0.09653975
+      },
+      "train_time_s": 1803.9,
+      "role": "primary"
+    },
+    {
+      "carry_depth": 8,
+      "seq_len": 16,
+      "variant": "variable_t",
+      "seed": 7777,
+      "accuracy": 0.9766,
+      "spectral_radius": {
+        "mean": 1.0024,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9882,
+        "std_k": 0.0002,
+        "T_99": 2,
+        "fp_relative_residual": 0.09579344
+      },
+      "train_time_s": 1787.4,
+      "role": "primary"
+    },
+    {
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "fixed_t",
+      "seed": 42,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 1.0024,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9899,
+        "std_k": 0.0001,
+        "T_99": 4,
+        "fp_relative_residual": 0.11064871
+      },
+      "train_time_s": 1770.2,
+      "role": "control"
+    },
+    {
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "fixed_t",
+      "seed": 137,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 1.0018,
+        "std": 0.0002
+      },
+      "contraction": {
+        "mean_k": 0.9911,
+        "std_k": 0.0005,
+        "T_99": 5,
+        "fp_relative_residual": 0.11393052
+      },
+      "train_time_s": 1756.8,
+      "role": "control"
+    },
+    {
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "fixed_t",
+      "seed": 256,
+      "accuracy": 0.9883,
+      "spectral_radius": {
+        "mean": 1.0028,
+        "std": 0.0002
+      },
+      "contraction": {
+        "mean_k": 0.9908,
+        "std_k": 0.0003,
+        "T_99": 5,
+        "fp_relative_residual": 0.11289307
+      },
+      "train_time_s": 1677.5,
+      "role": "control"
+    },
+    {
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "variable_t",
+      "seed": 42,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 0.9996,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9889,
+        "std_k": 0.0001,
+        "T_99": 3,
+        "fp_relative_residual": 0.0984526
+      },
+      "train_time_s": 1462.9,
+      "role": "control"
+    },
+    {
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "variable_t",
+      "seed": 137,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 1.002,
+        "std": 0.0002
+      },
+      "contraction": {
+        "mean_k": 0.9875,
+        "std_k": 0.0002,
+        "T_99": 3,
+        "fp_relative_residual": 0.09439212
+      },
+      "train_time_s": 1662.3,
+      "role": "control"
+    },
+    {
+      "carry_depth": 6,
+      "seq_len": 12,
+      "variant": "variable_t",
+      "seed": 256,
+      "accuracy": 0.9766,
+      "spectral_radius": {
+        "mean": 1.0005,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9883,
+        "std_k": 0.0003,
+        "T_99": 4,
+        "fp_relative_residual": 0.09659354
+      },
+      "train_time_s": 1657.9,
+      "role": "control"
+    },
+    {
+      "carry_depth": 10,
+      "seq_len": 20,
+      "variant": "fixed_t",
+      "seed": 42,
+      "accuracy": 0.9844,
+      "spectral_radius": {
+        "mean": 1.0042,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9893,
+        "std_k": 0.0002,
+        "T_99": 5,
+        "fp_relative_residual": 0.10733162
+      },
+      "train_time_s": 1456.4,
+      "role": "control"
+    },
+    {
+      "carry_depth": 10,
+      "seq_len": 20,
+      "variant": "fixed_t",
+      "seed": 137,
+      "accuracy": 0.9844,
+      "spectral_radius": {
+        "mean": 1.0045,
+        "std": 0.0002
+      },
+      "contraction": {
+        "mean_k": 0.9895,
+        "std_k": 0.0005,
+        "T_99": 5,
+        "fp_relative_residual": 0.10532583
+      },
+      "train_time_s": 913.3,
+      "role": "control"
+    },
+    {
+      "carry_depth": 10,
+      "seq_len": 20,
+      "variant": "fixed_t",
+      "seed": 256,
+      "accuracy": 0.9844,
+      "spectral_radius": {
+        "mean": 1.0053,
+        "std": 0.0002
+      },
+      "contraction": {
+        "mean_k": 0.9893,
+        "std_k": 0.0001,
+        "T_99": 6,
+        "fp_relative_residual": 0.10624985
+      },
+      "train_time_s": 919.6,
+      "role": "control"
+    },
+    {
+      "carry_depth": 10,
+      "seq_len": 20,
+      "variant": "variable_t",
+      "seed": 42,
+      "accuracy": 0.957,
+      "spectral_radius": {
+        "mean": 1.0017,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9874,
+        "std_k": 0.0006,
+        "T_99": 4,
+        "fp_relative_residual": 0.09396005
+      },
+      "train_time_s": 918.6,
+      "role": "control"
+    },
+    {
+      "carry_depth": 10,
+      "seq_len": 20,
+      "variant": "variable_t",
+      "seed": 137,
+      "accuracy": 1.0,
+      "spectral_radius": {
+        "mean": 1.0048,
+        "std": 0.0002
+      },
+      "contraction": {
+        "mean_k": 0.988,
+        "std_k": 0.0001,
+        "T_99": 3,
+        "fp_relative_residual": 0.09631627
+      },
+      "train_time_s": 921.8,
+      "role": "control"
+    },
+    {
+      "carry_depth": 10,
+      "seq_len": 20,
+      "variant": "variable_t",
+      "seed": 256,
+      "accuracy": 0.9844,
+      "spectral_radius": {
+        "mean": 1.0028,
+        "std": 0.0001
+      },
+      "contraction": {
+        "mean_k": 0.9881,
+        "std_k": 0.0001,
+        "T_99": 2,
+        "fp_relative_residual": 0.09587076
+      },
+      "train_time_s": 912.8,
+      "role": "control"
+    }
+  ],
+  "d8_adjudication": {
+    "n_seeds": 8,
+    "mean_delta_rho": -0.000963,
+    "std_delta_rho": 0.001758,
+    "se_delta_rho": 0.000622,
+    "t_statistic": -1.548,
+    "p_value": 0.165458,
+    "positive_count": 3,
+    "negative_count": 5,
+    "verdict": "INCONCLUSIVE"
+  }
+}
