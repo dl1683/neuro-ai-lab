@@ -20,7 +20,7 @@ Never act from historical writeups, proofs, old reviews, or design docs alone �
 
 ## 3. Roles and gates (senior/junior model)
 
-- **Codex (the real `codex` CLI binary — never a simulated review) is the senior architectural authority.** Claude implements, documents, and maintains hygiene. Invocation: `codex exec -s workspace-write --skip-git-repo-check -C "<dir>" -o "<scratch-file>" "<prompt>"`; follow-ups via `codex exec resume --last`. Point Codex at files; never paste file contents into prompts.
+- **Codex (the real `codex` CLI binary — never a simulated review) is the senior architectural authority.** Claude implements, documents, and maintains hygiene. Invocation: `codex exec -s workspace-write --skip-git-repo-check -C "<dir>" -o "<scratch-file>" "<prompt>" </dev/null` — the trailing `</dev/null` is MANDATORY (without it codex can hang forever on "Reading additional input from stdin"); follow-ups via `codex exec resume --last ... </dev/null`. Point Codex at files; never paste file contents into prompts.
 - **Design gate:** before non-trivial work, Codex proposes the structure.
 - **Pre-launch gate:** before ANY experiment launch, Codex reviews the runner for correctness (this has caught real bugs in D38/D39 — CE-on-padding, flow distribution mismatch, detach errors).
 - **Evidence gate:** before any claim, Codex confirms the metrics justify it. Beware vacuous metrics — the canonical lesson is the pre-D40 "0% wrong-attractor" claims, which were meaningless because converged_frac was 0. Every rate must state its denominator.
