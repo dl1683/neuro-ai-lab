@@ -107,7 +107,7 @@ The script checks:
 
 Current status:
 
-- `19/19` headline checks pass.
+- `230/230` headline checks pass.
 
 Next improvement:
 

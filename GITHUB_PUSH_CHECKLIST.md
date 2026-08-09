@@ -15,7 +15,6 @@ The strongest claim is the SynFlow dense-bridge collapse finding. These files sh
 - `results/04_criticality_pruning/synflow_pathology_synthesis.json`
 - `results/04_criticality_pruning/cifar10_cnn_synflow_pathology.json`
 - `shared/pruning_diagnostics.py`
-- `.github/workflows/research-audit.yml`
 
 ## Local audit
 
@@ -51,7 +50,7 @@ Do not commit raw datasets or local caches:
 ## Suggested staging command
 
 ```powershell
-git add README.md .gitignore .gitattributes .github GITHUB_PUSH_CHECKLIST.md QUICK_WINS.md run_all_pilots.py shared experiments results
+git add README.md .gitignore .gitattributes GITHUB_PUSH_CHECKLIST.md QUICK_WINS.md run_all_pilots.py shared experiments results
 ```
 
 Then inspect:
