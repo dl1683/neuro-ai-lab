@@ -1,7 +1,7 @@
 # Codex Review: VT k Universality Correlation (2026-05-25)
 
 **Session:** 019e5f80-6843-7e13-a5c9-91da3517f28e
-**Model:** gpt-5.5
+**Model:** (reviewer model redacted for public release)
 **Scope:** r=-0.922 correlation across 25 paired VT/FT comparisons
 
 ---
