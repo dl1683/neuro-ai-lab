@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import sys
@@ -332,6 +332,19 @@ def checks():
     return out
 
 
+def claim_card_checks() -> list[ClaimCheck]:
+    """Frozen claim-card verification, ported from the retired audit_claim_card.py."""
+    card = load("CLAIM_CARD.json")
+    synth = load("label_free_baseline_synthesis.json")
+    out = [
+        close(card["primary_result"]["overall_vs_synflow_mean_delta"], synth["overall"]["vs_synflow"]["mean"], "Claim card overall vs SynFlow mean delta", "CLAIM_CARD.json", 1e-12),
+        close(card["primary_result"]["severe_98_vs_synflow_mean_delta"], synth["severe_sparsity_98"]["vs_synflow"]["mean"], "Claim card severe-98 vs SynFlow mean delta", "CLAIM_CARD.json", 1e-12),
+        close(card["primary_result"]["severe_98_vs_synflow_wins"], 4, "Claim card severe-98 SynFlow wins", "CLAIM_CARD.json", 0),
+        close(int(all((ROOT / path).exists() for path in card["source_artifacts"])), 1, "Claim card source artifacts exist", "CLAIM_CARD.json", 0),
+    ]
+    return out
+
+
 def write_report(items: list[ClaimCheck]):
     passed = [item for item in items if item.passed()]
     failed = [item for item in items if not item.passed()]
@@ -353,7 +366,7 @@ def write_report(items: list[ClaimCheck]):
 
 
 def main():
-    items = checks()
+    items = checks() + claim_card_checks()
     failed = write_report(items)
     print(json.dumps({"passed": len(items) - len(failed), "total": len(items), "failed": [item.name for item in failed]}, indent=2))
     if failed:

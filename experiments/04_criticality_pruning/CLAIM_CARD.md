@@ -29,7 +29,7 @@ Setting: Fashion-MNIST MLP and CNN, SynFlow/magnitude baselines, 90/95/98% spars
 
 - `python experiments/04_criticality_pruning/fashion_mnist_mlp_synflow.py`
 - `python experiments/04_criticality_pruning/fashion_mnist_cnn_synflow.py`
-- `python experiments/04_criticality_pruning/synthesize_label_free_baselines.py`
+- `python experiments/04_criticality_pruning/synthesize_label_free_baselines.py` (generator retired 2026-08-09; artifact frozen, script recoverable from git history; live verification: `audit_circuit_viability_claims.py`)
 
 ## Source artifacts
 

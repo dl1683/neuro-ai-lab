@@ -1,4 +1,4 @@
-﻿# Activation-Flow / Path-Flow Pruning Discovery Report
+# Activation-Flow / Path-Flow Pruning Discovery Report
 
 ## Executive summary
 
@@ -327,7 +327,7 @@ Dense-hybrid path-flow is useful as a one-shot severe-sparsity mask initializer 
 
 ## Sparsity-cliff path correction law
 
-Command: `python experiments/04_criticality_pruning/meta_sparsity_cliff.py`
+Command: `python experiments/04_criticality_pruning/meta_sparsity_cliff.py` (generator retired 2026-08-09; artifact frozen, script recoverable from git history; live verification: `audit_circuit_viability_claims.py`)
 
 This meta-analysis combines the image-model transfer checks:
 
@@ -357,7 +357,7 @@ This is the best current generalization of the result. It explains why naive pat
 
 ## Adaptive image rule
 
-Command: `python experiments/04_criticality_pruning/adaptive_path_rule_eval.py`
+Command: `python experiments/04_criticality_pruning/adaptive_path_rule_eval.py` (generator retired 2026-08-09; artifact frozen, script recoverable from git history; live verification: `audit_circuit_viability_claims.py`)
 
 The current practical rule was evaluated across completed image-model runs:
 
@@ -450,7 +450,7 @@ SynFlow is strong at moderate CNN sparsity, but catastrophically fails at `98%` 
 
 ## Label-free baseline synthesis
 
-Command: `python experiments/04_criticality_pruning/synthesize_label_free_baselines.py`
+Command: `python experiments/04_criticality_pruning/synthesize_label_free_baselines.py` (generator retired 2026-08-09; artifact frozen, script recoverable from git history; live verification: `audit_circuit_viability_claims.py`)
 
 This combines the Fashion-MNIST MLP and CNN comparisons against SynFlow and magnitude.
 
@@ -474,7 +474,7 @@ The strongest baseline-backed claim is not simply "adaptive path beats magnitude
 
 ## Reproducible claim card
 
-Command: `python experiments/04_criticality_pruning/claim_card.py`
+Command: `python experiments/04_criticality_pruning/claim_card.py` (generator retired 2026-08-09; artifact frozen, script recoverable from git history; live verification: `audit_circuit_viability_claims.py`)
 
 A compact claim card now records the strongest result, reproduction commands, and caveats.
 
@@ -486,7 +486,7 @@ Primary result:
 - At `98%` sparsity, adaptive path vs SynFlow mean delta: `+25.22` points, wins `4/4`.
 - At `98%` sparsity, adaptive path vs magnitude mean delta: `+3.86` points, wins `2/4`.
 
-Audit command: `python experiments/04_criticality_pruning/audit_claim_card.py`
+Audit command: `python experiments/04_criticality_pruning/audit_claim_card.py` (generator retired 2026-08-09; artifact frozen, script recoverable from git history; live verification: `audit_circuit_viability_claims.py`)
 
 Audit result: all checks passed. The claim card matches `label_free_baseline_synthesis.json` and all source artifacts exist.
 
