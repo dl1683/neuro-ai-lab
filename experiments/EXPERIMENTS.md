@@ -8,6 +8,50 @@ Reverse chronological order. Each entry links to configs, artifacts, and key fin
 
 Framework where AI generation happens in continuous embedding space via iterative dynamics, with no softmax collapse. Tests whether self-consistency energy E(s) = ||F_theta(s,c)||^2 produces correct, stable attractors.
 
+### Exp D40: Extended Convergence — Multi-T Evaluation, No Flow (COMPLETE 15/16 — KEY NEGATIVE FINDING)
+- **Config:** `experiments/06_uesd/exp_d40_extended_convergence.py`
+- **Purpose:** Test D39's extrapolation that convergence just needs more iterations (k≈0.96 predicted convergence at T≈22-36). Multi-T evaluation at T=[10, 25, 50, 100, 200], rectified-flow head removed (broken in 16/16 D38/D39 runs), λ_sc ∈ {0.0 (CE-only ablation), 0.5, 1.0, 3.0}.
+- **Architecture:** UESD without flow head (~702K params). d=128, h=4, ff=512, V=64, SEQ_LEN=16.
+- **Training:** 3-phase: Phase A (15K, CE-only) → Phase B (15K, CE + margin-gated SC with warmup) → Phase C (10K, CE+SC+recovery). VT [4-16], batch=256, lr=3e-4.
+- **Sweep:** λ_sc=[0.0, 0.5, 1.0, 3.0] × seeds=[42, 137, 256, 512] = 16 runs, 15 complete.
+- **Status note:** Run 16 (seed 512, λ_sc=3.0) crashed with a CUDA error in Phase B `loss.backward()` (`results/_d40_stderr.log`). Checkpoints for the 15 completed runs are in `results/d40_checkpoints/` (local only, gitignored).
+- **Results (Phase C final, per run):**
+  | Seed | λ_sc | k | Acc@10 | Acc@25 | Acc@50 | Acc@100 | Acc@200 | Res@10 | Res@200 | Conv@200 | WA@200 |
+  |------|------|-------|--------|--------|--------|---------|---------|--------|---------|----------|--------|
+  | 42 | 0.0 | 0.976 | 1.000 | 0.999 | 0.972 | 0.824 | 0.565 | 0.428 | 0.382 | 0.000 | 0.000 |
+  | 137 | 0.0 | 0.974 | 1.000 | 0.999 | 0.981 | 0.832 | 0.535 | 0.362 | 0.316 | 0.000 | 0.000 |
+  | 256 | 0.0 | 0.977 | 1.000 | 1.000 | 0.975 | 0.843 | 0.603 | 0.437 | 0.410 | 0.000 | 0.000 |
+  | 512 | 0.0 | 0.974 | 1.000 | 0.999 | 0.969 | 0.768 | 0.405 | 0.312 | 0.266 | 0.000 | 0.000 |
+  | 42 | 0.5 | 0.961 | 1.000 | 0.998 | 0.644 | 0.012 | 0.000 | 0.044 | 0.033 | 0.000 | 0.000 |
+  | 137 | 0.5 | 0.956 | 1.000 | 0.996 | 0.644 | 0.018 | 0.000 | 0.039 | 0.026 | 0.000 | 0.000 |
+  | 256 | 0.5 | 0.968 | 1.000 | 0.998 | 0.735 | 0.072 | 0.001 | 0.104 | 0.083 | 0.000 | 0.000 |
+  | 512 | 0.5 | 0.958 | 1.000 | 0.997 | 0.608 | 0.017 | 0.000 | 0.041 | 0.027 | 0.000 | 0.000 |
+  | 42 | 1.0 | 0.957 | 1.000 | 0.993 | 0.428 | 0.004 | 0.000 | 0.033 | 0.020 | 0.000 | 1.000 |
+  | 137 | 1.0 | 0.950 | 1.000 | 1.000 | 0.825 | 0.049 | 0.000 | 0.030 | 0.017 | 0.001 | 1.000 |
+  | 256 | 1.0 | 0.970 | 1.000 | 1.000 | 0.743 | 0.054 | 0.000 | 0.099 | 0.094 | 0.000 | 0.000 |
+  | 512 | 1.0 | 0.956 | 1.000 | 1.000 | 0.869 | 0.048 | 0.000 | 0.033 | 0.022 | 0.000 | 0.000 |
+  | 42 | 3.0 | 0.940 | 1.000 | 1.000 | 0.940 | 0.195 | 0.000 | 0.021 | 0.008 | **0.910** | **0.999** |
+  | 137 | 3.0 | 0.947 | 1.000 | 1.000 | 0.914 | 0.085 | 0.001 | 0.021 | 0.013 | 0.093 | 1.000 |
+  | 256 | 3.0 | 0.966 | 0.999 | 0.997 | 0.865 | 0.105 | 0.001 | 0.071 | 0.057 | 0.000 | 0.000 |
+- **Gate results:**
+  - seq_accuracy @ T=10 >= 99.9%: **PASS** (99.9-100% all 15 runs)
+  - converged_frac >= 95% at extended T: **FAIL** (max 91.0%, only λ=3.0 seed 42; 0% for λ<=1.0)
+  - accuracy retained at extended T: **FAIL** (all λ>=0.5 runs collapse to ~0% by T=200)
+- **Key findings:**
+  1. **D39'S EXTRAPOLATION IS FALSIFIED.** The k-based prediction ("convergence at T≈22-36") is wrong: residual plateaus at a λ-dependent floor by T≈50 and stops decreasing (λ=0: ~0.27-0.44, λ=0.5: ~0.03-0.08, λ=1.0: ~0.02-0.09, λ=3.0: ~0.008-0.06). The map is not a contraction all the way to a fixed point; k measured on early iterations does not govern the endpoint.
+  2. **FIRST NON-VACUOUS WRONG-ATTRACTOR MEASUREMENT — AND IT IS ~100%.** When convergence finally occurs (λ=3.0 seed 42: converged_frac=0.910 at T=200, residual 0.008), essentially all converged examples are wrong attractors (WA=0.999) and seq accuracy is 0.000. Same at λ=1.0 seeds 42/137 (WA=1.0 among the tiny converged fraction). All prior "0% WA" claims (D38/D39) were vacuous because converged_frac=0; D40 resolves the question and the answer is negative: **the attractors the SC dynamics actually reach do not decode to the correct output.** Theorem 4 confirmed at full strength.
+  3. **UESD AS BUILT IS A FINITE-TIME TRANSIENT SOLVER, NOT A FIXED-POINT SOLVER.** Correct output lives in a compute window around the trained VT range [4-16]: 100% at T=10, ~99.7% at T=25, collapse thereafter. The λ=0 CE-only ablation degrades gracefully (52.7% mean at T=200); any λ>=0.5 collapses to ~0%.
+  4. **SC SHARPENS THE TRANSIENT AND POISONS THE ENDPOINT.** Stronger SC lowers residual monotonically (confirming D39) and simultaneously accelerates long-horizon accuracy collapse. Self-consistency pressure as implemented stabilizes non-decoding fixed points near — but not at — the correct readout region.
+  5. **k DOES RESPOND TO STRONG SC (D39 REVISION).** λ=3.0 reaches k=0.940-0.947 vs D39's "architecture-pinned ~0.96" (measured only up to λ=1.0). But lower k is not the goal: it just speeds convergence to the wrong attractors (finding 2).
+  6. **CE-ONLY IS THE BEST LONG-HORIZON CONFIGURATION.** The λ=0 ablation answers part of the D38/D39 attribution question: CE warm-start alone yields 100% in-window accuracy and the slowest out-of-window decay. Nothing in the SC stack improves any accuracy metric on this task.
+- **Interpretation:** Together with D38/D39, this closes the convergence blueprint arc negatively: CE gives correct transients, SC gives convergent-but-wrong endpoints, and margin gating does not couple them. A fixed-point formulation that decodes correctly needs the energy to be defined in readout-coupled terms (attractor = correct output), not state-space self-consistency alone.
+- **Next steps:**
+  1. Rerun seed 512 λ_sc=3.0 (CUDA crash) if the 16-run grid matters for publication; 15 runs already determine every conclusion.
+  2. Readout-coupled energy design (e.g., E(s) includes decoder margin) instead of raising λ_sc further.
+  3. If UESD is reframed as an anytime/transient solver, the D22 variable-T mechanism (k-suppression, T5 at 9/10 confidence) is the defensible core claim, not fixed-point convergence.
+- **Wall time:** 30,221s total (8.4h, ~34 min/run)
+- **Artifacts:** `experiments/06_uesd/results/exp_d40_extended_convergence.json`
+
 ### Exp D39: Convergence Sweep — Lambda_SC vs Contraction Rate (COMPLETE — KEY FINDING)
 - **Config:** `experiments/06_uesd/exp_d39_convergence_sweep.py`
 - **Purpose:** Sweep SC strength lambda_sc=[0.1, 0.3, 1.0] across 4 seeds to understand the relationship between SC pressure and convergence properties. Tests whether stronger SC drives contraction rate k lower or mainly reduces starting residual d0.
