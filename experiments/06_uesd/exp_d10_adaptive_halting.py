@@ -149,6 +149,10 @@ def train_adaptive(model, halting_head, config, device, beta=0.1):
 
         for t in range(T):
             s, _ = model.dynamics_step(s, context)
+            # halting_head is evaluated at every step, including t = T-1 where the
+            # PonderNet distribution below overrides it with running_prob (forced
+            # halt). The redundant final call is retained so halt_probs traces are
+            # uniform length T for the logged diagnostics.
             h_t = halting_head(s)  # [B]
             halt_probs.append(h_t)
             logits_t = model.readout_logits(s)
@@ -250,6 +254,8 @@ def evaluate_adaptive(model, halting_head, src, tgt, T, vocab_size):
 
     for t in range(T):
         s, _ = model.dynamics_step(s, context)
+        # Final-step halting_head call is overridden by the forced halt below;
+        # retained so halt_probs traces are uniform length T (see training loop).
         h_t = halting_head(s)
         halt_probs.append(h_t)
         logits_t = model.readout_logits(s)
