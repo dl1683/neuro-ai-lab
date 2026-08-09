@@ -4,7 +4,7 @@ Experiment B: Reversal Main Test
 Core test: can dynamics solve non-trivial transformations?
 E5 vs E1 comparison. Lambda sweep.
 
-Protocol (from design_revision_r3.md):
+Protocol (from design_revision_r3.md — deleted during the 2026-08-09 consolidation; recover via `git show 80fc8b4:experiments/06_uesd/design_revision_r3.md`):
 1. Train Track A (E1) on reversal. 20K steps.
 2. Train Track B (E5) on reversal with lambda_1 in {0, 0.1, 1.0, 10.0}. 20K steps each.
 3. Train AR baseline on reversal. 20K steps.

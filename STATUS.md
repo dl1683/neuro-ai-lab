@@ -1,6 +1,6 @@
 # Repository Status
 
-Audited snapshot: commit `80fc8b4` (2026-08-09 hygiene + consolidation pass).
+Audited snapshot: 2026-08-09 hygiene + consolidation pass (Codex-verified; see commit history from `b1a3e5f` onward).
 
 **This file is the sole authority for current state.** Experiment writeups, proofs, and reviews are point-in-time evidence; earlier reviews and evidence gates may contain predictions that later experiments falsified.
 
@@ -17,7 +17,7 @@ Audited snapshot: commit `80fc8b4` (2026-08-09 hygiene + consolidation pass).
 
 | Line | State | Current verdict | Canonical evidence |
 |---|---|---|---|
-| 04 Circuit-viability pruning | FROZEN / AUDITED | Claim audit `230/230`; SynFlow pathology audit passes; mechanism supported within recorded scope. | `docs/CIRCUIT_VIABILITY_PRUNING_REPORT.md`, `docs/CLAIM_EVIDENCE_LEDGER.md`, `docs/CLAIM_AUDIT.md`, `results/04_criticality_pruning/` |
+| 04 Circuit-viability pruning | FROZEN / AUDITED | Claim audit `234/234`; SynFlow pathology audit passes; mechanism supported within recorded scope. | `docs/CIRCUIT_VIABILITY_PRUNING_REPORT.md`, `docs/CLAIM_EVIDENCE_LEDGER.md`, `docs/CLAIM_AUDIT.md`, `results/04_criticality_pruning/` |
 | 06 UESD | CONVERGENCE ARC CLOSED NEGATIVE | D40 falsifies the tested self-consistency fixed-point thesis; the system behaves as a finite-time transient solver. Surviving core: D22 variable-T k-suppression. | D40 ledger entry, `experiments/06_uesd/results/exp_d40_extended_convergence.json`, `docs/UNIFIED_ERROR_SPACE.md` |
 | 01/02/03/05 pilots | FROZEN HISTORICAL | Single-run pilots; no active roadmap or runner. 01 failed; 02/03 modest wins on toy tasks; 05 efficiency win with failed DDM fit. | `results/01..05/pilot_result.json`, `results/pilot_suite_summary.json`, frozen-pilots table in `experiments/EXPERIMENTS.md` |
 
@@ -73,7 +73,7 @@ The line is frozen. Open questions (recorded, not active work):
 
 ### Defensible Surviving Core
 
-D22 variable-T training and its mechanism (contraction-rate suppression, Δk p=1.7e-5, 8/8 seeds, invariant across depth/task/architecture; confidence 9/10). This is a compute-window robustness / anytime-solver result. **It is not evidence for correct fixed-point convergence.**
+D22 variable-T training (compute-window robustness: T=32 accuracy 88.5% -> 99.9%), with its mechanism established by D28-D37: contraction-rate suppression (Δk p=1.7e-5, 8/8 seeds at D=8), replicated across depths D=6-10, a non-arithmetic task (prefix-sum), and 6/6 tested d=128 architectures — 48/51 pairs in the predicted direction across the full sweep; confidence 9/10. This is an anytime-solver robustness result. **It is not evidence for correct fixed-point convergence.**
 
 ### Rejected or Closed Claims
 

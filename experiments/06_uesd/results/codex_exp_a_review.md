@@ -18,7 +18,7 @@ I could not find a `CLAUDE.md` under `C:\Users\devan\OneDrive\Desktop\Projects\n
 
 ### 3) DIAGNOSTIC QUALITY — **CONCERN**
 
-- **FAIL (theoretical mismatch):** [design_revision_r3.md](C:/Users/devan/OneDrive/Desktop/Projects/neuro-ai-lab/experiments/06_uesd/design_revision_r3.md) states D6 gate rho < 1.0. Current gate logic in `check_gates` checks **mean** rho, not max. E1 has `max_rho=1.003`, E5 has `max_rho=1.006`; both violate strict local stability in some test cases.
+- **FAIL (theoretical mismatch):** design_revision_r3.md (deleted during the 2026-08-09 consolidation; recover via `git show 80fc8b4:experiments/06_uesd/design_revision_r3.md`) states D6 gate rho < 1.0. Current gate logic in `check_gates` checks **mean** rho, not max. E1 has `max_rho=1.003`, E5 has `max_rho=1.006`; both violate strict local stability in some test cases.
 - **CONCERN:** E1 basin stability is low (`0.2028`) and E5 is `0.0`, which is a strong warning. Given D5 is meant to probe attractor robustness, this indicates extremely fragile perturbation recovery even when token accuracy is high.
 - **PASS/CONCERN:** D4 is low for both tracks (good), but low D5 suggests stability-vs-convergence tension that should be investigated before strong claims.
 - **CONCERN:** The E5 step-20000 spike (`loss` 0.0029→0.0092, `sc_loss`/`ce_loss` jumps) is not fatal alone, but it signals optimization noise/instability near end-of-run and warrants seed averaging or run smoothing.

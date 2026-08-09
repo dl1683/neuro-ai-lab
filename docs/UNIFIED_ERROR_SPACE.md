@@ -144,7 +144,7 @@ L = λ_1 · ||F_θ(s_T, c)||²  +  λ_2 · L_readout(R(s_T), y*)
 where L_readout is a weak token-level loss applied only at the final state,
 ensuring the dynamics converge to something useful.
 
-### 3.2 Why E5 Is The Most Aligned With The Core Insight
+### 3.2 Why E5 Was Judged Most Aligned With The Core Insight (proposal-era judgment; falsified by D40 — see Section 9)
 
 In E5, "thinking well" literally means "the dynamics are still active" and
 "generating well" means "the dynamics have converged." There is no separate
@@ -246,7 +246,7 @@ L = -log [exp(sim(s_T, s⁺)) / Σ_j exp(sim(s_T, s⁻_j))]
 No explicit target state. The model learns to reach states that are similar
 to good continuations and dissimilar to bad ones.
 
-### 6.4 Self-Consistency + Weak Readout (Recommended)
+### 6.4 Self-Consistency + Weak Readout (recommended at proposal time; this is the strategy D38-D40 tested and closed negative)
 ```
 L = λ₁||F_θ(s_T, c)||² + λ₂ L_CE(R(s_T), y*) + λ₃ Σ_t ||s_{t+1} - s_t||²
 ```
@@ -318,7 +318,7 @@ generative dynamics, not the context processing.
 |-----------|-------------|----------------|
 | **Predictive Coding** (Rao & Ballard, 1999; Millidge et al., 2022) | Same-space prediction errors at each hierarchical level. Closest theoretical ancestor. | Never applied to language generation at scale. UESD is a constructive realization for generation. |
 | **Free Energy Principle** (Friston, 2010) | Unifies perception and action under single variational free energy objective. | Most general theoretical framework. UESD = specific constructive architecture for language. |
-| **Nishimori Thesis** (from this lab's research) | Systems at criticality achieve optimal inference via ρ = tanh(1/2) in continuous error space. Nishimori identity: avg confidence = avg accuracy. | Provides the PHYSICS grounding: softmax collapses a system away from criticality. UESD keeps it there. See §8.3. |
+| **Nishimori Thesis** (from this lab's research) | Systems at criticality achieve optimal inference via ρ = tanh(1/2) in continuous error space. Nishimori identity: avg confidence = avg accuracy. | Provides the PHYSICS grounding: softmax collapses a system away from criticality; the proposal argued UESD would keep it there (not tested). See §8.3. |
 | **CTI Law** (from this lab's research) | Networks at criticality behave as if performing Gaussian discrimination in d_eff ≈ 1–2 dimensions. SOC → critical point → Gaussian fluctuations → LDA is optimal. | Implies the network is ALREADY doing continuous discrimination internally. Softmax is an artificial post-hoc collapse. |
 
 ### 8.3 Physics Grounding: The Nishimori Connection
@@ -334,8 +334,8 @@ The Nishimori identity establishes that at the critical point of inference:
 The simplex Δ^{V-1} is a different geometry from the Fisher-Rao manifold where
 optimal inference lives. By keeping generation in the same continuous space as
 thinking (R^d with its natural Riemannian metric), UESD allows the system to
-remain at criticality — where the Nishimori identity guarantees optimal
-calibration and the CTI law guarantees efficient discrimination.
+remain at criticality — where, per the untested proposal-era argument, the Nishimori
+identity would guarantee optimal calibration and the CTI law efficient discrimination.
 
 The basin dynamics literature (grokking as phase transition, mode connectivity
 via low-loss paths) describes exactly what UESD trajectories would look like:
@@ -351,7 +351,7 @@ high-energy regions and generation = convergence into basins.
 | **Thermodynamics** | Landauer's principle: kT·ln(2) cost per bit erased. Discrete collapse = information erasure = thermodynamic cost. | No collapse → no erasure → thermodynamically cheaper generation. Brain's 20W efficiency: no discrete token bottleneck. |
 | **Information geometry** | Fisher-Rao metric defines natural geometry of probability space. Softmax forces onto simplex = distorts this geometry. Flat minima (good generalization) = low curvature. | Softmax introduces high curvature at token boundaries → sharp minima → poor generalization. Continuous error space preserves natural metric. |
 | **Stochastic resonance** | Optimal noise level maximizes information transfer in nonlinear systems with thresholds. | UESD's Langevin dynamics (§4.2) exploit noise for exploration. Discrete token space can't leverage noise the same way. |
-| **Edge of chaos** | Criticality maximizes sensitivity, dynamic range, information storage simultaneously. | Softmax forces away from criticality (toward order at low T, chaos at high T). Continuous dynamics can maintain criticality. |
+| **Edge of chaos** | Criticality maximizes sensitivity, dynamic range, information storage simultaneously. | Softmax forces away from criticality (toward order at low T, chaos at high T). The proposal hypothesized continuous dynamics could maintain criticality (not tested here). |
 
 ### 8.5 The Novelty Gap
 
@@ -363,7 +363,7 @@ The literature has every PIECE of UESD. Nobody has the SYNTHESIS:
 2. **Error-space framing for generation.** EDLM and CLLMs don't frame generation
    as error minimization in a continuous space shared with reasoning.
 
-3. **No softmax at ANY point.** Every existing system uses softmax somewhere.
+3. **No softmax at ANY point** (a design property of the proposal, not a demonstrated advantage). Every existing system uses softmax somewhere.
    vMF Loss (2018) eliminated it for output; Soft Thinking avoids hard argmax
    during reasoning; no system has eliminated softmax throughout.
 
@@ -391,7 +391,7 @@ The proposal above was tested across 40+ experiments in 2026-05 (full chronology
 3. **Dynamical characterization (D3-D18):** universally supercritical (rho > 1) yet stable via structured non-normality; two distinct stability regimes (CE "scattered" vs E5 "highway"); carry information linearly decodable but not causally used; computation is parallel, not sequential "thinking".
 4. **Falsification round (D19-D21):** step-dependence is real (T=1 collapses to 1.5%); perturbation recovery fails everywhere. Adversarial Codex score: 4.5/10.
 5. **Variable-T (D22-D27):** the one clean positive intervention. Sampling T in [4,16] per batch creates an anytime solver (T=32: 88.5% -> 99.9%), yields the first significant recovery result (+26.5%, d=11.3), and scales to L=24 carry depth where encoders learn nothing.
-6. **Mechanism (D28-D37):** variable-T works by **contraction-rate suppression** (Delta-k p=1.7e-5, 8/8 seeds), invariant across depth, task, and architecture; confidence 9/10. Spectral radius is a ceiling witness, not the mechanism.
+6. **Mechanism (D28-D37):** variable-T works by **contraction-rate suppression** (Delta-k p=1.7e-5, 8/8 seeds at D=8), replicated across depths D=6-10, a non-arithmetic task, and 6/6 tested d=128 architectures (48/51 pairs in the predicted direction across the full sweep); confidence 9/10. Spectral radius is a ceiling witness, not the mechanism.
 7. **Convergence blueprint (D38-D40):** CE warm-start -> flow correction -> margin-gated SC -> recovery. D38/D39: 100% in-window accuracy, but 0% converged (all wrong-attractor claims vacuous) and the flow head broken by a train/inference distribution mismatch (16/16 runs). **D40 (15/16 runs) closed the arc negatively:**
    - Residual plateaus at a lambda-dependent floor by T~50; the k-based convergence extrapolation is falsified.
    - The only substantially converged case (lambda_sc=3.0, seed 42: 91% converged at T=200) decodes to **~100% wrong attractors** with 0% sequence accuracy.

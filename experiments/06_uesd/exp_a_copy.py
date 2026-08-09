@@ -3,7 +3,7 @@ Experiment A: Copy Smoke Test
 
 Gate: do dynamics converge to correct embeddings at all?
 
-Protocol (from design_revision_r3.md):
+Protocol (from design_revision_r3.md — deleted during the 2026-08-09 consolidation; recover via `git show 80fc8b4:experiments/06_uesd/design_revision_r3.md`):
 1. Train Track A (E1) on copy task. 20K steps.
 2. Train Track B (E5, lambda_1=1.0) on copy task. 20K steps.
 3. Train AR baseline on copy task. 20K steps.

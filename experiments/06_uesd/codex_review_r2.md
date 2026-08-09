@@ -3,7 +3,7 @@ Not ready to build as written. It is ready for a narrower Round 3 pilot. The rev
 
 **1. Revision Assessment**
 Resolved:
-- Core admission: the designer now accepts that `||F(s,c)||²` means “stopped,” not “right” ([design_revision_r2.md](C:/Users/devan/OneDrive/Desktop/Projects/neuro-ai-lab/experiments/06_uesd/design_revision_r2.md:5)).
+- Core admission: the designer now accepts that `||F(s,c)||²` means “stopped,” not “right” (design_revision_r2.md line 5 — deleted during the 2026-08-09 consolidation; recover via `git show 80fc8b4:experiments/06_uesd/design_revision_r2.md`).
 - Path smoothness conflict: dropping `lambda_3` is correct.
 - Diagnostics: decoder margin, wrong-attractor count, basin perturbation, and spectral radius of `G=s+F` directly address the Round 1 measurement gaps.
 
