@@ -1,4 +1,4 @@
-﻿# Python/cache artifacts
+# Python/cache artifacts
 __pycache__/
 *.py[cod]
 *$py.class
@@ -37,3 +37,10 @@ Thumbs.db
 
 # Private local strategy notes
 .private/
+
+# Local agent/session state
+.claude/
+
+# Raw run logs (result JSONs are the evidence trail)
+experiments/06_uesd/results/_*_stdout.log
+experiments/06_uesd/results/_*_stderr.log
