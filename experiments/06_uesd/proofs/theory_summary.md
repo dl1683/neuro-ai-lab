@@ -1,5 +1,7 @@
 # UESD Theoretical Framework: Consolidated Summary
 
+> **Scope notice:** This is a historical theorem and interpretation catalog, not the current empirical verdict. Existence or stability results do not establish correct decoded fixed points. D40 is the controlling empirical result; see `STATUS.md`.
+
 ## Purpose
 
 This document provides a self-contained summary of the theoretical

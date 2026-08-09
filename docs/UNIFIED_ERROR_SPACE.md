@@ -1,8 +1,10 @@
 # Unified Error-Space Dynamics (UESD): Eliminating the Softmax Collapse
 
-**Status:** Formalization + literature positioning complete. Ready for proof-of-concept.
+> **CURRENT VERDICT — D40 NEGATIVE:** The tested self-consistency energy `E(s)=||F_theta(s,c)||^2` does not produce correct decoded fixed points. The trained systems behave as finite-time transient solvers: cross-entropy produces correct states inside the trained compute window, while stronger self-consistency lowers residual and drives convergence toward wrong decoded attractors. The defensible surviving result is D22-style variable-T k-suppression, not correct fixed-point convergence. See `STATUS.md` and `experiments/EXPERIMENTS.md`.
+
+**Status:** Canonical UESD synthesis. Sections 1-8 preserve the original proposal (2026-05-22) as the historical statement of the thesis; sections 9-10 record the empirical verdict that closed it.
 **Author:** Devansh (devansh@svam.com)
-**Date:** 2026-05-22
+**Original date:** 2026-05-22 - **Verdict recorded:** 2026-08-09
 
 ---
 
@@ -321,7 +323,7 @@ generative dynamics, not the context processing.
 
 ### 8.3 Physics Grounding: The Nishimori Connection
 
-From this lab's existing research (see `_meta/inquiry/THESIS.md`, `_meta/research/nishimori-cross-domain.md`):
+From this lab's existing research (CTI universal-law thesis and Nishimori cross-domain thesis — external sibling-repository provenance; historical motivation, not tested here and not UESD evidence artifacts):
 
 The Nishimori identity establishes that at the critical point of inference:
 - Average confidence = average accuracy (perfect calibration)
@@ -380,118 +382,43 @@ The literature has every PIECE of UESD. Nobody has the SYNTHESIS:
 
 ---
 
-## 9. Open Questions (Ranked by Criticality)
+## 9. Empirical Verdict: The Evidence Arc (Exp 0 - D40)
 
-### Must-solve for viability
+The proposal above was tested across 40+ experiments in 2026-05 (full chronology: `experiments/EXPERIMENTS.md`; run ledger: `experiments/ledger.jsonl`; theory catalog: `experiments/06_uesd/proofs/theory_summary.md`).
 
-**Q1: Variable-length output.** Autoregressive models handle variable length
-via <EOS>. In continuous dynamics, how does the system produce different amounts
-of content?
-- Hypothesis: multi-resolution state, with different subspaces saturating at
-  different rates. Or: chunk-based generation (each trajectory = one chunk).
+1. **Kill chain (Exp 0/A/B/C):** copy, reversal, sort all succeed — but so does an encoder-only ablation. The early task suite could not discriminate the thesis.
+2. **Addition (Exp D, D2 series):** base-64 carry-chain addition is the first task where dynamics beat a same-size encoder (100% vs 73% token). Codex-mandated controls weakened the claim: larger encoders learn it, so dynamics are **parameter-efficient, not necessary**. CE-only dynamics proved more reliable (5/5 seeds) than the E5 energy (4/5; seed 512 converged to a wrong fixed point — Theorem 4 realized empirically).
+3. **Dynamical characterization (D3-D18):** universally supercritical (rho > 1) yet stable via structured non-normality; two distinct stability regimes (CE "scattered" vs E5 "highway"); carry information linearly decodable but not causally used; computation is parallel, not sequential "thinking".
+4. **Falsification round (D19-D21):** step-dependence is real (T=1 collapses to 1.5%); perturbation recovery fails everywhere. Adversarial Codex score: 4.5/10.
+5. **Variable-T (D22-D27):** the one clean positive intervention. Sampling T in [4,16] per batch creates an anytime solver (T=32: 88.5% -> 99.9%), yields the first significant recovery result (+26.5%, d=11.3), and scales to L=24 carry depth where encoders learn nothing.
+6. **Mechanism (D28-D37):** variable-T works by **contraction-rate suppression** (Delta-k p=1.7e-5, 8/8 seeds), invariant across depth, task, and architecture; confidence 9/10. Spectral radius is a ceiling witness, not the mechanism.
+7. **Convergence blueprint (D38-D40):** CE warm-start -> flow correction -> margin-gated SC -> recovery. D38/D39: 100% in-window accuracy, but 0% converged (all wrong-attractor claims vacuous) and the flow head broken by a train/inference distribution mismatch (16/16 runs). **D40 (15/16 runs) closed the arc negatively:**
+   - Residual plateaus at a lambda-dependent floor by T~50; the k-based convergence extrapolation is falsified.
+   - The only substantially converged case (lambda_sc=3.0, seed 42: 91% converged at T=200) decodes to **~100% wrong attractors** with 0% sequence accuracy.
+   - Stronger SC lowers residual (group means) and accelerates long-horizon accuracy collapse; CE-only (lambda=0) is the best long-horizon configuration.
 
-**Q2: Compositionality.** Language is compositional. Can continuous dynamics
-in R^d learn to represent and manipulate compositional structure without
-discrete tokens as scaffolding?
-- Hypothesis: structured state spaces (e.g., slot-based), or emergent structure
-  through training on compositional data.
+## 10. Surviving Core, Rejected Claims, and Possible Reframings
 
-**Q3: Training efficiency.** Autoregressive models have O(1) forward passes per
-token (teacher forcing). Iterative models need T forward passes.
-- Mitigation: denoising objectives (single-step training), truncated unrolling,
-  progressive step counts.
+### Surviving core (defensible)
 
-### Important for scaling
+- **D22 variable-T k-suppression / compute-window robustness.** An anytime-solver mechanism, replicated across depth, task, and architecture. It is **not** evidence for correct fixed-point convergence.
+- The softmax-collapse information argument (Section 1) remains a valid motivation; the tested remedy failed, not the diagnosis.
 
-**Q4: Does this scale?** Transformers scale predictably with compute. Do
-energy-based iterative systems? Unknown. Need scaling law experiments.
+### Rejected claims (do not resurrect without new evidence)
 
-**Q5: Readout fidelity.** If the model never sees tokens during generation,
-can it learn to produce precise, token-level-accurate output?
-- Hypothesis: yes, if the embedding space is rich enough and readout training
-  is sufficient. But empirical validation needed.
+- `E(s)=||F_theta(s,c)||^2` as a semantic correctness energy: its attractors do not decode to correct outputs (D40).
+- Early-iteration contraction k as a predictor of endpoint convergence (D39 extrapolation falsified by D40).
+- All pre-D40 "0% wrong-attractor" results (vacuous: converged fraction was 0).
+- "Dynamics are necessary for addition" (weakened to parameter efficiency).
+- The thinking-generating continuum (Section 4) as an empirical claim (confidence 2.5/10; dropped).
+- "UESD has higher information capacity than AR" (false; both are L*log V at readout).
 
-### Important constraint
+### Open only under a fresh preregistered hypothesis
 
-**Q6: Dual-rate dynamics.** The Open Exploration archive identifies a universal
-pattern: every persistent intelligent system develops two complementary
-subsystems — one fast/rigid/cheap, one slow/flexible/expensive (hippocampus
-vs. neocortex, System 1 vs. System 2). Does UESD's single error function
-conflict with this?
-- Resolution: The error function is unified, but the DYNAMICS can be dual-rate.
-  Thinking = high-precision error minimization on slow timescale. Generating =
-  low-precision error minimization on fast timescale. Both in the same S, both
-  using the same E, but with different step sizes or precision levels.
-  Formally: τ_think >> τ_generate, but E is the same.
+- **Readout-coupled energy:** define the energy so that attractor = correct decoded output, not state self-consistency alone.
+- **Anytime/transient-solver framing:** build on the D22 mechanism as the primary claim.
 
-### Interesting for theory
-
-**Q7: What does the energy landscape look like?** Are there clean basins?
-How many modes? What determines basin structure?
-
-**Q8: Does the thinking–generating continuum actually emerge?** Or do trained
-systems collapse to a trivial trajectory (one step, done)?
-
-**Q9: Relationship to biological cognition.** Predictive coding and free energy
-minimization are leading theories of brain function. Is UESD a good computational
-model of how biological systems generate language?
-
----
-
-## 10. Research Plan
-
-### Phase 1: Proof of Concept (immediate)
-
-**Goal:** Demonstrate that self-consistency dynamics (E5) in continuous embedding
-space can converge to states that decode to correct tokens on a non-trivial task.
-
-1. **Task:** Sequence-to-sequence transduction on a synthetic grammar.
-   Small vocabulary (V=64–256), sequences of length 8–32.
-   Something with compositional structure (e.g., reverse, sort, simple arithmetic).
-
-2. **Architecture:** Weight-tied transformer block as F_θ (DEQ-style).
-   d=128–256. Cross-attention to encoded input. Readout via nearest-neighbor
-   to learned embeddings.
-
-3. **Training:** Self-consistency + weak readout (§6.4).
-   Compare against: (a) standard transformer with softmax, (b) single-step
-   baseline (F_θ applied once), (c) diffusion in embedding space (E3).
-
-4. **Measurements:**
-   - Does the system converge? (||F_θ|| → 0)
-   - How many steps to convergence?
-   - Does readout accuracy match softmax baseline?
-   - Does the thinking–generating continuum emerge? (plot ||F_θ|| vs. step)
-   - What does the trajectory look like in PCA-reduced S?
-
-**Success bar:** Readout accuracy within 5% of softmax baseline on the same
-architecture and data budget. Convergence in <50 steps. Visible phase structure
-in ||F_θ|| trajectory.
-
-### Phase 2: Error Function Shootout
-
-Implement E1–E5 on the same task from Phase 1. Compare:
-- Convergence speed (steps to ||F_θ|| < ε)
-- Training stability (loss variance, gradient norms)
-- Output quality (exact match, BLEU if applicable)
-- Trajectory structure (PCA visualization, ||F_θ|| profiles)
-- Sensitivity to hyperparameters (η, λ_1/λ_2, number of steps)
-
-### Phase 3: Scaling and Language
-
-If Phase 1 and 2 succeed:
-- Scale to natural language (small LM, ~10M params, WikiText-2)
-- Compare perplexity against standard transformer and LangFlow
-- Test whether Nishimori criticality metrics (ρ, calibration) are better
-  preserved in UESD vs. softmax
-- Investigate variable-length output via chunked generation
-
-### Phase 4: Theory
-
-- Formal proof that softmax violates a circuit viability condition
-- Derive connection between E5 self-consistency and Nishimori identity
-- Characterize the energy landscape: basin structure, mode connectivity
-- Scaling laws for iterative systems vs. autoregressive
+Do not continue the old fixed-point arc by inertia; see the update protocol in `STATUS.md`. (The original Open Questions and Phase 1-4 Research Plan that stood here are preserved in git history; they described work that is now complete or closed.)
 
 ## 11. Key References
 
@@ -530,8 +457,8 @@ If Phase 1 and 2 succeed:
 - Neural ODEs (Chen et al., NeurIPS 2018)
 
 ### Internal References
-- Nishimori cross-domain thesis: `_meta/research/nishimori-cross-domain.md`
-- CTI universal law: `_meta/inquiry/THESIS.md`
-- Open Exploration synthesis: `_meta/research/open-exploration-synthesis.md`
-- Cross-domain mechanisms: `_meta/insights/cross-domain-mechanisms.md`
+- Nishimori cross-domain thesis — external sibling-repository provenance; not a local dependency or UESD evidence artifact.
+- CTI universal-law thesis — external sibling-repository provenance; not a local dependency or UESD evidence artifact.
+- Open Exploration synthesis — external sibling-repository provenance; not required to reproduce this repository.
+- Cross-domain mechanisms note — external sibling-repository provenance; not required to reproduce this repository.
 - Circuit viability: `docs/CIRCUIT_VIABILITY_PRUNING_REPORT.md`

@@ -1,5 +1,7 @@
 # UESD Experiment Design — Tesla Mode System Design Document
 
+> **DEPRECATED HISTORICAL DESIGN:** Superseded by `../../STATUS.md` and `../EXPERIMENTS.md`. This file records the pre-experiment plan; it is not the current hypothesis, run order, or status. D40 closed the tested self-consistency fixed-point arc negatively. Do not execute this build order.
+
 ## 1. Overview
 
 This document specifies proof-of-concept experiments for Unified Error-Space
@@ -392,8 +394,8 @@ experiments/06_uesd/
 ├── exp_0_bottleneck.py           (mathematical derivation)
 ├── exp_a_copy.py                 (convergence test)
 ├── exp_b_reversal.py             (transformation test)
-├── exp_c_error_shootout.py       (E1 vs E3 vs E5)
-├── exp_d_sorting.py              (adaptive compute)
+├── exp_c_sort.py (implemented successor to the planned Experiment C error-shootout runner)       (E1 vs E3 vs E5)
+├── exp_d_compositional.py (implemented successor to the planned Experiment D sorting runner)              (adaptive compute)
 └── results/                      (JSON artifacts + figures)
 ```
 
@@ -403,8 +405,8 @@ experiments/06_uesd/
 3. `shared/training.py` — training loops
 4. `exp_a_copy.py` — run first experiment
 5. (Gate: if Exp A fails, stop and diagnose)
-6. `shared/diagnostics.py` + `shared/visualization.py`
-7. `exp_b_reversal.py`, `exp_c_error_shootout.py`, `exp_d_sorting.py`
+6. `shared/diagnostics.py` + `shared/diagnostics.py (implemented diagnostics; the planned visualization helper was never built and is not required)`
+7. `exp_b_reversal.py`, `exp_c_sort.py (implemented successor to the planned Experiment C error-shootout runner)`, `exp_d_compositional.py (implemented successor to the planned Experiment D sorting runner)`
 
 ### What NOT to Build
 - Natural language experiments (too early)
