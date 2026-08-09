@@ -1,0 +1,39 @@
+You are reviewing a modification to experiment D25 (recovery-first training) for the UESD framework.
+
+CONTEXT:
+- UESD dynamics iterate G(s,c) = s + F_theta(s,c) in continuous embedding space
+- D25 tests whether explicit perturbation-recovery training produces positive recovery
+- We added a spectral radius measurement to test Proposition 21: recovery training should push the dynamics spectral radius toward tanh(1/2) ≈ 0.462 (Nishimori critical point)
+
+FILES TO READ:
+1. experiments/06_uesd/exp_d25_recovery_training.py — the modified experiment (focus on estimate_spectral_radius function, lines 310-350 approximately)
+2. experiments/06_uesd/proofs/recovery_impossibility.md — Section "Proposition 21" for theoretical context
+3. experiments/06_uesd/proofs/spectral_contraction.md — Section 3 for power iteration algorithm reference
+
+YOUR TASK — Correctness review of the estimate_spectral_radius function:
+
+1. ALGORITHM CHECK:
+   - Is the power iteration correctly implemented?
+   - Does the finite-difference Jacobian-vector product J*v correctly estimate the Jacobian action?
+   - Is eps=1e-4 an appropriate finite difference step size?
+   - Should we use (G(s+eps*v) - G(s-eps*v))/(2*eps) (central diff of G) or (G(s+eps*v) - G(s))/(eps) (forward diff)? We currently use central differences on the dynamics_step output, not on the full G.
+
+2. MEASUREMENT VALIDITY:
+   - We measure spectral radius at converged states (after T=10 dynamics steps). Is this the right location?
+   - We sample 64 states from a 512-sample batch. Is this sufficient for a reliable estimate?
+   - We use 10 power iterations. Is this enough for convergence?
+
+3. POTENTIAL BUGS:
+   - The dynamics_step returns (s_new, residual). We use s_new. Is this G(s,c) or just F_theta(s,c)? The spectral radius should be of J = dG/ds, not dF/ds. If dynamics_step returns s + F_theta(s,c), then our finite difference correctly estimates J. If it returns F_theta(s,c), we're measuring dF/ds instead.
+   - Normalization: we normalize v at each iteration but don't re-normalize after the final J*v computation. Is lam = ||J*v|| / ||v|| correct (v is normalized, so lam = ||J*v||)?
+
+4. EDGE CASES:
+   - What if lam < 1e-8? We skip normalization but still use the old lam. Is this correct?
+   - What if the Jacobian has complex eigenvalues? Power iteration only finds real dominant eigenvalues. For our non-normal dynamics, is this sufficient?
+
+5. INTEGRATION:
+   - Is the function called at the right point in run_one() (after training, alongside other evaluations)?
+   - Does it correctly use model.eval() and @torch.no_grad()?
+   - Any memory concerns from storing 64 per-sample rho values?
+
+Report findings, any bugs, and whether the function is safe to ship.

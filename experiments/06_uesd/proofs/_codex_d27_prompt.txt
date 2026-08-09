@@ -1,0 +1,26 @@
+You are a Correctness Engineer + Performance Engineer reviewing code BEFORE launch.
+
+Read: experiments/06_uesd/exp_d27_encoder_degradation.py
+
+Also read for context:
+- shared/model.py (the UESDModel class — check that encode(), dynamics_step(), readout_logits(), init_state() are used correctly)
+- shared/data.py (the generate_batch function — check seq_len parameter handling)
+- shared/training.py (set_seed, count_params)
+
+This experiment:
+1. Trains UESD models at L={8,12,24} with variable-T, 3 seeds each = 9 training runs
+2. Injects Gaussian noise into encoder context at inference time (controlled degradation)
+3. Measures step-by-step accuracy profiles ("waterfall curves")
+4. Ablates cross-attention re-reading (zero context after step 1)
+5. Measures inter-position correlation (Nishimori prediction)
+
+CHECK FOR:
+1. BUGS: off-by-one errors, wrong tensor dimensions, data leakage, seed handling
+2. The cross-attention ablation (evaluate_no_crossattn_reread): does zeroing context actually remove cross-attention? Does the model's dynamics_step accept zero context without errors?
+3. Noise injection: is sigma * ctx_norm the right scaling? Should it be per-element or per-position?
+4. The inter-position correlation measure: is F.normalize + cosine similarity the right metric? Does it measure what the channel-coding theory predicts?
+5. Memory: will L=24 models fit alongside D23/D25 runs on a 24GB GPU?
+6. Runtime estimate: how long will 9 training runs + evaluations take?
+7. The generate_batch("addition", ..., seq_len, ...) call — does it handle L=12 and L=24 correctly? (Default is L=8)
+
+Flag any bugs that would produce wrong results. Minor style issues are irrelevant.

@@ -1,0 +1,64 @@
+You are in TESLA MODE — acting as the senior architectural authority reviewing new experimental results and a new theoretical proposition.
+
+CONTEXT: We are building UESD (Unified Error-Space Dynamics) — a framework where AI generation happens in continuous embedding space via iterative dynamics F_theta, with no softmax collapse. The system uses weight-tied TransformerDecoderLayer applied T times, with self-consistency energy E(s) = ||F_theta(s,c)||^2 as the error function. Token readout is post-hoc projection only.
+
+The task is base-64 multi-digit addition with carry propagation. L is the input sequence length (interleaved digit pairs), so carry depth D = L/2.
+
+FILES TO READ (read them all):
+1. experiments/06_uesd/proofs/bottleneck_depth_scaling.md — Contains Propositions 19-22 and the phase diagram. Focus especially on Proposition 22 (Signal Amplification via Channel-Coding Dynamics) and the Encoder Independence Model.
+2. experiments/06_uesd/proofs/recovery_impossibility.md — Contains the recovery table with +1 recovery column and universal +1 positive recovery finding.
+3. experiments/06_uesd/proofs/theory_summary.md — Section 2.16 for Proposition 22 summary.
+4. experiments/06_uesd/results/exp_d23_carry_depth_scaling.json — The raw experimental data (focus on L=24 entry near the end, and the encoder_baselines section).
+
+YOUR TASK — apply ALL of the following:
+
+1. PROPOSITION 22 REVIEW
+   Proposition 22 claims dynamics act as iterative decoders in a channel-coding framework:
+   - Encoder = noisy channel (maps input to compressed/lossy embedding)
+   - Dynamics = iterative belief propagation decoder
+   - rho = tanh(1/2) = optimal decoding threshold
+   
+   Evaluate:
+   a) Is the analogy rigorous or merely suggestive? What breaks the mapping?
+   b) L=24 shows E_enc=0% yet dynamics reach 99.61%. Is this genuinely explained by channel coding, or is there a simpler explanation?
+   c) The per-token MI estimates in the evidence table — are they computed correctly? Are there alternative interpretations?
+   d) What specific falsifiable predictions does Prop 22 make that aren't already tested?
+   e) Should calibration be WEAK, WEAK-to-MODERATE, or MODERATE? Justify.
+
+2. L=24 BREAKTHROUGH ANALYSIS
+   L=24 achieves 99.61% accuracy with encoder at 0% (tok_acc=29.77%, seq_acc=0.00%).
+   - The Encoder Independence Model claims E_enc_seq ≈ tok_acc^D. Is this derivation sound?
+   - C_step increases from 0.67 (L=4) to 2.40 (L=24). What does this mean for the dynamics?
+   - The cliff prediction was falsified. Is the anti-cliff explanation (weaker encoder → stronger dynamics) convincing, or is there a confound?
+   - What alternative explanations could produce these results?
+
+3. UNIVERSAL +1 POSITIVE RECOVERY
+   All 6 L values show positive recovery at +1 step (0.02-0.61%) but crossover to negative between +1 and +5 steps.
+   - Is this genuinely within-basin contraction (Theorem 13a), or could it be measurement artifact?
+   - What does the crossover timing tell us about basin geometry?
+   - Does this change the Proposition 20 calibration?
+
+4. CROSS-DOMAIN CHALLENGE
+   Challenge the channel-coding interpretation from:
+   - Information theory: Does the dynamics actually perform belief propagation? What would the factor graph look like? Is there a well-defined code rate?
+   - Dynamical systems: Is there a simpler dynamical explanation (e.g., contraction mapping in high-dimensional space)?
+   - Coding theory: In real turbo/LDPC decoders, what does the decoder need from the channel? Does the UESD encoder provide this?
+
+5. EXPERIMENTAL GAPS
+   What experiments should we run next to test Proposition 22 more rigorously?
+   - The D27 prediction (systematic encoder degradation) is mentioned — is it well-designed?
+   - What would FALSIFY Prop 22 specifically (not just the general UESD thesis)?
+
+6. CALIBRATION AUDIT
+   Review the calibration levels assigned to:
+   - Proposition 19: MODERATE-to-STRONG (6 data points)
+   - Proposition 20: MODERATE (oscillatory recovery)
+   - Proposition 21: WEAK-to-MODERATE (untested prediction)
+   - Proposition 22: WEAK-to-MODERATE (new, one key data point)
+   Are these calibrations honest? Should any be upgraded or downgraded?
+
+7. PRIORITY DIRECTIVE
+   What is the single most important next step for this theoretical direction? Be specific.
+
+8. ANTI-OVERCONFIDENCE PROTOCOL
+   The L=24 result is dramatic (0% encoder → 99.61% dynamics). Flag any ways we might be over-interpreting this result. What are the boring explanations we should rule out?

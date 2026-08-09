@@ -1,0 +1,22 @@
+Review two new propositions added to the UESD proof framework. Read these files:
+
+1. experiments/06_uesd/proofs/bottleneck_depth_scaling.md — find "Part E: Difficulty-Dependent Contraction" (Proposition 19)
+2. experiments/06_uesd/proofs/recovery_impossibility.md — find "Proposition 20: Negative Recovery Scales with Computational Depth"
+3. experiments/06_uesd/results/exp_d23_carry_depth_scaling.json — raw D23 data
+
+KEY D23 DATA (4 baselines complete):
+L=4 (D=2): T_min~3, best_acc=100%, E_enc=98.75%, WA@+20(sigma=0.1)=3.3%
+L=8 (D=4): T_min~5, best_acc=98.83%, E_enc=89.67%, WA@+20=53.8%
+L=12 (D=6): T_min~3, best_acc=100%, E_enc=70.31%, WA@+20=43.7%
+L=16 (D=8): T_min~5, best_acc=97.27%, E_enc=96.19%, WA@+20=83.7%
+
+SURPRISING: L=12 outperforms L=8 on T_min (3 vs 5) despite deeper carry chain.
+
+For each proposition, assess:
+1. LOGICAL SOUNDNESS: Are assumptions reasonable? Does the proof sketch follow? Hidden assumptions?
+2. ALTERNATIVE EXPLANATIONS: What else could explain the data? Is single-seed reliability an issue?
+3. QUANTITATIVE RIGOR: Are the sigma_max estimates justified? Is the carry-error model too simple?
+4. CLAIM CALIBRATION: Is MODERATE appropriate? Should either be upgraded/downgraded?
+5. PRIORITY DIRECTIVE: What is the single most important thing to fix?
+
+Write the COMPLETE review text to the output file. Do NOT just summarize what you would write — write the actual detailed review with specific critiques and recommendations.

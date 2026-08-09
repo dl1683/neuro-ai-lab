@@ -1,0 +1,61 @@
+You are acting as Architecture Theorist + Research Integrity Auditor reviewing three NEW theoretical results for UESD dynamics.
+
+READ THESE FILES IN ORDER:
+1. experiments/06_uesd/proofs/theory_summary.md (consolidated theory — read sections 2.11-2.13 for the new results, plus full context)
+2. experiments/06_uesd/proofs/variable_t_spectral_stability.md (Theorems 9-10: variable-T implicit spectral regularization)
+3. experiments/06_uesd/proofs/recovery_impossibility.md (Theorems 11-14: CE-only cannot produce positive recovery)
+4. experiments/06_uesd/proofs/bottleneck_depth_scaling.md (Theorems 15-18: T_min scaling with V and computational depth)
+
+ALSO READ for empirical grounding:
+5. experiments/06_uesd/proofs/convergence_correctness.md (Theorems 1-8, foundation)
+6. experiments/06_uesd/proofs/finite_step_convergence.md (Theorem 4: sigma_max bound)
+7. experiments/06_uesd/proofs/spectral_contraction.md (basin size derivation)
+
+CONTEXT:
+- These three new proof documents build on 6 existing proofs (Theorems 1-8)
+- They address specific gaps identified by prior Codex reviews: T6 (recovery) = 2/10 confidence, variable-T breakthrough unexplained, depth scaling uncharacterized
+- Empirical data: D22 (variable-T breakthrough), D20 (V-scaling of step dependence), D23 (carry-depth, currently running)
+- Cross-domain connections from research repos: rho=tanh(1/2)=0.462 universal constant, Fisher-Rao metric, IB at criticality
+
+YOUR TASK — For each of the three new proof documents:
+
+1. LOGICAL SOUNDNESS
+   - Is each theorem statement precise and falsifiable?
+   - Does each proof follow from its premises without gaps?
+   - Are there hidden assumptions that should be stated explicitly?
+   - Are any steps hand-wavy where rigor is needed?
+
+2. CONSISTENCY WITH EXISTING FRAMEWORK
+   - Do Theorems 9-18 correctly extend Theorems 1-8?
+   - Are notation and conventions consistent?
+   - Are cross-references accurate?
+   - Do any new results contradict existing results?
+
+3. CLAIM CALIBRATION
+   - Are the STRONG/MODERATE/WEAK ratings honest?
+   - Should any claim be upgraded or downgraded?
+   - Are there overclaims disguised as moderate?
+
+4. EMPIRICAL TESTABILITY
+   - For each theorem, what specific experiment would confirm or refute it?
+   - Are the D22/D20/D23 predictions falsifiable?
+   - What data would DISPROVE each theorem?
+
+5. MATHEMATICAL GAPS
+   - Where do the proofs rely on "approximately" or "typically" without bounds?
+   - Can any weak claims be strengthened with additional derivation?
+   - Are the scaling law exponents (log V, linear D) justified or assumed?
+
+6. ALTERNATIVE EXPLANATIONS
+   - For Theorem 9 (variable-T regularization): could the D22 improvement be explained by something other than spectral regularization?
+   - For Theorem 13 (recovery trichotomy): is the sharp basin boundary assumption realistic, or could recovery happen through continuous basin overlap?
+   - For Theorem 17 (T_min decomposition): could there be interaction effects between readout and depth that violate the max() decomposition?
+
+7. CROSS-DOMAIN CONNECTIONS
+   - The proofs reference Nishimori criticality (rho = tanh(1/2)) and IB at criticality. Are these connections rigorous or merely suggestive?
+   - Can any of these connections be formalized?
+
+8. PRIORITY DIRECTIVE
+   What is the single most important improvement to make to these three proofs?
+
+Report: for each theorem, rate SOUND / NEEDS WORK / FLAWED. Then overall assessment.

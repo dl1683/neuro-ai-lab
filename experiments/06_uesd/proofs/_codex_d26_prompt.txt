@@ -1,0 +1,38 @@
+You are reviewing experiment D26 for the UESD framework — the first experiment to explicitly target the Nishimori critical point rho = tanh(1/2) during dynamics training.
+
+CONTEXT:
+- UESD iterates G(s,c) = s + F_theta(s,c) in continuous embedding space
+- D25 tests recovery training (perturbation + extra steps)
+- D26 adds SPECTRAL RADIUS TARGETING: a differentiable loss term that pushes the dynamics Jacobian spectral radius toward tanh(1/2) = 0.462
+- The spectral penalty uses noise amplification: inject eps*v at converged state, measure ||G(s+eps*v) - G(s)|| / ||eps*v||, penalize deviation from tanh(1/2)
+- Also tests Nishimori calibration penalty: |mean_confidence - mean_accuracy|^2
+
+FILES TO READ:
+1. experiments/06_uesd/exp_d26_criticality_recovery.py — the full experiment
+2. experiments/06_uesd/exp_d25_recovery_training.py — baseline comparison (D25)
+3. experiments/06_uesd/proofs/recovery_impossibility.md — Proposition 21 (theory)
+
+YOUR TASK — Full correctness review (Personas 1+2: Correctness Engineer + Performance Engineer):
+
+1. CORRECTNESS:
+   - Is compute_spectral_penalty differentiable? Does gradient flow through it correctly? Note: s_clean = s.detach() but we call model.dynamics_step on it — does this break gradient flow for the spectral penalty?
+   - Is the noise amplification ||G(s+eps*v) - G(s)|| / ||eps*v|| a valid approximation of the Jacobian spectral radius? What are the failure modes?
+   - Is compute_calibration_penalty correct? Does softmax + max + mean give the right calibration metric?
+   - Does the training loop correctly handle the optional components (recovery, spectral, calibration)?
+   - Are there any bugs in the variant configuration (VARIANTS dict)?
+
+2. PERFORMANCE:
+   - The spectral penalty runs every SPEC_EVERY=5 steps. Each computation requires 2 extra forward passes. Is this overhead acceptable?
+   - Memory: does the spectral penalty increase peak memory? (We call dynamics_step on s_noisy and s_clean separately — does this double the activation memory?)
+   - Are there any unnecessary recomputations?
+
+3. EXPERIMENTAL DESIGN:
+   - Is the 2x2 design (recovery yes/no × spectral yes/no) + full_nishimori the right comparison structure?
+   - Are the hyperparameters (lambda_s=0.1, lambda_c=0.01, SPEC_EPS=0.01) reasonable?
+   - Is 20K training steps enough for the spectral penalty to have effect?
+   - Any confounds between recovery loss and spectral penalty?
+
+4. CRITICAL BUG CHECK:
+   - The spectral penalty detaches s before computing amplification. This means the gradient of the spectral penalty flows through the dynamics_step parameters but NOT through the trajectory that produced s. Is this correct? Or should we allow gradient to flow through the full trajectory?
+
+Report: bugs, performance concerns, design issues, and whether this is safe to launch.

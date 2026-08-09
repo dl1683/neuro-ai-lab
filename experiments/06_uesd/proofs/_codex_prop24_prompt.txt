@@ -1,0 +1,28 @@
+You are the Architecture Theorist (Persona 6) reviewing a NEW theoretical proposition derived from experimental data.
+
+Read: experiments/06_uesd/proofs/bottleneck_depth_scaling.md (focus on Proposition 24 at the end, but also read Theorems 16-17 and Propositions 19-23 for context)
+
+Also read for context:
+- experiments/06_uesd/proofs/theory_summary.md (Section 2.18 for the summary)
+- experiments/06_uesd/results/exp_d23_carry_depth_scaling.json (the raw data)
+
+PROPOSITION 24 CLAIMS: T_min = O(1) independent of carry depth D, because full self-attention allows O(1) information propagation. All D values from 2 to 12 reach >99% by T=5. C_step scales as O(D).
+
+YOUR TASK:
+
+1. MATHEMATICAL RIGOR: Is the proof sketch sound? Are there gaps in the argument that "full attention => O(1) carry resolution"? The self-attention can ACCESS all positions in O(1), but can it COMPUTE carry chains in O(1)? There's a difference between information access and computation.
+
+2. ALTERNATIVE EXPLANATIONS: Could T_min ≈ 5 be explained by:
+   - The model memorizing carry patterns for D≤12 (overfitting to the training distribution)
+   - The T=10 training bias (all baselines trained at T=10, so T=5 is "half the training budget" — maybe T_min = T_train/2 is the real law)
+   - The model not actually solving carry chains but learning a different algorithm entirely
+
+3. FALSIFICATION ANALYSIS: The three predictions (local attention, reduced heads, variable-T unchanged) — are these the RIGHT predictions to distinguish Prop 24 from alternatives? What additional predictions would be more discriminating?
+
+4. CALIBRATION: Is MODERATE calibration appropriate? What evidence would upgrade to STRONG?
+
+5. INTERACTION WITH PROPS 22/23: The claim that Prop 24 "weakens the BP interpretation" — is this too strong? Could dense BP (on fully-connected factor graphs) be consistent with O(1) convergence?
+
+6. THE C_step ∝ D CLAIM: Is this well-supported by 6 data points? The observed C_step values are {0.67, 0.80, 2.0, 1.6, 2.0, 2.4} for D={2,4,6,8,10,12}. The "proportional" claim seems weaker than stated — what's the actual functional form?
+
+Be rigorous. Flag overconfident claims.
