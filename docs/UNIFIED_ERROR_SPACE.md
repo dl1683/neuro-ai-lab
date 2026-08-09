@@ -319,7 +319,7 @@ generative dynamics, not the context processing.
 | **Predictive Coding** (Rao & Ballard, 1999; Millidge et al., 2022) | Same-space prediction errors at each hierarchical level. Closest theoretical ancestor. | Never applied to language generation at scale. UESD is a constructive realization for generation. |
 | **Free Energy Principle** (Friston, 2010) | Unifies perception and action under single variational free energy objective. | Most general theoretical framework. UESD = specific constructive architecture for language. |
 | **Nishimori Thesis** (from this lab's research) | Systems at criticality achieve optimal inference via ρ = tanh(1/2) in continuous error space. Nishimori identity: avg confidence = avg accuracy. | Provides the PHYSICS grounding: softmax collapses a system away from criticality; the proposal argued UESD would keep it there (not tested). See §8.3. |
-| **CTI Law** (from this lab's research) | Networks at criticality behave as if performing Gaussian discrimination in d_eff ≈ 1–2 dimensions. SOC → critical point → Gaussian fluctuations → LDA is optimal. | Implies the network is ALREADY doing continuous discrimination internally. Softmax is an artificial post-hoc collapse. |
+| **CTI Law** (from this lab's research) | Networks at criticality behave as if performing Gaussian discrimination in d_eff ≈ 1–2 dimensions. SOC → critical point → Gaussian fluctuations → LDA is optimal. | Implies the network is ALREADY doing continuous discrimination internally. The proposal characterized softmax as an artificial post-hoc collapse (untested). |
 
 ### 8.3 Physics Grounding: The Nishimori Connection
 
@@ -333,7 +333,7 @@ The Nishimori identity establishes that at the critical point of inference:
 **Connection to UESD:** Softmax forces the system OFF the Nishimori manifold.
 The simplex Δ^{V-1} is a different geometry from the Fisher-Rao manifold where
 optimal inference lives. By keeping generation in the same continuous space as
-thinking (R^d with its natural Riemannian metric), UESD allows the system to
+thinking (R^d with its natural Riemannian metric), the proposal hypothesized that UESD would allow the system to
 remain at criticality — where, per the untested proposal-era argument, the Nishimori
 identity would guarantee optimal calibration and the CTI law efficient discrimination.
 
@@ -391,7 +391,7 @@ The proposal above was tested across 40+ experiments in 2026-05 (full chronology
 3. **Dynamical characterization (D3-D18):** universally supercritical (rho > 1) yet stable via structured non-normality; two distinct stability regimes (CE "scattered" vs E5 "highway"); carry information linearly decodable but not causally used; computation is parallel, not sequential "thinking".
 4. **Falsification round (D19-D21):** step-dependence is real (T=1 collapses to 1.5%); perturbation recovery fails everywhere. Adversarial Codex score: 4.5/10.
 5. **Variable-T (D22-D27):** the one clean positive intervention. Sampling T in [4,16] per batch creates an anytime solver (T=32: 88.5% -> 99.9%), yields the first significant recovery result (+26.5%, d=11.3), and scales to L=24 carry depth where encoders learn nothing.
-6. **Mechanism (D28-D37):** variable-T works by **contraction-rate suppression** (Delta-k p=1.7e-5, 8/8 seeds at D=8), replicated across depths D=6-10, a non-arithmetic task, and 6/6 tested d=128 architectures (48/51 pairs in the predicted direction across the full sweep); confidence 9/10. Spectral radius is a ceiling witness, not the mechanism.
+6. **Mechanism (D28-D37):** variable-T works by **contraction-rate suppression** (Delta-k p=1.7e-5, 8/8 seeds at D=8), replicated across depths D=6-10, a non-arithmetic task, and 6/6 d=128 pairs across three tested architectures (48/51 pairs in the predicted direction across the full sweep); confidence 9/10. Spectral radius is a ceiling witness, not the mechanism.
 7. **Convergence blueprint (D38-D40):** CE warm-start -> flow correction -> margin-gated SC -> recovery. D38/D39: 100% in-window accuracy, but 0% converged (all wrong-attractor claims vacuous) and the flow head broken by a train/inference distribution mismatch (16/16 runs). **D40 (15/16 runs) closed the arc negatively:**
    - Residual plateaus at a lambda-dependent floor by T~50; the k-based convergence extrapolation is falsified.
    - The only substantially converged case (lambda_sc=3.0, seed 42: 91% converged at T=200) decodes to **~100% wrong attractors** with 0% sequence accuracy.

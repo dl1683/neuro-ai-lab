@@ -1,6 +1,6 @@
 # Repository Status
 
-Audited snapshot: 2026-08-09 hygiene + consolidation pass (Codex-verified; see commit history from `b1a3e5f` onward).
+Audited snapshot: commits `b1a3e5f` through `7b3f5a1` (2026-08-09 hygiene + consolidation pass, Codex-verified).
 
 **This file is the sole authority for current state.** Experiment writeups, proofs, and reviews are point-in-time evidence; earlier reviews and evidence gates may contain predictions that later experiments falsified.
 
@@ -73,7 +73,7 @@ The line is frozen. Open questions (recorded, not active work):
 
 ### Defensible Surviving Core
 
-D22 variable-T training (compute-window robustness: T=32 accuracy 88.5% -> 99.9%), with its mechanism established by D28-D37: contraction-rate suppression (Δk p=1.7e-5, 8/8 seeds at D=8), replicated across depths D=6-10, a non-arithmetic task (prefix-sum), and 6/6 tested d=128 architectures — 48/51 pairs in the predicted direction across the full sweep; confidence 9/10. This is an anytime-solver robustness result. **It is not evidence for correct fixed-point convergence.**
+D22 variable-T training (compute-window robustness: T=32 accuracy 88.5% -> 99.9%), with its mechanism established by D28-D37: contraction-rate suppression (Δk p=1.7e-5, 8/8 seeds at D=8), replicated across depths D=6-10, a non-arithmetic task (prefix-sum), and 6/6 d=128 pairs across three tested architectures — 48/51 pairs in the predicted direction across the full sweep; confidence 9/10. This is an anytime-solver robustness result. **It is not evidence for correct fixed-point convergence.**
 
 ### Rejected or Closed Claims
 

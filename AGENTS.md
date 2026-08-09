@@ -61,4 +61,4 @@ python experiments\04_criticality_pruning\audit_circuit_viability_claims.py
 python experiments\06_uesd\audit_uesd_claims.py
 ```
 
-All must pass (currently 234/234, pathology ok, 7/7). A failing audit blocks any claim and any commit that touches evidence.
+All must pass; expected pass counts are recorded only in `STATUS.md`. A failing audit blocks any claim and any commit that touches evidence.
