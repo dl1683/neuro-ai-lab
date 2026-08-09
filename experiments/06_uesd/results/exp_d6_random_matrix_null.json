@@ -1,0 +1,41 @@
+{
+  "timestamp": "2026-05-24T01:45:33.871937+00:00",
+  "device": "cuda",
+  "purpose": "Random-matrix null model: is Jacobian cancellation learned or statistical?",
+  "track_results": [
+    {
+      "track": "dynamics_ce",
+      "mean_actual_sigma": 6.2390246987342834,
+      "mean_null_a_sigma": 485174.7176136222,
+      "std_null_a_sigma": 9.414759108392472e-11,
+      "mean_null_b_sigma": 3.0564380688230903,
+      "std_null_b_sigma": 0.17315782204784164,
+      "product_of_smax": 572476.125,
+      "conservatism_actual": 91757.31025974921,
+      "conservatism_null_a": 1.1799380804832083,
+      "conservatism_null_b": 187301.72577010115,
+      "fraction_null_b_below_actual": 1.0,
+      "mean_participation_ratio": 679.5003662109375,
+      "mean_condition_number": 1699.2437744140625,
+      "train_time_s": 847.5504693984985,
+      "extract_time_s": 5.854211807250977
+    },
+    {
+      "track": "e5",
+      "mean_actual_sigma": 1.9160757958889008,
+      "mean_null_a_sigma": 108432.0376067342,
+      "std_null_a_sigma": 1.6677943274473038e-11,
+      "mean_null_b_sigma": 0.7108701842477461,
+      "std_null_b_sigma": 0.03696963663820278,
+      "product_of_smax": 101868.140625,
+      "conservatism_actual": 53164.98483179347,
+      "conservatism_null_a": 0.9394653358305374,
+      "conservatism_null_b": 143300.62349259795,
+      "fraction_null_b_below_actual": 1.0,
+      "mean_participation_ratio": 669.6683349609375,
+      "mean_condition_number": 2976.92138671875,
+      "train_time_s": 2809.566493034363,
+      "extract_time_s": 10.319187641143799
+    }
+  ]
+}
