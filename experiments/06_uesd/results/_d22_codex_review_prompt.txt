@@ -1,0 +1,47 @@
+You are acting as the senior architectural authority reviewing experiment results.
+
+READ these files:
+- experiments/06_uesd/results/exp_d22_robust_dynamics.json (full results)
+- experiments/06_uesd/exp_d22_robust_dynamics.py (the experiment code)
+- experiments/EXPERIMENTS.md (the D22 entry for context — search for "D22")
+- docs/UNIFIED_ERROR_SPACE.md (the UESD formalization)
+
+CONTEXT: D22 tested four training variants for UESD dynamics:
+- Baseline: standard CE-dynamics T=10
+- Variable-T: T sampled from {4,6,8,10,12,14,16} each batch
+- Denoising: noise injection sigma=0.3 * state_norm at random step
+- Combined: both
+
+KEY RESULTS (3 seeds each):
+- Baseline: T10 mean=0.9999, T32 mean=0.8853 (std=0.0786), recovery mean=-0.0246
+- Variable-T: T10 mean=1.0000, T32 mean=0.9992 (std=0.0001), recovery mean=-0.0001 — BREAKTHROUGH
+- Denoising: T10 mean=0.0000 — TOTAL FAILURE (sigma=0.3 too aggressive)
+- Combined: T10 mean=0.0000 — TOTAL FAILURE (inherits denoising failure)
+
+Prior Codex falsification review gave thesis confidence 4.5/10. Does D22 change this?
+
+YOUR TASK (structured review — write ALL of this in your output):
+
+1. FOUNDATIONAL ASSUMPTION AUDIT: What assumptions does Variable-T success rest on? Could the improvement be an artifact of seeing more total training data at different horizons?
+
+2. STATISTICAL METHODOLOGY: 3 seeds sufficient? The variable-T T32 std=0.0001 is suspiciously low — is this real or a measurement artifact?
+
+3. DENOISING FAILURE ANALYSIS: Is sigma=0.3 genuinely too aggressive, or is there a deeper issue? What sigma schedule would work? Should sigma be annealed during training?
+
+4. RECOVERY GAP: Variable-T gets recovery to -0.0001 (from -0.0246 baseline) but still not positive. What mechanism prevents true recovery? Is this fundamental or fixable?
+
+5. THESIS CONFIDENCE UPDATE: Given D22 results + all prior D-series (D5-D24), update confidence:
+   - T1: Dynamics essential for computation
+   - T4: E5 advantage over CE
+   - T5: Parallel computation
+   - T6: Causal repair / recovery
+   - Overall thesis confidence (1-10)
+   For EACH rating, cite the specific experiments and numbers that justify it.
+
+6. WHAT IS MISSING: What 2-3 experiments would most move the needle on confidence?
+
+7. CROSS-DOMAIN: Does variable-T success connect to multi-scale training in dynamical systems, curriculum learning theory, or numerical ODE solvers with adaptive step sizes?
+
+8. PARSIMONY: Variable-T eliminates the compute window. Does this simplify or complicate the UESD framework? Could a simpler model explain these results?
+
+Be rigorous and adversarial. Do not be generous with confidence — cite specific evidence for each rating.

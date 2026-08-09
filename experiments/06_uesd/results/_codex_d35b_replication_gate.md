@@ -1,0 +1,14 @@
+I could not find `CLAUDE.md` in `neuro-ai-lab`; I audited from `EXPERIMENTS.md`, D35b code, D35b raw JSON, and D31/D33 result JSONs.
+
+**Verdict:** no, this does **not** justify 9/10. It justifies a cautious bump from 8.7 to about **8.8/10** for T5 k-contraction. The D35b result is real evidence: two prefix-sum seeds both show matched-loss negative `dk`, with larger effects than addition. But it is still only **2 paired seeds, one length, one new task, same metric stack**.
+
+1. **9/10 bar:** needs the full planned D35b grid, especially `L=8`, not just `L=6`; paired statistics across all seeds; unrounded losses/margins; robustness of k under alternate measurement batches/windows/FP_T; and at least one additional non-addition task. For 9/10 I would want most or all non-addition pairs negative under those checks, not just D31+D33 addition plus 2 prefix-sum pairs.
+
+2. **VT k universality:** plausible but not yet proven. It is striking that D31+D33+D35b VT k clusters around `~0.988`, while FT shifts upward on prefix sum. But an artifact is still credible because the same estimator uses fixed measurement seed `9999`, fixed generated batch, `FP_T=100`, `stable_k = k_values[1:10]`, same architecture, same state initialization, and rounded four-decimal reporting. D31 also stores nontrivial fixed-point residuals around `0.09-0.116`, so the “fixed point” reference may not be clean there. The fact that FT varies while VT stays pinned argues against a trivial constant-output bug, but not against an estimator/architecture attractor artifact.
+
+3. **Matched loss:** it substantially weakens the narrow objection “VT only has lower k because it is better optimized / lower loss.” Both D35b seeds hit `eval_loss=0.0003` with `dk<0`. What remains: loss is rounded, TRAIN_T accuracy is saturated, margins/calibration are unknown, the eval batch is finite, VT and FT train on different T distributions, and their T_MIN behavior is very different. So the objection becomes weaker, not dead.
+
+4. **Prefix-sum dk being larger:** theoretically, this says the task dependence is mostly in **FT**, not VT. VT may be imposing a characteristic finite-time contraction geometry near `k≈0.988`, while FT’s contraction degrades on tasks needing deeper/wider propagation. That supports a “variable-T regularizes finite-time dynamics” story more than a “VT solves each task by task-specific spectral tuning” story.
+
+5. **Overall UESD confidence:** for k-contraction, **8.8/10**. For broader UESD as a general computation framework, lower: roughly **7/10**, because rho is dissociated, non-addition evidence is still thin, and the measurement stack needs adversarial validation. The strongest current claim is: “VT repeatedly produces lower measured finite-time k than FT, now replicated on learnable prefix sum at two seeds and matched loss.” The overclaim would be: “universality and mechanism are established.”
+

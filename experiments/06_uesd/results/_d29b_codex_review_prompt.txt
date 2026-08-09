@@ -1,0 +1,49 @@
+You are reviewing experiment D29b (corrected FTLE analysis) for EVIDENCE GATE validation.
+
+CONTEXT:
+- UESD: dynamics G(s,c) applied T times in continuous embedding space, no softmax collapse
+- Proposition 31 (Anisotropic Readout Convergence): readout-relevant FTLE < 0 while null-space FTLE > 0
+- D29 (original) found threshold artifact: readout row space dim=512/1024, 99% classified as "readout-aligned"
+- D29b fixes this with margin-critical directions (dim ~4) and readout null space (dim ~90)
+
+FILES TO READ:
+1. experiments/06_uesd/exp_d29b_ftle_corrected.py — THE EXPERIMENT SCRIPT
+2. experiments/06_uesd/results/exp_d29b_ftle_corrected.json — THE RESULTS
+3. experiments/06_uesd/results/_codex_d29b_review.md — PRIOR Codex review (pre-launch)
+4. experiments/06_uesd/proofs/bottleneck_depth_scaling.md — Search for "Proposition 31"
+
+RESULTS SUMMARY:
+- 8 samples x 9 T values = 72 measurements
+- ALL 72 show lambda_R_direct < 0 AND lambda_null > 0
+- Aggregated at T=5: lambda_R = -0.0043 +/- 0.0029, lambda_null = +0.0403 +/- 0.0160
+- Gap = 0.0446 — 10x magnitude difference
+- lambda_R is T-independent: -0.0043 at all T values
+- Verdict: "CONFIRMED"
+
+YOUR TASK — Evidence Gate validation (per CLAUDE.md Section 3.3):
+
+1. METHODOLOGY: Is the margin-critical decomposition correct? Does P_crit @ Phi @ P_crit correctly measure readout-projected FTLE? What about the prior Codex review's concern about readout normalization Jacobian?
+
+2. STATISTICAL VALIDITY: n=8 samples with std=0.003 for lambda_R and std=0.016 for lambda_null. Is the sign separation statistically significant? What is the p-value for lambda_R < 0?
+
+3. CONFOUNDERS: Could the negative lambda_R be an artifact of:
+   - The margin-critical subspace definition?
+   - The projection methodology?
+   - The fact that n_crit=0 for most samples (no margin-critical directions found)?
+   - The T=100 fixed-point approximation?
+
+4. ALTERNATIVE EXPLANATIONS: What other mechanisms besides Prop 31 could produce lambda_R < 0 and lambda_null > 0?
+
+5. GENERALIZABILITY: This was measured on a single model (VT, L=8, seed=42). How confident should we be that this generalizes to:
+   - Fixed-T models?
+   - Different L values?
+   - Different seeds?
+
+6. QUANTITATIVE CONSISTENCY: Does lambda_R = -0.004 quantitatively explain T_99 = 3? Does lambda_null = +0.04 explain the U-shaped update norms from D28?
+
+7. OVERALL CONFIDENCE: Given all the above, what confidence level (1-10) do you assign to:
+   - "Prop 31 is confirmed"
+   - "The anisotropic contraction mechanism is THE explanation for readout convergence"
+   - "This result will replicate on different configs"
+
+Report issues with severity labels and specific line references.

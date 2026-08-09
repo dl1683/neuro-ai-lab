@@ -1,0 +1,37 @@
+You are a neural architecture designer proposing convergence-guaranteed architectures for UESD.
+
+Read: C:\Users\devan\OneDrive\Desktop\Projects\neuro-ai-lab\docs\UNIFIED_ERROR_SPACE.md
+
+THE CONVERGENCE PROBLEM:
+Current UESD: G(s,c) = TransformerDecoderLayer(s,c), weight-tied, applied T times. d=128 embedding dim, ~700K params. VT training suppresses k to 0.988 (proven across 48 pairs). But wrong-attractor rate is 20% under self-consistency loss.
+
+Two completed analyses suggest:
+- LCM analysis: Split computation from convergence. Use G for fast latent computation (3-5 steps), then a conditional denoiser/flow head to map to correct output manifold. Flow matching with 4-8 ODE steps is the best single-GPU option.
+- Byte transformer analysis: Move dynamics to patch-level latents, use entropy-adaptive iteration depth, evaluate convergence at both latent stability and readout stability levels.
+
+YOUR TASK: Design 2-3 concrete architectures that guarantee convergence to CORRECT fixed points. For each, specify:
+1. Exact layer structure (what goes where, parameter counts)
+2. Training loss (mathematical formula)
+3. Inference procedure (step by step)
+4. Convergence proof sketch (why it works)
+5. Wrong-attractor mitigation mechanism
+6. Computational cost estimate on RTX 5090
+
+Consider:
+- Spectral normalization to enforce Lipschitz < 1
+- Monotone operator parameterization (convex-concave splitting)
+- Flow matching / rectified flow as readout stage
+- Hybrid CE + contraction + denoising losses
+- Warm-starting from CE-trained dynamics
+- The insight from our experiments: k/rho dissociation means contraction is directional, not isotropic
+
+MANDATORY: Before completing your analysis, scan these directories for relevant material:
+1. C:\Users\devan\OneDrive\Desktop\Projects\Market Reports\Open Exploration — 570+ research files
+2. C:\Users\devan\OneDrive\Desktop\Projects\_meta — 80+ files
+3. C:\Users\devan\OneDrive\Desktop\Projects\Latent-Space-Reasoning
+4. C:\Users\devan\OneDrive\Desktop\Projects\knowledge-surgeon
+5. C:\Users\devan\OneDrive\Desktop\Projects\LLM Genome Project
+6. C:\Users\devan\OneDrive\Desktop\Projects\llm-platonic-geometry
+7. C:\Users\devan\OneDrive\Desktop\Projects\llm-rosetta-stone
+
+Be concrete. This should be implementable in PyTorch by a junior engineer reading your spec.

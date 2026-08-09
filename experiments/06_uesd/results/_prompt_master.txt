@@ -1,0 +1,47 @@
+You are the master architectural authority synthesizing 7 independent analyses into a unified convergence solution for UESD.
+
+CONTEXT: Read C:\Users\devan\OneDrive\Desktop\Projects\neuro-ai-lab\docs\UNIFIED_ERROR_SPACE.md for the full UESD theory.
+
+THE CONVERGENCE PROBLEM:
+UESD dynamics converge (k=0.988, 48/48 d=128 pairs dk<0, p=3.6e-15, architecture-invariant, depth-invariant). But 20% of fixed points under self-consistency loss are WRONG attractors. CE dynamics get 100% accuracy but no true fixed points. We need BOTH: convergence to CORRECT fixed points.
+
+YOU MUST READ ALL 7 ANALYSIS FILES:
+
+1. C:\Users\devan\OneDrive\Desktop\Projects\neuro-ai-lab\experiments\06_uesd\results\_codex_convergence_A_experiments.md
+   — What our 37 experiments tell us about convergence clues
+
+2. C:\Users\devan\OneDrive\Desktop\Projects\neuro-ai-lab\experiments\06_uesd\results\_codex_convergence_B_theory.md
+   — First-principles dynamical systems theory for convergence
+
+3. C:\Users\devan\OneDrive\Desktop\Projects\neuro-ai-lab\experiments\06_uesd\results\_codex_convergence_C_literature.md
+   — Literature survey: DEQ, monotone operators, EBMs, predictive coding, Neural ODEs
+
+4. C:\Users\devan\OneDrive\Desktop\Projects\neuro-ai-lab\experiments\06_uesd\results\_codex_convergence_D_architecture.md
+   — 3 concrete architecture proposals with specs
+
+5. C:\Users\devan\OneDrive\Desktop\Projects\neuro-ai-lab\experiments\06_uesd\results\_codex_convergence_E_lcm.md
+   — Large Concept Models and diffusion/flow-matching analysis
+
+6. C:\Users\devan\OneDrive\Desktop\Projects\neuro-ai-lab\experiments\06_uesd\results\_codex_convergence_F_byte.md
+   — Byte transformers, patch-level dynamics, entropy-adaptive compute
+
+7. C:\Users\devan\OneDrive\Desktop\Projects\neuro-ai-lab\experiments\06_uesd\results\_codex_convergence_G_sibling_repos.md
+   — Cross-domain insights from 7 sibling research repositories
+
+YOUR TASK: Synthesize ALL 7 analyses into a single, unified recommendation. Specifically:
+
+1. DIAGNOSIS: What is the root cause of the convergence-correctness gap? Where do all 7 analyses agree?
+
+2. THE SOLUTION: What is the single best architecture/training approach that addresses ALL concerns raised across the 7 analyses? Not a menu of options — a specific, concrete recommendation.
+
+3. IMPLEMENTATION PLAN: Step-by-step what to build, in what order, with what losses, what architecture changes, and what success criteria.
+
+4. EXPERIMENT DESIGN: The first experiment to run to validate the solution. Specific enough to implement in PyTorch on an RTX 5090 with ~1M params.
+
+5. RISK ANALYSIS: What could go wrong? What are the failure modes of the proposed solution itself?
+
+6. WHAT TO SKIP: What ideas from the analyses sound good but should NOT be pursued (and why)?
+
+Be decisive. The user needs ONE clear path forward, not seven options. Resolve disagreements between the analyses. If two analyses conflict, explain which one wins and why.
+
+Write your synthesis as a clear, structured document. This will be the blueprint for the next phase of UESD development.

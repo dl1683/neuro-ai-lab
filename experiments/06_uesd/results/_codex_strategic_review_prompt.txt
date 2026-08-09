@@ -1,0 +1,60 @@
+You are the Architecture Theorist (Persona 6) conducting a strategic review of the UESD experimental series.
+
+READ THESE FILES:
+1. experiments/EXPERIMENTS.md — full experiment log (read the ENTIRE file, not just the top)
+2. experiments/06_uesd/proofs/theory_summary.md — theoretical framework with 18 theorems + 8 propositions
+3. experiments/06_uesd/proofs/bottleneck_depth_scaling.md — Props 24-26 (T_min saturation, Banach contraction, canalization)
+4. experiments/06_uesd/proofs/_codex_prop24_review.md — prior Codex review of Prop 24
+5. experiments/06_uesd/results/exp_d25_recovery_training.json — D25 recovery data (2 seeds complete)
+6. experiments/06_uesd/proofs/recovery_impossibility.md — Theorems 11-14
+
+CONTEXT:
+This is experiment series 06, with 28 experiments (D1-D28). The UESD framework uses iterative dynamics in continuous embedding space to generate output, with weight-tied TransformerDecoderLayer applied T times.
+
+The thesis has 6 components:
+- T1: Dynamics are essential for compositional tasks (confidence: 9/10)
+- T4: E5 (self-consistency) has advantages over CE (confidence: 3.5/10)
+- T5: Dynamics perform parallel computation (confidence: 9/10)
+- T6: Dynamics can causally repair perturbations (confidence: 2/10 → now higher?)
+- Overall: 6/10
+
+KEY NEW RESULTS (since last Codex review):
+1. D25: Two-seed reproducible implicit recovery: +27.5% and +28.3% at σ=0.2, from variable-T training alone
+2. D27 (preliminary): Encoder is fragile (σ=0.05 → 6% drop). Cross-attention essential (+28.4%). Self-attention alone: 71.5%.
+3. D23 L=4 variable_t: compute window fully eliminated, T=48:99.7%
+4. Five cross-domain connections from research mining (theory_summary.md Section 6)
+5. Proposition 25 (Banach contraction): k ≈ 0.4 could explain universal T_99=5. D28 designed but not yet run.
+6. Proposition 26 (Canalization): Variable-T training as Waddington canalization — partially confirmed by D22+D25
+
+YOUR TASK — apply ALL of the following:
+
+1. THESIS CONFIDENCE UPDATE
+   Given the new evidence, re-evaluate each thesis component (T1, T4, T5, T6) and overall confidence.
+   Be specific about what moved and why. Apply the anti-overconfidence protocol: each confidence point must cite specific evidence.
+
+2. CROSS-DOMAIN EVALUATION
+   Evaluate the 5 cross-domain connections (theory_summary.md Section 6):
+   - Which are strongest? Which are weakest?
+   - Are there connections we should pursue or drop?
+   - Does the Banach contraction prediction (Prop 25) actually test what we think?
+
+3. D25 RECOVERY ANALYSIS
+   The +27.9% mean recovery at σ=0.2 is the first reproducible positive recovery. But:
+   - Is this REAL recovery or an artifact? (Could it be related to eval methodology?)
+   - The non-monotonic pattern (peaks at +10 steps, degrades at +20) — what does this tell us?
+   - How does this change T6? Be conservative.
+
+4. D27 IMPLICATIONS
+   Cross-attention contributes +28.4% accuracy. Self-attention alone: 71.5%.
+   - What does this mean for the channel-coding interpretation (Prop 22)?
+   - For the encoder independence model (E_enc_seq ≈ tok_acc^D)?
+   - For the attractor dynamics interpretation?
+
+5. GAP ANALYSIS
+   What is the SINGLE most important experiment or derivation needed next to maximize thesis confidence? Not a list — ONE thing, with specific justification.
+
+6. RISK REGISTER
+   What could invalidate our strongest findings? Where are we most vulnerable?
+
+7. PUBLICATION READINESS
+   Is any subset of these results publishable now? What would strengthen the narrative?

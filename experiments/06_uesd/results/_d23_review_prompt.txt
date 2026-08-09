@@ -1,0 +1,23 @@
+You are acting as Correctness Engineer + Performance Engineer reviewing an experiment script BEFORE a long (~6-8 hour) GPU job.
+
+SCRIPT TO REVIEW: Read experiments/06_uesd/exp_d23_carry_depth_scaling.py
+
+ALSO READ for context:
+- experiments/06_uesd/shared/model.py (UESDModel and EncoderOnlyAblation)
+- experiments/06_uesd/shared/training.py
+- experiments/06_uesd/shared/data.py
+
+This script was already launched and ran successfully through encoder-only baselines (L=4 through L=24) and started baseline L=4 training before being killed by system shutdown. No errors occurred. Two prior bugs were already fixed:
+1. Removed @torch.no_grad() from evaluate_encoder_only_baseline (it does training)
+2. Fixed D22 variant selector to use accuracy instead of recovery
+
+YOUR TASK: Find any remaining bugs that would waste 6-8 hours of GPU time.
+
+1. GRADIENT FLOW: Trace computation graph through train_baseline, train_denoising, train_variable_t, train_combined. Will loss.backward() work in all?
+2. METRIC COMPUTATION: Are seq_acc, tok_acc, per-position accuracy, recovery (now relative sigma*state_norm) correct?
+3. DATA/CONFIG: MAX_LEN=64 with SEQ_LENS up to 24? TRAINING_STEPS=30000 for all L? EVAL_T up to 48?
+4. RESOURCE: Will batch_size=256 at L=24 OOM on RTX 5090 (32GB)? Memory cleanup between configs?
+5. RESULTS INTEGRITY: Crash at L=20 loses all prior results? JSON serialization?
+6. LOGIC: train_combined inject_step with small T? Variable-T t_range for all L values?
+
+Report: CRITICAL (will crash/corrupt), WARNING (may affect results), NOTE (robustness). For CRITICAL: exact fix needed.

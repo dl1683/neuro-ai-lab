@@ -1,0 +1,46 @@
+You are in TESLA MODE acting as senior architectural authority reviewing new theoretical propositions.
+
+READ THESE FILES:
+1. experiments/06_uesd/proofs/bottleneck_depth_scaling.md - Focus on Corollary 22.1 (REVISED) and Proposition 29 (near end of file)
+2. experiments/06_uesd/proofs/theory_summary.md - Focus on sections 2.16 (Cor 22.1) and 2.23 (Prop 29)
+3. experiments/06_uesd/results/exp_d27_encoder_degradation.json - Raw data (5 runs: L=8 x 3 seeds, L=12 x 2 seeds)
+
+CONTEXT:
+We discovered that L=12 cross-attention dependency is HIGHLY seed-dependent (seed=42: delta +86%, seed=1337: delta +11%). This forced revision of Corollary 22.1 (sigmoid fit D*=4.95 DEFUNCT) and led to Proposition 29 (Computational Strategy Bifurcation). Key claim: the optimization landscape at sufficient depth contains multiple basins leading to different computational strategies.
+
+YOUR TASK:
+
+1. FOUNDATIONAL ASSUMPTION AUDIT
+- Is the two strategies interpretation justified by n=2 at L=12? Could there be a continuum?
+- Is basin probability scales with D supported by P_A(D=4)=0 and P_A(D=6)=0.5 (just 5 data points)?
+- Are we SURE both strategies achieve comparable loss? Check the training accuracies.
+- Could the difference be explained by training dynamics rather than basin structure?
+
+2. STATISTICAL RIGOR CHECK
+- With n=2 at L=12 and n=3 at L=8, what can we actually claim?
+- Is CV=109% meaningful with n=2?
+- What would a skeptic say about the entire bifurcation hypothesis?
+
+3. ALTERNATIVE EXPLANATIONS
+- Could seed=1337 simply be undertrained at L=12? Check training accuracy.
+- Could the cross-attention ablation methodology create artifacts?
+- Is there a simpler explanation than multiple basins?
+
+4. CROSS-DOMAIN VALIDATION
+- Does the spin glass / RSB connection actually predict our specific observations?
+- Is the lottery ticket analogy apt or misleading?
+- From coding theory: can iterative vs one-shot decoding coexist for the same code?
+
+5. PROPOSITION 29 STRUCTURAL CRITIQUE
+- Is Part (d) about manifold geometry testable with current data?
+- Are the predictions falsifiable?
+- Is the proposition structure too speculative for the evidence base?
+
+6. PRIORITY DIRECTIVE - ONE clear directive for what to do next.
+
+7. ANTI-OVERCONFIDENCE PROTOCOL
+Rate confidence in each:
+- Multiple strategies exist (not just noise): X/10
+- Basin probability scales with D: X/10
+- Spin glass RSB explains the mechanism: X/10
+- Prop 29 should be included in the theory: X/10

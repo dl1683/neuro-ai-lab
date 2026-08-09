@@ -1,0 +1,21 @@
+You are reviewing experiment D35 (prefix sum non-arithmetic generalization) for correctness before launch.
+
+READ these files:
+1. experiments/06_uesd/exp_d35_prefix_sum.py (the experiment being reviewed)
+2. experiments/06_uesd/shared/data.py (the data generators, especially generate_prefix_sum_batch)
+3. experiments/06_uesd/shared/model.py (the UESD model)
+4. experiments/06_uesd/exp_d33_crossover_probe.py (template this was adapted from)
+
+REVIEW CHECKLIST:
+1. CORRECTNESS: Does the loss computation correctly use ALL seq_len positions (not half)? The prefix sum task outputs seq_len positions, not seq_len//2 like addition.
+2. ACCURACY MEASUREMENT: Is accuracy measured over ALL positions? Check both train_model() and measure_contraction_summary().
+3. DATA TASK: Is "prefix_sum" used consistently everywhere (training, q measurement, spectral radius, contraction)?
+4. SEED/RNG: Is the RNG save/restore in measure_q_at_t_min correct?
+5. KEY NAMING: Are result keys unique (L{seq_len}_{variant}_s{seed} format)?
+6. EDGE CASES: What happens if the model never reaches 99% accuracy? Is T_99=None handled?
+7. STATISTICAL TESTS: Is the paired t-test setup correct? Is Cohen's d computed correctly?
+8. binom_test DEPRECATION: scipy.stats.binom_test may be deprecated. Check if binomtest should be used instead.
+9. GPU MEMORY: With batch_size=256 and seq_len up to 12, will this fit on a single GPU alongside D33+D34?
+10. COMPARISON: The hardcoded D31 comparison values -- are they correct (Dk=-0.0023, p=0.000017, d=-3.92)?
+
+Be thorough. Flag ANY bugs, edge cases, or issues. This experiment will run for ~4 hours unattended.

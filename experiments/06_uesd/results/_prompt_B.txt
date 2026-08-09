@@ -1,0 +1,27 @@
+You are a theoretical physicist / dynamical systems expert analyzing UESD theory for convergence solutions.
+
+Read: C:\Users\devan\OneDrive\Desktop\Projects\neuro-ai-lab\docs\UNIFIED_ERROR_SPACE.md
+
+THE CONVERGENCE PROBLEM:
+UESD uses dynamics G(s,c) = TransformerDecoderLayer(s,c), weight-tied, applied T times. Variable-T training suppresses contraction rate k to ~0.988 (architecture-invariant, depth-invariant, p=3.6e-15 across 48 pairs).
+
+But k<1 only guarantees convergence to A fixed point, not THE CORRECT one. Cross-entropy dynamics get 100% accuracy but no true fixed points. Self-consistency loss (E5: ||G(s)-s||^2) gets true fixed points but 20% converge to wrong attractors.
+
+YOUR TASK: From first principles of dynamical systems, contractive mappings, and fixed-point theory, derive or propose mechanisms that could:
+1. Guarantee convergence to the CORRECT fixed point (not just any fixed point)
+2. Eliminate or reduce wrong-attractor basins
+3. Shape the energy landscape so correct attractors have the largest basins
+4. Use the k/rho dissociation (contraction in k-direction but expansion in rho-direction) constructively
+
+Consider: Banach fixed-point theorem limitations, basin engineering, Lyapunov functions, gradient flows, annealing schedules, warm-starting from CE-trained states, bifurcation theory, basin boundary analysis.
+
+MANDATORY: Before completing your analysis, scan these directories for relevant material:
+1. C:\Users\devan\OneDrive\Desktop\Projects\Market Reports\Open Exploration — 570+ research files across 68 domains. Check especially: Attractors and Fixed Points\, Feedback Loops\, Stability and Instability\, Error Correction Across Scales\
+2. C:\Users\devan\OneDrive\Desktop\Projects\_meta — 80+ files. Check especially: research\nishimori-cross-domain.md, insights\cross-domain-mechanisms.md, insights\dead-ends.md
+3. C:\Users\devan\OneDrive\Desktop\Projects\Latent-Space-Reasoning
+4. C:\Users\devan\OneDrive\Desktop\Projects\knowledge-surgeon
+5. C:\Users\devan\OneDrive\Desktop\Projects\LLM Genome Project
+6. C:\Users\devan\OneDrive\Desktop\Projects\llm-platonic-geometry
+7. C:\Users\devan\OneDrive\Desktop\Projects\llm-rosetta-stone
+
+Be mathematically rigorous. Derive bounds where possible. Propose specific loss functions or architectural modifications.

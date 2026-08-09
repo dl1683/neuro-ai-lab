@@ -1,0 +1,16 @@
+No launch-blocking bugs found.
+
+Checklist result:
+
+1. Loss uses all positions: yes, [exp_d35_prefix_sum.py](/C:/Users/devan/OneDrive/Desktop/Projects/neuro-ai-lab/experiments/06_uesd/exp_d35_prefix_sum.py:154) flattens full `logits` and full `tgt`, no `:half`.
+2. Accuracy uses all positions: yes in q eval, training eval, and T99 eval at [line 123](/C:/Users/devan/OneDrive/Desktop/Projects/neuro-ai-lab/experiments/06_uesd/exp_d35_prefix_sum.py:123), [line 170](/C:/Users/devan/OneDrive/Desktop/Projects/neuro-ai-lab/experiments/06_uesd/exp_d35_prefix_sum.py:170), [line 263](/C:/Users/devan/OneDrive/Desktop/Projects/neuro-ai-lab/experiments/06_uesd/exp_d35_prefix_sum.py:263).
+3. `prefix_sum` task is consistent: yes, used in train/q/contraction/spectral; generator registered at [data.py](/C:/Users/devan/OneDrive/Desktop/Projects/neuro-ai-lab/experiments/06_uesd/shared/data.py:116).
+4. RNG isolation: q eval correctly saves/restores torch CPU, CUDA, Python, NumPy RNG at [line 112](/C:/Users/devan/OneDrive/Desktop/Projects/neuro-ai-lab/experiments/06_uesd/exp_d35_prefix_sum.py:112). Contraction/spectral reseed to fixed `9999`; acceptable because training is already finished and next run reseeds.
+5. Keys unique: yes, `L{seq_len}_{variant}_s{seed}` is unique across 4 lengths x 2 variants x 4 seeds at [line 277](/C:/Users/devan/OneDrive/Desktop/Projects/neuro-ai-lab/experiments/06_uesd/exp_d35_prefix_sum.py:277).
+6. `T_99=None`: handled for JSON and display; `None` prints as `X` in table at [line 392](/C:/Users/devan/OneDrive/Desktop/Projects/neuro-ai-lab/experiments/06_uesd/exp_d35_prefix_sum.py:392).
+7. Paired t-test: correct direction, `ttest_rel(VT, FT)` and paired Cohen d over differences at [line 413](/C:/Users/devan/OneDrive/Desktop/Projects/neuro-ai-lab/experiments/06_uesd/exp_d35_prefix_sum.py:413).
+8. `binom_test` deprecation: okay; uses modern `binomtest` first with deprecated fallback at [line 434](/C:/Users/devan/OneDrive/Desktop/Projects/neuro-ai-lab/experiments/06_uesd/exp_d35_prefix_sum.py:434).
+9. GPU memory for batch 256, seq_len 12: should be fine. The heavier eval path is `EVAL_SAMPLES=4096`, `L<=12`, `d=128`, no grad for contraction; this is still modest.
+10. D31 comparison values: essentially correct. Current D31 JSON recomputes D=8 `k_delta=-0.00225`, `p=1.6907e-05`, `8/8`; the printed `Dk=-0.0023`, `p=0.000017` matches. The `d=-3.92` matches the written theory summary; recomputing from rounded JSON gives `d=-3.66`, likely because stored values are rounded.
+
+Minor nit: [line 479](/C:/Users/devan/OneDrive/Desktop/Projects/neuro-ai-lab/experiments/06_uesd/exp_d35_prefix_sum.py:479) prints `{vt_lower}/{len(all_ft_k)} unanimous` even when it is not unanimous. That is wording only, not a statistical bug.

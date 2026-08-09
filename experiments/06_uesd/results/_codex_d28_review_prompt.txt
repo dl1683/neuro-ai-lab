@@ -1,0 +1,24 @@
+﻿You are reviewing critical experimental findings from the UESD (Unified Error-Space Dynamics) project. Read these files:
+1. experiments/06_uesd/proofs/bottleneck_depth_scaling.md — Section "Proposition 28: Readout-Projected Contraction" (near end of file)
+2. experiments/06_uesd/results/exp_d28_contraction_ratio.json — L=4 fixed_t data
+3. experiments/EXPERIMENTS.md — D28 section
+
+D28 L=4 FIXED_T RESULTS:
+- k_frob = 0.9882 +/- 0.0003 (FLAT across all 30 steps, not U-shaped)
+- Spectral radius rho = 1.0018 +/- 0.0005 (SUPERCRITICAL)
+- Fixed point NOT converged (relative residual 9.9% at T=100)
+- Readout T_99 = 4 (actual) vs T_99 = 387 (predicted from k_frob)
+- Geometric decomposition: 58%/82% contractional/rotational early, 81%/59% late
+- State moves 7 units/step AFTER readout reaches 100%
+- Per-sample k extremely tight: std=0.0017, no bimodality
+
+PROPOSED INTERPRETATION (Readout-Stable Manifold):
+Dynamics do NOT converge to a fixed point. Instead, they reach a manifold M of correct-readout states in ~4 steps, then evolve along M indefinitely. M = {s : argmax(Ws) = y*} is transversally stable but longitudinally neutral/expanding.
+
+YOUR TASK:
+1. STATISTICAL VALIDITY: With only L=4 (D=2, the EASIEST task), how much can we generalize? What specifically might change at L=8+?
+2. ALTERNATIVE EXPLANATIONS: What else could explain rho > 1 + fast readout convergence besides the manifold interpretation? Consider: (a) T=100 is insufficient for FP, (b) the FP exists but is far away, (c) numerical issues in power iteration
+3. THEORY REVISION: Is it premature to REJECT Cor 25.1 and Prop 25 based on ONE task difficulty level? These were derived for D>=4; L=4 (D=2) is trivially easy.
+4. FALSIFICATION: What result from L=8+ D28 data would RESTORE the Banach framework? What would confirm the manifold interpretation?
+5. NOVELTY ASSESSMENT: Is the readout-stable manifold concept genuinely new, or is this a known phenomenon (stable output manifold, center manifold theory, etc.)?
+6. PRIORITY DIRECTIVE: Given the data, what is the single most important next step?

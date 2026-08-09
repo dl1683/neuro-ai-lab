@@ -1,0 +1,18 @@
+You are the Correctness Engineer reviewing UESD Experiment D28 (Banach Contraction Ratio Measurement) before launch.
+
+Read these files:
+1. experiments/06_uesd/exp_d28_contraction_ratio.py — the experiment script
+2. experiments/06_uesd/shared/model.py — the UESDModel definition
+3. experiments/06_uesd/shared/training.py — set_seed and count_params
+4. experiments/06_uesd/shared/data.py — generate_batch
+
+Check for:
+1. BUGS: Off-by-one errors, incorrect tensor operations, division by zero, gradient leaks in @torch.no_grad blocks
+2. MEMORY: Can 4096 samples × L=24 × d=128 × T=100 fit in GPU memory? Peak VRAM estimate?
+3. CORRECTNESS: Is the fixed-point approximation (T=100) sufficient? Is the contraction ratio computation correct?
+4. SEEDING: Is the seed set before model creation (the D27 bug)?
+5. EDGE CASES: What if the model doesn't converge (fp_residual large)? What if contraction ratio > 1?
+6. NUMERICAL STABILITY: Division by small distances in contraction ratio computation
+7. SPECTRAL RADIUS: Is power iteration correct? Does it need torch.enable_grad inside @torch.no_grad context?
+
+Flag any issues with severity (CRITICAL / MODERATE / LOW).

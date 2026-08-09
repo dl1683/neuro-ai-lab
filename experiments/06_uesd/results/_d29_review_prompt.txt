@@ -1,0 +1,20 @@
+You are acting as the Correctness Engineer (Tier 1) reviewing a UESD experiment script.
+
+READ THESE FILES:
+1. experiments/06_uesd/exp_d29_ftle_decomposition.py - the script under review
+2. experiments/06_uesd/proofs/bottleneck_depth_scaling.md - search for Proposition 31 to find the theorem being tested
+3. experiments/06_uesd/shared/model.py - the UESDModel class (especially dynamics_step and readout_logits methods)
+4. experiments/06_uesd/shared/training.py - shared training utilities
+5. experiments/06_uesd/shared/data.py - data generation
+
+REVIEW FOCUS:
+1. Does compute_jacobian_single correctly compute the full ds_new/ds Jacobian? Check that it iterates over all n=L*d output dimensions, does proper backward passes, and handles grad accumulation correctly.
+2. Does the product Jacobian Phi = J_T ... J_1 accumulate in the correct order? J_T should be leftmost for the T-step product.
+3. Is the readout projection P_r computed correctly from the model readout architecture?
+4. Is the FTLE partitioning logic correct? Alignment threshold 0.5, partition into readout vs orthogonal.
+5. Are there any memory issues with computing 1024x1024 Jacobians for 8 samples x 9 time points?
+6. Any bugs in the aggregation phase that would produce incorrect lambda_R or lambda_perp statistics?
+7. Is there a torch.no_grad vs torch.enable_grad issue anywhere? The Jacobian computation NEEDS gradients.
+8. Does the script handle the case where FP does not converge after FP_STEPS=100?
+
+OUTPUT: Write findings to experiments/06_uesd/results/_codex_d29_review.md. List bugs as CRITICAL/MODERATE/MINOR with specific line numbers and fixes.

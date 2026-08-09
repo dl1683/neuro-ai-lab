@@ -1,0 +1,29 @@
+You are analyzing UESD experiments for convergence clues. Read these files:
+
+1. C:\Users\devan\OneDrive\Desktop\Projects\neuro-ai-lab\docs\UNIFIED_ERROR_SPACE.md — the full UESD theory
+2. C:\Users\devan\OneDrive\Desktop\Projects\neuro-ai-lab\experiments\EXPERIMENTS.md — all 37 experiments and results
+3. C:\Users\devan\OneDrive\Desktop\Projects\neuro-ai-lab\experiments\06_uesd\results\ — raw experiment outputs
+
+THE CONVERGENCE PROBLEM:
+We have 48/48 d=128 pairs showing dk<0 (VT suppresses k below FT, p=3.6e-15). VT k setpoint ~0.988 is architecture-invariant and depth-invariant. But:
+- CE (cross-entropy) dynamics achieve 100% accuracy but have NO true fixed points (residual never reaches 0)
+- E5 self-consistency loss achieves true fixed points but has 20% WRONG-ATTRACTOR failure rate
+- k<1 guarantees convergence to SOME fixed point, not the CORRECT one
+
+YOUR TASK: Mine our experiment results for any clues about how to solve convergence. Look at:
+- How k, rho, residual norms behave across experiments
+- The k/rho dissociation (dk<0 while drho>0 on prefix sum and D=10 addition) — what does this tell us?
+- The attractor null test (small d=64 dk>0 when FT k <= setpoint) — implications?
+- D37 alt-k estimator results (pairwise dk>0, random-dir flips) — basin geometry
+- Any patterns in wrong-attractor failures from E5 experiments (D6-D12)
+
+MANDATORY: Before completing your analysis, scan these directories for relevant material:
+1. C:\Users\devan\OneDrive\Desktop\Projects\Market Reports\Open Exploration — 570+ research files across 68 domains
+2. C:\Users\devan\OneDrive\Desktop\Projects\_meta — 80+ files on meta-research strategy, Nishimori theory, cross-domain mechanisms
+3. C:\Users\devan\OneDrive\Desktop\Projects\Latent-Space-Reasoning — latent space reasoning research
+4. C:\Users\devan\OneDrive\Desktop\Projects\knowledge-surgeon — knowledge editing/surgery research
+5. C:\Users\devan\OneDrive\Desktop\Projects\LLM Genome Project — LLM internal structure research
+6. C:\Users\devan\OneDrive\Desktop\Projects\llm-platonic-geometry — geometric structure of LLM representations
+7. C:\Users\devan\OneDrive\Desktop\Projects\llm-rosetta-stone — cross-model representation alignment
+
+Write a detailed analysis of what our experiments tell us about solving convergence. Be specific — cite experiment IDs and numbers.

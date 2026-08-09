@@ -1,0 +1,56 @@
+You are reviewing experiment D29c (theory-correct FTLE analysis) for PRE-LAUNCH correctness review.
+
+CONTEXT:
+- UESD: dynamics G(s,c) applied T times in continuous embedding space, no softmax collapse
+- Proposition 31 (Anisotropic Readout Convergence): readout-relevant FTLE < 0 while null-space FTLE > 0
+- D29b found lambda_R=-0.004, lambda_null=+0.040 (CONFIRMED) but had 3 HIGH-severity methodology issues
+- D29c fixes all 3 HIGH issues from Codex D29b evidence review
+
+THE 3 FIXES:
+1. [HIGH] Added D_norm(h) = (I - h_hat h_hat^T) / ||h|| to critical direction computation
+   - readout_logits uses F.normalize(h), so margin gradient must account for normalization Jacobian
+   - D29b used: d_critical = W_R^T @ delta_e
+   - D29c uses: d_critical = W_R^T @ D_norm^T @ delta_e
+
+2. [HIGH] Theory-correct alignment partition instead of P @ Phi @ P
+   - Prop 31 says: compute full SVD of Phi, classify each right singular vector v_i by ||P_R v_i||/||v_i|| > 0.5
+   - D29b used: P_crit @ Phi @ P_crit (two-sided projection, not the stated theory)
+   - D29c uses: exact Prop 31 definition with alignment threshold 0.5
+
+3. [HIGH] Fixed-point convergence gate
+   - D29b: 100 steps, no convergence check, residual ~14-19
+   - D29c: 500 steps with tol=1e-4, flag non-converged samples, aggregate separately
+
+FILES TO READ:
+1. experiments/06_uesd/exp_d29c_ftle_theory_correct.py — THE EXPERIMENT SCRIPT (primary review target)
+2. experiments/06_uesd/exp_d29b_ftle_corrected.py — THE PREVIOUS VERSION (for comparison)
+3. experiments/06_uesd/shared/model.py — THE MODEL (readout_logits method)
+4. experiments/06_uesd/proofs/bottleneck_depth_scaling.md — Search for "Proposition 31" for the formal definition
+
+YOUR TASK — Correctness review (per CLAUDE.md Section 4.2, Persona 1):
+
+1. MATHEMATICAL CORRECTNESS:
+   - Is D_norm = (I - h_hat @ h_hat^T) / ||h|| correctly implemented?
+   - Is the chain rule d(margin)/d(s) = W_R^T @ D_norm^T @ delta_e correct?
+   - Is the alignment partition ||P_R @ v_i|| / ||v_i|| > 0.5 faithful to Prop 31?
+
+2. IMPLEMENTATION BUGS:
+   - Are tensor dimensions correct throughout?
+   - Is the Jacobian computed correctly?
+   - Is the SVD/FTLE computation correct (singular values, right singular vectors)?
+   - Are there any off-by-one errors in loops?
+
+3. FIXED-POINT CONVERGENCE:
+   - Is 500 steps enough? Should we use a different solver (Anderson acceleration)?
+   - Is tol=1e-4 appropriate given state norms ~100?
+   - Should we use relative tolerance instead?
+
+4. COMPARISON INTEGRITY:
+   - Does the D29b comparison branch correctly replicate D29b's methodology?
+   - Can we meaningfully compare theory-correct vs D29b results?
+
+5. RESOURCE ESTIMATE:
+   - Will this fit in GPU memory? (RTX 5090, 24GB)
+   - How long will it take? (1024x1024 Jacobian, 8 samples, 20 T values)
+
+Report issues with severity labels [CRITICAL/HIGH/MEDIUM/LOW] and specific line references.

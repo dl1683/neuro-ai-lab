@@ -1,0 +1,32 @@
+You are reviewing experiment script D30 (exp_d30_tmin_control.py) for correctness BEFORE it is launched.
+
+CONTEXT:
+- This is a UESD (Unified Error-Space Dynamics) research project
+- D30 tests Proposition 32: T_99 <= T_min for variable-T trained models
+- The script trains 5 configurations at L=8 with different T_min values
+- It reuses patterns from D28 (exp_d28_contraction_ratio.py) and D23 (exp_d23_carry_depth_scaling.py)
+- Architecture: d=128, heads=4, d_ff=512, V=64, L=8
+
+FILES TO READ:
+1. experiments/06_uesd/exp_d30_tmin_control.py — THE SCRIPT UNDER REVIEW
+2. experiments/06_uesd/exp_d28_contraction_ratio.py — reference for spectral radius measurement
+3. experiments/06_uesd/exp_d23_carry_depth_scaling.py — reference for variable-T training and step ablation
+4. experiments/06_uesd/shared/model.py — model architecture
+
+YOUR TASK — Correctness review:
+
+1. TRAINING LOOP: Is the variable-T training correct? Does it properly handle the different T_range configs? Is the fixed-T baseline handled correctly?
+
+2. EVALUATION: Is the step ablation evaluation correct? Are the eval T values sufficient to detect T_99 changes?
+
+3. SPECTRAL RADIUS: Is the power iteration measurement correct? Compare with D28's implementation. Any bugs?
+
+4. T_99 COMPUTATION: Is compute_t99 correct? Does it handle edge cases?
+
+5. VERDICT LOGIC: Are the Prop 32 tests correctly implemented? Is monotonicity check correct?
+
+6. RESUME LOGIC: Is checkpoint resume correct?
+
+7. BUGS: Any numerical issues, edge cases, or potential crashes?
+
+Report issues as HIGH/MEDIUM/LOW severity with specific line references.

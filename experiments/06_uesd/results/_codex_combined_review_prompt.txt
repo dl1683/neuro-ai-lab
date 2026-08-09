@@ -1,0 +1,64 @@
+﻿You are in TESLA MODE acting as senior architectural authority reviewing new experimental results.
+
+READ THESE FILES:
+1. experiments/EXPERIMENTS.md - Focus on D23, D25, D27, D28 sections
+2. experiments/06_uesd/proofs/theory_summary.md - Focus on sections 2.22 (Prop 28, supercriticality table), 2.23 (Prop 29), and cross-experiment evidence
+3. experiments/06_uesd/proofs/bottleneck_depth_scaling.md - Focus on Corollary 22.1 (REVISED), Proposition 29 (UPDATED with 3 seeds)
+4. experiments/06_uesd/results/exp_d28_contraction_ratio.json - D28 raw data (2 runs: fixed_t + variable_t at L=4)
+5. experiments/06_uesd/results/exp_d27_encoder_degradation.json - D27 raw data (6 runs: L=8 x3, L=12 x3)
+
+CONTEXT:
+Four major results just landed simultaneously:
+
+1. D27 TIEBREAKER (L=12 seed=2024): delta=23.8%, confirming Strategy B. Now 3 seeds: 86.0% (A), 11.0% (B), 23.8% (B). Bimodal gap 62pp. P_A(D=6)=1/3 not 1/2.
+
+2. D28 VARIABLE_T (L=4): rho=0.9994 SUBCRITICAL (vs fixed_t rho=1.0018 supercritical). k=0.990 similar. T_99=2 (vs 4). Readout faster despite weaker contraction.
+
+3. D25 3RD SEED: variable_t rho=1.048, confirming 3/3 seeds rho>1 at L=8. Cross-experiment: 7/8 models rho>1, exception is L=4 variable_t (rho=0.999).
+
+4. D23 FULL RESULTS: All 6 baselines + 4/6 variable_t complete. T_99=3 UNIVERSAL for variable_t through L=16. Baseline T_99=5 for L>=8. Variable_t T=48: 97%+ vs baseline 16-97%.
+
+KEY CLAIMS TO EVALUATE:
+A. "rho scales with problem complexity" - L=4 subcritical, L=8 supercritical. Is this a real effect or artifact?
+B. "Strategy bifurcation confirmed" - 3 seeds bimodal, 5:1 separation ratio. Strong enough?
+C. "T_99=3 universal for variable_t" - 4 data points (L=4,8,12,16). How confident?
+D. "Variable_t accelerates readout despite weaker global contraction" - FTLE interpretation justified?
+
+YOUR TASK:
+
+1. FOUNDATIONAL ASSUMPTION AUDIT
+   - Is the rho vs complexity claim justified by 2 data points (L=4, L=8)?
+   - Is 3 seeds sufficient to claim bimodal bifurcation at L=12?
+   - Could T_99=3 universality break at L=20+ where carry depth exceeds attention capacity?
+   - Is the FTLE interpretation (readout contracts while state expands) the simplest explanation?
+
+2. STATISTICAL RIGOR CHECK
+   - With n=3 at L=12, what can we claim about P_A? Wilson interval?
+   - Is the 5:1 separation ratio (62pp gap / 13pp within-B) significant?
+   - D23 has only 1 seed per L for variable_t. How reliable is "universal T_99=3"?
+
+3. ALTERNATIVE EXPLANATIONS
+   - Could rho < 1 at L=4 be a measurement artifact (e.g., different convergence dynamics)?
+   - Could the bifurcation be a training artifact (e.g., different learning rate sensitivity per seed)?
+   - Could T_99=3 be a consequence of T_train horizon bias (variable_t sees T=4 during training)?
+
+4. CROSS-DOMAIN VALIDATION
+   - Does Edge-of-Stability (Cohen et al. 2021) actually predict task-dependent rho?
+   - From coding theory: does SNR-dependent operating point (near/far from Shannon bound) map to our findings?
+   - Is there a dynamical systems theorem that predicts subcritical->supercritical transition with system complexity?
+
+5. SYNTHESIS: What is the emerging theoretical picture? Is it coherent or contradictory?
+   - Readout-stable manifold (Prop 28) + strategy bifurcation (Prop 29) + rho scaling with complexity + T_99=3 universal
+   - Do these four findings SUPPORT each other or CONFLICT?
+
+6. PRIORITY DIRECTIVE
+   What is the single most important thing to do next with available compute?
+
+7. ANTI-OVERCONFIDENCE PROTOCOL
+   Rate confidence in each:
+   - rho scales with problem complexity: X/10
+   - Strategy bifurcation is real (not noise): X/10
+   - T_99=3 universal for variable_t at all L: X/10
+   - FTLE decomposition explains rho>1 + correct readout: X/10
+   - The four findings form a coherent theoretical picture: X/10
+   - Overall thesis confidence (updated from 6.0-6.2): X/10

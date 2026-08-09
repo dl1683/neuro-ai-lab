@@ -1,0 +1,36 @@
+You are acting as Correctness Engineer + Performance Engineer reviewing an experiment script BEFORE a GPU job.
+
+SCRIPT TO REVIEW: Read experiments/06_uesd/exp_d25_recovery_training.py
+
+ALSO READ for context:
+- experiments/06_uesd/shared/model.py (UESDModel — especially dynamics_step, readout_logits, encode, init_state)
+- experiments/06_uesd/shared/training.py
+- experiments/06_uesd/shared/data.py
+
+This script implements recovery-first training for UESD dynamics:
+- 4 variants x 3 seeds = 12 training runs
+- Variable-T baseline (D22-style) + three recovery training variants
+- Recovery training: perturb state after T steps, run K extra dynamics steps, add CE loss on recovered output
+- Sigma curriculum: linearly increase perturbation strength from 0.01 to sigma_end over training
+- Alpha schedule: optionally shift loss weight from task to recovery
+
+YOUR TASK: Find bugs that would waste GPU time or corrupt results.
+
+1. GRADIENT FLOW: In train_recovery, the perturbed state s_perturbed = s + noise where noise uses s.detach(). Does the gradient flow correctly through:
+   - task_loss (through s, through logits_clean)?
+   - recovery_loss (through s_recovery, through the extra dynamics steps from s_perturbed)?
+   - Is s.detach() on the norm computation correct, or does it break the graph for recovery_loss?
+
+2. RECOVERY LOSS DESIGN: The recovery loss is CE on readout after K extra steps from perturbed state. Should the noise be detached from the graph (it currently is via s.detach())? Does this prevent the model from learning to reduce noise sensitivity?
+
+3. VARIABLE-T + RECOVERY INTERACTION: When T is small (e.g., T=4), the state after 4 steps may not be converged. Adding noise to an unconverged state and asking for recovery — is this meaningful?
+
+4. MEMORY: batch_size=256, K=10 extra steps means 10 extra dynamics_step calls stored in the graph. Will this OOM on RTX 5090 (32GB)?
+
+5. SIGMA SCHEDULE: Linear from 0.01 to sigma_end. Is this the right shape? Should it be warmup-then-constant or something else?
+
+6. RESULTS INTEGRITY: Checkpointing with atomic writes — any issues?
+
+7. EVALUATION: Recovery evaluation uses T=10 fixed, but model trains with variable-T. Is this the right eval protocol?
+
+Report: CRITICAL (will crash/corrupt), WARNING (may affect results), NOTE (robustness). For CRITICAL: exact fix needed.

@@ -1,0 +1,63 @@
+You are in TESLA MODE — acting as the senior architectural authority reviewing experimental findings.
+
+READ THESE FILES FIRST:
+1. experiments/06_uesd/results/exp_d27_encoder_degradation.json — full 3-seed D27 data
+2. experiments/06_uesd/proofs/bottleneck_depth_scaling.md — Part G (Prop 22, cross-attention) and Part H (Prop 27, directed amplification, Corollary 27.1)
+3. experiments/06_uesd/proofs/theory_summary.md — sections 2.16 (Prop 22) and 2.21 (Prop 27)
+4. experiments/EXPERIMENTS.md — D27 section for the experimental writeup
+5. CLAUDE.md — for project context and review standards
+
+CONTEXT:
+D27 tested encoder degradation across 3 seeds (42, 2024, 1337) at L=8. Cross-attention ablation results:
+- seed=42: +28.4% accuracy delta (cross-attn helps enormously)
+- seed=2024: +12.6% delta
+- seed=1337: +5.8% delta
+- Mean: +15.6% ± 6.6% SE — HIGH VARIANCE across seeds
+
+But a surprising finding emerged: under noise (sigma=0.1), ALL seeds converge to ~14% delta (±0.7% SE). Noise EQUALIZES the cross-attention contribution.
+
+This has implications for Proposition 22 (cross-attention as error-correction channel):
+- The 5.8-28.4% range suggests cross-attention importance is NOT universal — it varies dramatically by seed
+- But noise equalization suggests the MECHANISM is universal — it just manifests differently in clean conditions
+- Under perturbation, the channel saturates to a consistent contribution level
+
+YOUR TASK — apply ALL of the following:
+
+1. STATISTICAL VALIDITY
+   - Is 3 seeds sufficient to claim the noise-equalization effect? What would a statistician say?
+   - The SE of 6.6% for clean vs 0.7% for noisy — is this variance reduction itself statistically significant?
+   - Should we run more seeds before claiming this in a paper?
+   - What confounders could produce this pattern?
+
+2. THEORETICAL INTERPRETATION
+   - Does noise equalization support or weaken Prop 22?
+   - Is there an alternative explanation beyond "noise saturates the error-correction channel"?
+   - How does this connect to Prop 27 (directed amplification) and Corollary 27.1 (alignment-contraction duality)?
+   - Could the equalization be an artifact of the noise injection method rather than a property of the dynamics?
+
+3. CROSS-EXPERIMENT CONSISTENCY
+   - D25 showed +26.5% recovery at sigma=0.2 across 3 seeds — is this consistent with D27's noise behavior?
+   - D22 showed variable-T is more noise-robust — does D27 add or contradict this?
+   - D6 shows bimodal SV alignment — would we expect noise to affect the alignment pattern?
+
+4. MISSING CONTROLS
+   - What control experiments are missing to validate the noise-equalization claim?
+   - Should we test noise equalization with E5 (self-consistency) to see if it's CE-specific?
+   - What about intermediate noise levels (sigma=0.05, 0.15, 0.2)?
+
+5. FALSIFICATION RISK
+   - What's the strongest argument AGAINST the noise-equalization interpretation?
+   - Could this just be "everything breaks equally under noise" rather than a meaningful convergence?
+   - How would we distinguish "robust equalization" from "uniform degradation"?
+
+6. PRIORITY DIRECTIVE
+   What is the single most important next step to strengthen or refute the noise-equalization finding?
+
+7. CONFIDENCE ASSESSMENT
+   Rate your confidence (1-10) that:
+   a) The noise-equalization effect is real (not an artifact)
+   b) It reflects a property of the dynamics (not just measurement noise)
+   c) It supports Prop 22's claim about cross-attention as error-correction
+   d) We have enough data to include this in a paper
+
+Be adversarial. Challenge every conclusion. Propose alternative explanations.
