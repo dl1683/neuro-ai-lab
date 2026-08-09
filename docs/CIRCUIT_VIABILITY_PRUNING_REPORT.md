@@ -1079,3 +1079,427 @@ Unsafe claim:
 - **From Synaptic Saliency to Circuit Viability**
 - **Path-Capacity Constraints for Severe Neural Network Pruning**
 - **Circuit Viability as a Constraint for Neural Network Pruning**
+
+
+## Appendix A: Neuroscience framing
+
+Merged from the former `docs/NEUROSCIENCE_FRAMING.md` (2026-08-09 consolidation); this report is now the canonical home of the biology-to-algorithm mapping.
+
+This repo's central idea is not simply that biological brains prune synapses. The stronger idea is that biological pruning is constrained by circuit viability.
+
+### Core translation
+
+Biological development removes many synapses, but it does not optimize isolated synapse deletion while ignoring whether the organism can still perceive, act, and learn. Useful circuits must remain viable while redundant or weak connections are removed.
+
+The machine-learning analogue is severe neural-network pruning:
+
+- a weight is a synapse;
+- a channel, hidden unit, attention head, or residual block is a circuit element;
+- a layer-to-layer path family is a communication route;
+- a global saliency threshold is unconstrained synapse deletion;
+- a zero-capacity bridge is a circuit lesion;
+- path capacity is the minimum viable communication substrate left after pruning.
+
+### Biological principles and algorithmic counterparts
+
+| Neuroscience principle | Biological meaning | Pruning counterpart | Current repo evidence |
+|---|---|---|---|
+| Synaptic pruning | Remove weak or redundant synapses. | Use saliency or magnitude to remove individual weights. | Magnitude and SynFlow baselines. |
+| Circuit viability | Preserve functional routes through a circuit. | Maintain nonzero capacity across required communication cuts. | SynFlow bridge collapse and capacity rescue experiments. |
+| Homeostatic plasticity | Prevent circuits from becoming silent or unstable. | Prevent dead outputs, dead bridges, and zero-capacity cutsets. | Dense bridge and TinyResNet dead-output diagnostics. |
+| Use-dependent stabilization | Active pathways are more likely to survive. | Use activation-supported path ranking. | TinyResNet activation reserve is a negative first test. |
+| Degeneracy | Multiple different routes can support similar function. | Preserve route diversity rather than a single surviving wire. | Diversity route optimization and strong TinyViT branch selection. |
+| Communication backbones | Long-range/bottleneck routes support system-level function. | Estimate min-cut or path capacity between representation stages. | Current path-capacity constraints approximate this in CNNs. |
+
+### What the current experiments show
+
+The SynFlow pathology is a machine analogue of a circuit lesion.
+
+Global SynFlow preserves some high-scoring synapses but deletes the dense bridge that carries representation into the classifier. Fine-tuning cannot recover because the mask has removed the route. The problem is not only that there are too few weights. The problem is that the surviving weights no longer form a viable circuit.
+
+Path-capacity pruning adds a viability constraint. It still uses saliency, but saliency is no longer allowed to delete every route through a required communication cut.
+
+### What the current experiments do not show
+
+The current method is not yet a full biological theory of pruning.
+
+Limitations:
+
+- The best evidence is still mostly CNN severe-sparsity work.
+- Residual networks reveal that output liveness alone is not route quality.
+- Naive presynaptic activation support did not solve the residual case.
+- The repo does not yet model richer biological mechanisms such as local competition, neuromodulation, dendritic compartment constraints, or multi-timescale plasticity.
+- The transformer analogue is currently TinyViT-scale; it has branch evidence, not broad transformer or LLM transfer.
+
+### Important lesson from the negative activation result
+
+A simple use-dependent rule is not enough:
+
+> saliency multiplied by presynaptic activation did not fix TinyResNet 99% and underperformed plain reserve capacity.
+
+That is useful. It means the right neuroscience translation is not merely “active inputs survive.” The stronger translation is probably:
+
+- active routes must connect through complete downstream paths;
+- residual additions create alternate communication geometry;
+- route diversity matters more than local activation;
+- useful capacity should be measured after block composition, not only at individual weight tensors.
+
+### Important lesson from residual route-quality audits
+
+TinyResNet shows why the circuit analogy has to be graph-level. At the `99%` sparsity cliff, keeping outputs alive is not enough. The route-quality audit found that projection-route capacity correlates more strongly with recovery than total dead-output count, but the projection-backbone allocator also showed that overprotecting one route family can hurt by starving other routes.
+
+The biological analogy is not “protect the biggest tract.” It is balanced circuit remodeling:
+
+- preserve projection/backbone routes;
+- preserve main-path transformation capacity;
+- preserve classifier readout capacity;
+- avoid concentrating all surviving capacity into one route family;
+- maintain enough degeneracy that fine-tuning can reroute function.
+
+That suggests the next algorithm should optimize route balance across interacting paths, not independent layer liveness.
+
+The projection/readout split sweep is the first concrete support for that stronger interpretation. The successful TinyResNet `99%` split did not merely keep units alive. It protected projection routes and classifier readout together, while leaving enough main-path capacity for transformation. That is closer to the biological picture: functional remodeling preserves interacting route families rather than one isolated tract.
+
+The predicted route-deficit split is the next step toward making this less post-hoc. It uses the geometry of the candidate sparse circuit before recovery training to estimate which route families are under-supported. The first predictor is crude, but it moves the method toward the biological analogy: remodeling decisions should be driven by measured circuit deficits, not by a fixed layer recipe.
+
+The diversity-penalized route optimizer strengthens the biological connection further. Matching route targets alone overprotected projection routes, which is analogous to preserving one tract while damaging the broader circuit. Adding a degeneracy-style penalty against route-family overconcentration produced the best optimizer-style residual result so far. This makes degeneracy operational: a sparse circuit should preserve multiple interacting route families, not maximize a single bottleneck score.
+
+The DeepTinyResNet transfer adds a second residual setting. In the deeper model, magnitude itself leaves hundreds of dead outputs at `99%` sparsity, while path-capacity methods preserve liveness and beat magnitude. The four-seed replicate narrows the interpretation: broad homeostatic capacity is the dominant gain in the deeper model, while the diversity optimizer is only weakly positive. That strengthens the homeostasis analogy: under extreme synapse loss, the first requirement is to prevent large regions of the circuit from going silent; finer route-family optimization matters after that liveness constraint is satisfied.
+
+The ResNet-20-style transfer reinforces the same point in a more standard residual architecture. Magnitude and SynFlow both leave large numbers of dead outputs at `99%`, while capacity reserve keeps route families alive and beats magnitude. This is the clearest current machine-learning analogue of homeostatic stabilization: the sparse circuit must remain globally viable before finer-grained route optimization can matter.
+
+The full-CIFAR ResNet-20 result makes the homeostasis claim more realistic. The advantage shrinks when dense training is stronger and the full dataset is used, but it remains positive: reserve capacity eliminates dead outputs and still beats magnitude. That is the right kind of result for a biological analogy: homeostatic viability is not magic performance; it is a guardrail that matters most when severe perturbation would otherwise silence parts of the circuit.
+
+### Important lesson from TinyViT residual-stream branch selection
+
+TinyViT makes the neuroscience connection sharper because it separates anatomical liveness from functional viability.
+
+In the strong TinyViT runs, masks that eliminate measured dead rows can still remain at the magnitude floor. Seed 310 is the cleanest branch example: all-route liveness leaves zero measured MLP/attention dead rows but recovers only `5.86%`, while SynFlow keeps many dead rows by that metric and recovers `15.16%`. Seed 311 repeats the pattern without branch scanning: all-route liveness reaches `9.97%`, while SynFlow reaches `15.91%`. Seed 312 is the counterweight: SynFlow is correctly rejected, but the selector chooses the wrong live repair by overtrusting a tiny feature margin. V6 converts that failure into a rule: when live-repair feature margins are tiny, use masked-before trainability as the tie-breaker. Seed 313 then checks the other guardrail: V6 keeps magnitude when magnitude is the most trainable sparse template. Seed 315 shows the next limitation: even zero-dead all-route liveness can be slightly worse than magnitude when the measured repair advantage is too small. V7 adds that magnitude-vs-repair guardrail, and seed 320 checks that this new guardrail leaves the SynFlow feature branch intact.
+
+The biological analogy is that keeping every local pathway anatomically present is not the same as preserving the functional ensemble. A sparse transformer circuit needs:
+
+- residual-stream feature preservation;
+- globally coherent signal paths;
+- enough trainable capacity for masked recovery;
+- liveness repair only when silence is the actual limiting deficit.
+
+That is why the current theory is not simply "keep units alive." It is constrained circuit remodeling: preserve the route family that keeps the computation recoverable under the task ecology.
+
+### Next neuroscience-grounded method hypothesis
+
+The next method should model pruning as circuit-preserving remodeling:
+
+1. Score synapses locally.
+2. Identify vulnerable communication cuts.
+3. Estimate route capacity after candidate pruning.
+4. Preserve multiple viable routes through each cut.
+5. Prefer routes supported by activation and downstream reachability.
+6. Penalize masks that concentrate all capacity into brittle single paths.
+
+This would map more faithfully to biological ideas:
+
+- homeostasis: every region keeps enough viable capacity;
+- use dependence: active routes get preference;
+- degeneracy: multiple routes survive;
+- lesion avoidance: no required cut collapses;
+- efficiency: redundant synapses are still removed.
+
+### Working thesis
+
+Pruning should not be framed as choosing the best isolated synapses. It should be framed as constrained circuit remodeling:
+
+> maximize synaptic efficiency subject to preserving viable, diverse, task-relevant communication routes.
+
+That is the neuro-AI idea this repo should make real.
+
+## Appendix B: Route-deficit predicted capacity
+
+Merged from the former `docs/ROUTE_DEFICIT_PREDICTOR.md` (2026-08-09 consolidation); this report is now the canonical home of the residual route-deficit predictor evidence.
+
+This note documents the current residual-network version of Path-Capacity Pruning.
+
+### Motivation
+
+Plain output-count capacity reserve fixes the obvious death problem in TinyResNet masks, but it still fails at the `99%` sparsity cliff. The route-quality audit showed why: once most outputs are technically alive, raw dead-output count stops explaining recovery. Residual recovery depends on route-family balance across:
+
+- main transformation paths;
+- projection shortcuts;
+- classifier readout.
+
+The goal is to select a capacity split before recovery fine-tuning, not by reading the final accuracy table.
+
+### Predictor
+
+Implementation:
+
+- `shared/residual_route_capacity.py`
+
+The first predictor does this:
+
+1. Build a magnitude mask as a viability template.
+2. Build a plain reserve mask as the candidate that prevents death but underperforms.
+3. Compute route-quality diagnostics for both masks.
+4. Measure projection deficit: template projection capacity minus candidate projection capacity.
+5. Measure readout deficit: template classifier-readout score minus candidate classifier-readout score.
+6. Keep a main-path floor.
+7. Allocate remaining protected capacity between projection and readout deficits.
+8. Build a route-family capacity mask and fill the rest globally by SynFlow.
+
+The current predictor still contains two hand-set choices:
+
+- main-path floor: `0.40`
+- projection reliability weight: `2.0`
+
+These are not final theory. They are scaffolding for converting the tuned route split into a measured-deficit rule.
+
+### Current evidence
+
+Four TinyResNet `99%` seeds:
+
+| Method | After FT | Delta vs magnitude | Wins vs magnitude |
+|---|---:|---:|---:|
+| magnitude | `25.04%` | baseline | baseline |
+| plain reserve `0.60` | `20.21%` | `-4.83` pts | `0/4` |
+| tuned `40/35/25` split | `24.88%` | `-0.17` pts | `3/4` |
+| predicted route-deficit split | `25.12%` | `+0.08` pts | `2/4` |
+
+Primary artifact:
+
+- `experiments/04_criticality_pruning/CIFAR10_TINY_RESNET_PREDICTED_ROUTE_SPLIT_99PCT.md`
+- `results/04_criticality_pruning/cifar10_tiny_resnet_predicted_route_split_99pct.json`
+
+### Interpretation
+
+The effect size is tiny. The result should not be sold as a solved residual pruning method.
+
+The important step is methodological:
+
+- output liveness was insufficient;
+- route-quality audit identified projection/readout imbalance;
+- a tuned projection/readout split beat magnitude;
+- a measured-deficit predictor recovered nearly the same split before fine-tuning and narrowly beat magnitude on mean.
+
+This makes the neuroscience story more concrete. Circuit viability is not a slogan here; it becomes a pre-recovery route-deficit measurement that changes the mask.
+
+### Next step
+
+The predictor needs to stop relying on fixed constants.
+
+Concrete next experiments:
+
+1. Derive the main-path floor from parameter budget and block depth.
+2. Derive projection reliability weight from route-quality correlations rather than setting it manually.
+3. Validate on more TinyResNet seeds.
+4. Transfer to a stronger residual backbone.
+5. Add transformer route-family analogues once residual prediction is stable.
+
+### Derived predictor follow-up
+
+A fresh four-seed follow-up tested whether the remaining constants could be removed or weakened.
+
+Compared methods:
+
+- `tuned_40_35_25`: hand-selected route-family split.
+- `fixed_deficit_predictor`: the first route-deficit predictor with main floor and projection reliability weight.
+- `relative_deficit_predictor`: equal route-family priors, split by relative route deficits.
+- `sqrt_width_deficit_predictor`: route-family prior derived from square root of output width, then adjusted by deficits.
+
+Fresh TinyResNet `99%` seeds `[207, 208, 209, 210]`:
+
+| Method | After FT | Delta vs magnitude | Wins vs magnitude |
+|---|---:|---:|---:|
+| magnitude | `24.98%` | baseline | baseline |
+| plain reserve `0.60` | `20.70%` | `-4.28` pts | `0/4` |
+| tuned `40/35/25` | `24.61%` | `-0.37` pts | `2/4` |
+| fixed deficit predictor | `24.59%` | `-0.39` pts | `2/4` |
+| relative deficit predictor | `23.81%` | `-1.17` pts | `1/4` |
+| sqrt-width deficit predictor | `22.75%` | `-2.23` pts | `0/4` |
+
+Interpretation:
+
+- Removing the constants did not improve the method.
+- The equal-family predictor overallocated readout and increased dead outputs.
+- The width-derived predictor underallocated readout and performed worse.
+- The fixed predictor and tuned split still close most of the plain-reserve gap, but they do not robustly beat magnitude on fresh seeds.
+
+Current honest status:
+
+**Route-deficit prediction is promising as a diagnostic and gap-closer, but not yet a robust residual pruning method.**
+
+Next step:
+
+Rather than guessing priors, derive the split from an optimization objective over route-quality targets, then solve for the cheapest capacity allocation that matches those targets.
+
+### Target-matched optimizer follow-up
+
+A first optimizer-style route allocator searched route-family splits before fine-tuning. The objective matched magnitude's projection/readout route targets while preserving the plain-reserve main-path floor.
+
+Fresh TinyResNet `99%` seeds `[211, 212, 213, 214]`:
+
+| Method | After FT | Delta vs magnitude | Wins vs magnitude |
+|---|---:|---:|---:|
+| magnitude | `25.79%` | baseline | baseline |
+| plain reserve `0.60` | `18.74%` | `-7.05` pts | `0/4` |
+| tuned `40/35/25` | `24.43%` | `-1.36` pts | `0/4` |
+| fixed deficit predictor | `23.59%` | `-2.21` pts | `0/4` |
+| target-matched optimizer | `24.52%` | `-1.27` pts | `1/4` |
+
+The optimizer selected `20/55/25` main/projection/readout on every seed. That improved over plain reserve but did not beat magnitude.
+
+Interpretation:
+
+- Matching projection/readout targets is not enough.
+- The optimizer overconcentrated protected capacity into projection routes.
+- It increased dead outputs relative to tuned/fixed predictors.
+- The missing term is a route-diversity or overconcentration penalty.
+
+Next optimization objective:
+
+**Match projection and readout targets while penalizing route-family overconcentration and preserving main-path diversity.**
+
+### Diversity-penalized optimizer
+
+A follow-up optimizer added route-family concentration and projection-overuse penalties. This directly tested the degeneracy hypothesis: do not allow the allocator to satisfy one route target by collapsing route-family diversity.
+
+Fresh TinyResNet `99%` seeds `[215, 216, 217, 218]`:
+
+| Method | After FT | Delta vs magnitude | Wins vs magnitude |
+|---|---:|---:|---:|
+| magnitude | `24.80%` | baseline | baseline |
+| plain reserve `0.60` | `20.13%` | `-4.67` pts | `0/4` |
+| tuned `40/35/25` | `26.04%` | `+1.25` pts | `3/4` |
+| diversity target optimizer | `25.85%` | `+1.05` pts | `4/4` |
+
+The optimizer selected `25/50/25` main/projection/readout on every seed. It still emphasizes projection, but the diversity penalty prevents the previous `20/55/25` collapse and improves seed stability.
+
+Interpretation:
+
+- The degeneracy constraint worked.
+- The optimizer now beats magnitude on every seed in this batch.
+- It is slightly below the tuned split on mean, but has stronger paired consistency.
+- This is the best current evidence that route-quality optimization can become a method, not just a diagnostic.
+
+Remaining caveat:
+
+The penalty weights are still hand-set. The next step is to derive them from route-family sensitivity or validate them on a stronger residual backbone.
+
+## Appendix C: Consolidated severe-sparsity results table
+
+Moved from the former README results section (2026-08-09 consolidation). Every row is backed by a JSON artifact in `results/04_criticality_pruning/` and checked by `audit_circuit_viability_claims.py`.
+
+The pathology becomes useful when it is turned into a circuit-viability constraint.
+
+Current selector lesson:
+
+1. If the sparse template is topologically dead, some liveness/homeostatic repair is needed.
+2. If the sparse template preserves useful computation, broad homeostatic reserve can be too destructive.
+3. The selector must score the tradeoff between feature preservation, route liveness, readout preservation, and dead-output repair.
+
+The old route-floor rule selected the intended family on `6/6` retrospective artifacts, but a fresh full-CIFAR experiment exposed its limitation: feature-preserving repair can beat broad reserve even when magnitude has a dead main-route floor. The current tradeoff selector fixes that failure in a fresh two-seed prospective test.
+
+Current best constructive result:
+
+| Case | Sparsity | Magnitude after FT | Global SynFlow after FT | Capacity method after FT | Delta vs magnitude |
+|---|---:|---:|---:|---:|---:|
+| CIFAR-10 CNN reserve sweep best | `99%` | `32.31%` | `9.76%` | `34.88%` | `+2.56` pts |
+| Fashion-MNIST CNN transfer | `99%` | `80.24%` | `9.89%` | `81.75%` | `+1.51` pts |
+| TinyResNet transfer | `98%` | `31.32%` | `9.79%` | `32.27%` | `+0.95` pts |
+| TinyResNet backbone reserve | `98%` | `29.43%` | `9.79%` | `32.19%` | `+2.76` pts |
+| TinyResNet transfer | `99%` | `24.23%` | `10.10%` | `21.32%` | `-2.91` pts |
+| TinyResNet backbone reserve | `99%` | `24.45%` | `10.10%` | `17.75%` | `-6.70` pts |
+| TinyResNet balanced route | `99%` | `24.31%` | `10.10%` | `25.68%` | `+1.37` pts |
+| TinyResNet balanced route replicate | `99%` | `24.93%` | `10.13%` | `23.40%` | `-1.53` pts |
+| TinyResNet projection/readout split | `99%` | `24.89%` | not rerun | `25.63%` | `+0.74` pts |
+| TinyResNet predicted deficit split | `99%` | `25.04%` | not rerun | `25.12%` | `+0.08` pts |
+| TinyResNet fixed predictor fresh | `99%` | `24.98%` | not rerun | `24.59%` | `-0.39` pts |
+| TinyResNet target-matched optimizer | `99%` | `25.79%` | not rerun | `24.52%` | `-1.27` pts |
+| TinyResNet diversity optimizer | `99%` | `24.80%` | not rerun | `25.85%` | `+1.05` pts |
+| DeepTinyResNet diversity optimizer | `99%` | `26.40%` | `9.96%` | `29.14%` | `+2.74` pts |
+| DeepTinyResNet reserve replicate | `99%` | `28.48%` | `9.98%` | `30.20%` | `+1.72` pts |
+| ResNet-20-style reserve | `99%` | `28.48%` | `9.99%` | `32.41%` | `+3.93` pts |
+| ResNet-20-style reserve replicate | `99%` | `27.25%` | `10.03%` | `33.22%` | `+5.97` pts |
+| Full CIFAR ResNet-20-style reserve | `99%` | `37.72%` | `10.00%` | `39.21%` | `+1.50` pts |
+| Full CIFAR ResNet-20-style SGD recipe | `99%` | `42.87%` | `10.00%` | `49.43%` | `+6.57` pts |
+| Full CIFAR ResNet-20-style predicted split | `99%` | `42.09%` | not rerun | `46.92%` | `+4.82` pts |
+| Full CIFAR-100 ResNet-20-style reserve | `99%` | `6.58%` | `1.00%` | `7.64%` | `+1.06` pts |
+| Full CIFAR-100 readout-main route split | `99%` | `6.53%` | not rerun | `9.12%` | `+2.59` pts |
+| Full CIFAR-100 conservative predicted split | `99%` | `6.98%` | not rerun | `8.79%` | `+1.81` pts |
+| Full CIFAR-100 tradeoff selector V1 | `99%` | `6.98%` | not rerun | `8.21%` | `+1.24` pts |
+| Full CIFAR-100 tradeoff selector V2 policy | `99%` | `6.98%` | not rerun | `8.87%` | `+1.89` pts |
+| Full CIFAR-100 tradeoff selector V2 prospective | `99%` | `6.54%` | not rerun | `9.26%` | `+2.72` pts |
+| Ecology selector CIFAR-10 selected reserve | `99%` | `43.93%` | not rerun | `46.74%` | `+2.81` pts |
+| Ecology selector CIFAR-100 selected split | `99%` | `5.41%` | not rerun | `9.08%` | `+3.68` pts |
+| DeepTinyResNet ecology selector policy | `99%` | `27.21%` | not rerun | `31.50%` | `+4.29` pts |
+| Full CIFAR ResNet-20 ecology selector SGD-40 | `99%` | `48.73%` | not rerun | `52.63%` | `+3.90` pts |
+| TinyViT minimal liveness repair | `98%` | `10.07%` | `11.00%` | `11.31%` | `+1.24` pts |
+| TinyViT selective MLP/readout repair | `98%` | `10.07%` | `11.00%` | `9.59%` | `-0.48` pts |
+| TinyViT all-route liveness floor | `98%` | `10.07%` | `11.00%` | `9.96%` | `-0.11` pts |
+| TinyViT MLP/readout reserve | `98%` | `10.07%` | `11.00%` | `9.95%` | `-0.12` pts |
+| TinyViT minimal liveness repair | `95%` | `9.87%` | `10.76%` | `10.87%` | `+1.00` pts |
+| TinyViT attention+MLP/readout repair | `95%` | `9.87%` | `10.78%` | `10.31%` | `+0.44` pts |
+| TinyViT feature-subspace diagnostic SynFlow | `95%` | `11.02%` | `16.86%` | `16.86%` | `+5.84` pts |
+| TinyViT feature-subspace selector | `95%` | `8.82%` | `13.57%` | `12.24%` | `+3.42` pts |
+| TinyViT feature-route margin policy | `95%` | `8.82%` | `13.57%` | `13.57%` | `+4.75` pts |
+| TinyViT feature-route margin selector | `95%` | `8.95%` | `14.60%` | `14.60%` | `+5.65` pts |
+| TinyViT feature-route margin selector | `90%` | `10.32%` | `14.56%` | `14.56%` | `+4.24` pts |
+| TinyViT feature-route margin strong pilot | `90%` | `16.70%` | `14.35%` | `14.35%` | `-2.35` pts |
+| TinyViT feature-route margin V2 strong | `90%` | `12.18%` | `10.25%` | `12.18%` | `+0.00` pts |
+| TinyViT V2 strong replicate | `90%` | `13.82%` | `14.24%` | `13.82%` | `+0.00` pts |
+| TinyViT V3 strong selector | `90%` | `11.39%` | `14.52%` | `14.52%` | `+3.13` pts |
+| TinyViT V3 strong replicate | `90%` | `8.07%` | `15.05%` | `15.05%` | `+6.98` pts |
+| TinyViT V4 strong selector | `90%` | `10.22%` | `17.09%` | `17.09%` | `+6.87` pts |
+| TinyViT V4 seed 306 | `90%` | `10.99%` | `13.29%` | `11.58%` | `+0.59` pts |
+| TinyViT V5 strong selector | `90%` | `7.25%` | `10.18%` | `10.18%` | `+2.93` pts |
+| TinyViT V5 SynFlow-prior branch | `90%` | `5.86%` | `15.16%` | `15.16%` | `+9.30` pts |
+| TinyViT V5 unselected fresh seed | `90%` | `9.79%` | `15.91%` | `15.91%` | `+6.12` pts |
+| TinyViT V5 live-repair miss | `90%` | `11.89%` | `10.68%` | `11.87%` | `-0.02` pts |
+| TinyViT V6 magnitude guardrail | `90%` | `16.44%` | `10.10%` | `16.44%` | `+0.00` pts |
+| TinyViT V6 live-repair miss | `90%` | `12.42%` | `9.55%` | `12.34%` | `-0.08` pts |
+| TinyViT V7 SynFlow no-regression | `90%` | `9.01%` | `11.93%` | `11.93%` | `+2.92` pts |
+| TinyImageNet-200 external proxy ecology selector | `99%` | `2.32%` | not rerun | `2.90%` | `+0.58` pts |
+| TinyImageNet pretrained ResNet-18 ecology selector | `99%` | `1.07%` | not rerun | `0.80%` | `-0.27` pts |
+| TinyImageNet pretrained ResNet-18 ecology selector | `95%` | `15.23%` | not rerun | `3.97%` | `-11.27` pts |
+| TinyImageNet pretrained feature-viability repair | `95%` | `15.13%` | not rerun | `15.03%` | `-0.10` pts |
+| TinyImageNet pretrained feature-viability repair replicate | `95%` | `14.87%` | not rerun | `14.82%` | `-0.05` pts |
+| TinyImageNet pretrained feature-viability repair | `99%` | `1.20%` | not rerun | `1.43%` | `+0.23` pts |
+| TinyImageNet pretrained tradeoff selector | `95%` | `15.67%` | not rerun | `15.70%` | `+0.03` pts |
+| Full CIFAR feature repair vs homeostasis | `99%` | `45.91%` | not rerun | `49.26%` | `+3.35` pts |
+| Full CIFAR tradeoff selector | `99%` | `44.60%` | not rerun | `49.97%` | `+5.37` pts |
+
+Interpretation:
+
+- Capacity constraints reliably prevent the obvious topological death caused by global SynFlow.
+- On CNN dense-tail settings, capacity reserve can improve extreme-sparsity recovery over magnitude.
+- On TinyResNet at `99%`, output liveness is not enough; residual-route quality needs a stronger constraint.
+- A naive activation-supported reserve was tested and did not solve the residual case.
+- Projection-backbone protection improves TinyResNet `98%` but worsens `99%`, so shortcut protection alone is not the full residual theory.
+- Balanced residual route allocation narrowed the TinyResNet `99%` failure and beat plain reserve, but its four-seed replicate still trails magnitude.
+- Projection/readout-balanced allocation is the current residual winner: it beats magnitude by `+0.74` points and wins `3/4` fresh seeds at TinyResNet `99%`.
+- The first route-deficit predictor is tiny and mixed: one batch narrowly beats magnitude, a fresh batch trails slightly, but both close most of the plain-reserve gap.
+- Target matching without a diversity penalty overconcentrates projection capacity and still trails magnitude.
+- Adding a degeneracy-style diversity penalty fixes that failure in the latest batch: the optimizer beats magnitude by `+1.05` points and wins `4/4` seeds.
+- Stronger residual transfer is positive: on DeepTinyResNet, path-capacity methods beat magnitude across the replicate, with plain reserve strongest in the four-seed run.
+- Standard-style residual transfer is strongly positive: on a CIFAR ResNet-20-style replicate, plain reserve beats magnitude by `+5.97` points with `4/4` wins.
+- Full CIFAR-10 transfer remains positive on the short recipe: reserve beats magnitude by `+1.50` points with `6/6` wins.
+- Under a stronger full-CIFAR SGD/cosine recipe, the effect gets larger: reserve beats magnitude by `+6.57` points with `4/4` wins.
+- The conservative predictor adapts back to CIFAR-10 by choosing main/projection-heavy splits and still beats magnitude by `+4.82` points, but plain reserve remains better on this task ecology.
+- CIFAR-100 is much harder in absolute recovery, but the mechanism transfers: reserve beats magnitude by `+1.06` points, and a readout/main-biased split improves the gain to `+2.59` points with `2/2` wins.
+- The new CIFAR-100 result suggests output diversity changes the viable circuit constraint: class-rich tasks need stronger readout preservation, not only generic liveness.
+- A conservative pre-finetune route-deficit selector now predicts the CIFAR-100 split without using recovery labels: `+1.81` points over magnitude and better than plain reserve on both fresh seeds.
+- The tradeoff selector exposed a sharper CIFAR-100 boundary: V1 overweights feature preservation, but a V2 output/readout-pressure policy selects route split. In a fresh prospective run, V2 selects route split on both seeds and beats magnitude by `+2.72` points, matching the best mean candidate.
+- An ecology-aware selector now chooses the intervention family from readout deficit: it keeps broad reserve on CIFAR-10 and switches to predicted split on CIFAR-100, winning `2/2` seeds on both tasks.
+- The same selector transfers to a deeper residual backbone: on DeepTinyResNet it chooses broad reserve from the high readout ratio and beats magnitude by `+4.29` points with `2/2` wins.
+- Under a longer 40-epoch dense CIFAR-10 schedule, the fixed selector still chooses broad reserve and beats magnitude by `+3.90` points; the route split is negative, so family selection matters.
+- The first TinyViT analogue is mixed but real: magnitude kills all tested MLP down-projection rows and many attention-output rows. But the feature-subspace diagnostic changes the transformer direction: global SynFlow beats magnitude by `+5.84` points while liveness repairs underperform, and centered CLS alignment correlates with recovery. Fresh prospective feature-route margin selectors choose SynFlow and beat magnitude in weak TinyViT runs at `95%` and `90%`. Stronger full-train TinyViT pilots show the missing term: V1 overselects SynFlow, V2 fixes one seed by selecting magnitude, a V2 replicate shows all-route liveness can be best, and V3 identifies the feature-dominant strong regime. Across three fresh strong V3 seeds, the feature-margin branch selects SynFlow and beats magnitude; the two-seed replicate improves mean recovery by `+6.98` points with `2/2` wins. Strong-transformer transfer still needs a predictive three-way policy over residual-stream representation, route liveness, and trainable capacity.
+- Across twelve completed strong TinyViT seeds, V4 is positive vs magnitude on `8/12`, matches the best evaluated candidate on `9/12`, and averages `+2.88` points over magnitude. Seed 306 and seed 310 define the important failure boundary: V4-style live repairs can beat or match magnitude while still missing a much more trainable SynFlow basin.
+- V5 adds a SynFlow masked-recovery prior: if SynFlow's masked-before accuracy is at least magnitude and close to the selected repair, prefer SynFlow. Across the twelve completed strong TinyViT seeds, V5 is positive vs magnitude on `9/12`, matches the best evaluated candidate on `11/12`, averages `+3.80` points over magnitude, and leaves only `0.02` points mean gap to the evaluated oracle.
+- Four fresh V5 prospective seeds now test both branches plus unselected follow-ups. Seed 308 validates the feature/SynFlow branch at `+2.93` points over magnitude. Seed 310 validates the SynFlow masked-recovery-prior branch at `+9.30` points over magnitude while every liveness-first repair stays at the magnitude floor. Seed 311 was run without scanner selection and again chooses SynFlow, winning by `+6.12` points. Seed 312 is the first V5 prospective miss: it chooses attention+MLP repair by a tiny feature margin, but minimal liveness is best and the selected policy is `-0.02` points vs magnitude. This makes the next selector target clear: tie-break inside the live-repair family.
+- V6 adds exactly that tie-breaker: when live-repair feature margins are tiny, choose the live repair with stronger masked-before trainability. On the current `14`-seed boundary synthesis, V6 matches the best evaluated candidate on `13/14`, is positive vs magnitude on `10/14`, and averages `+3.27` points over magnitude. Seed 313 is a fresh V6 prospective guardrail run: V6 keeps magnitude, and magnitude is the best evaluated candidate. Seed 315 is the new limitation: V6 selects all-route liveness, but magnitude is still slightly better, so the live-repair branch needs a magnitude-vs-repair guardrail.
+- V7 adds that magnitude-vs-live-repair guardrail. On the current `15`-seed boundary synthesis, V7 matches the best evaluated candidate on `15/15`, is positive vs magnitude on `11/15`, and averages `+3.25` points over magnitude. Seed 320 prospectively validates that V7 does not break the SynFlow feature branch.
+- On a first TinyImageNet-200 external proxy subset, viability methods beat magnitude but the selector-picked split trails plain reserve; this is a boundary condition, not a solved external benchmark.
+- On ImageNet-pretrained ResNet-18 TinyImageNet, the current viability selector fails: at `99%` all methods collapse, and at `95%` magnitude strongly beats the homeostatic masks. This is now the main external-validity limitation.
+- A feature-preserving liveness repair fixes most of that failure: across two `95%` seeds it eliminates dead outputs while matching magnitude within `0.05` points on average, showing pretrained systems need minimal liveness repair on top of feature-subspace preservation.
+- At the `99%` pretrained TinyImageNet cliff, feature-viability repair is the only positive intervention so far, but absolute recovery remains near chance.
+- On a fresh pretrained TinyImageNet `95%` seed, the corrected tradeoff selector picks feature repair, preserves magnitude-level accuracy, eliminates dead outputs, and avoids homeostatic masks that collapse to `3-4%`.
+- A fresh full-CIFAR from-scratch comparison complicates the selector: feature repair beats both magnitude and reserve, though it leaves more dead outputs. The family selector must optimize accuracy/liveness tradeoff, not just route-floor class.
+- The corrected tradeoff selector now does this prospectively: on two fresh full-CIFAR ResNet-20-style seeds, it selected feature repair before fine-tuning and beat magnitude by `+5.37` points with `2/2` wins, while also beating plain reserve on mean.
