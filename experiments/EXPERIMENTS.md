@@ -4,6 +4,21 @@ Reverse chronological order. Each entry links to configs, artifacts, and key fin
 
 ---
 
+## Frozen legacy pilots (01/02/03/05)
+
+Single-run pilots from the initial five-line phase (2026-05-18/19). Runners and protocol READMEs were deleted in the 2026-08-09 consolidation (recoverable from git history); the result JSONs are the retained evidence.
+
+| Pilot | Outcome | Evidence |
+|---|---|---|
+| 01 Grokking prediction | FAILED — MLP on `a+b mod 19` memorized, never generalized (best val 0.055); no grokking epoch, rho pinned ~0.999 | `results/01_grokking_prediction/pilot_result.json` |
+| 02 Sleep-cycle training | Modest win — 40% sparsity, gap 0.0174->0.0153, at -1.59 pts val accuracy | `results/02_sleep_training/pilot_result.json` |
+| 03 Reconsolidation | Modest win — +3.14 pts vs EWC on split sklearn digits, no replay; weak baselines | `results/03_reconsolidation/pilot_result.json` |
+| 05 DDM as depth | Efficiency win, weak theory — margin early-exit works; DDM fit failed (accuracy-depth R^2 = 0.018) | `results/05_ddm_depth/pilot_result.json` |
+
+Suite aggregate: `results/pilot_suite_summary.json`.
+
+---
+
 ## 06: Unified Error-Space Dynamics (UESD)
 
 Framework where AI generation happens in continuous embedding space via iterative dynamics, with no softmax collapse. Tests whether self-consistency energy E(s) = ||F_theta(s,c)||^2 produces correct, stable attractors.
@@ -2868,9 +2883,9 @@ Framework where AI generation happens in continuous embedding space via iterativ
 - **Codex review R2:** `proofs/codex_proof_review_r2.md` — Pending (reviews all 6 proofs including new additions).
 
 ### Design Documents
-- `design_revision_r3.md` — LOCKED build spec. 2 experiments, 2 tracks, 6 diagnostics.
-- `design_revision_r2.md` — Three-track proposal (response to Codex R1).
-- `EXPERIMENT_DESIGN.md` — Original Tesla mode design document.
+- `design_revision_r3.md` — LOCKED build spec. 2 experiments, 2 tracks, 6 diagnostics. (Deleted 2026-08-09 consolidation; superseded pre-build spec, recoverable from git history.)
+- `design_revision_r2.md` — Three-track proposal (response to Codex R1). (Deleted 2026-08-09 consolidation; recoverable from git history.)
+- `EXPERIMENT_DESIGN.md` — Original Tesla mode design document (retained, marked DEPRECATED HISTORICAL).
 - `codex_review_r1.md` — Core critique: E5 is stopping condition, not error function.
 - `codex_review_r2.md` — Narrowing to Round 3 pilot.
 
