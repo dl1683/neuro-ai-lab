@@ -19,6 +19,20 @@ Suite aggregate: `results/pilot_suite_summary.json`.
 
 ---
 
+## 07: Best-of-N Safe Selection
+
+### Frozen safe-selection pilot (PREREGISTERED / DESIGNED / NOT RUN)
+
+- **Event:** The independent-sampling safe-selection pilot was preregistered on 2026-08-10. No model was loaded, no response was generated, and no metric or result artifact exists.
+- **Canonical protocol:** `experiments/07_safe_selection/PREREGISTRATION.md`.
+- **Frozen cohorts:** Revision-pinned GSM8K official-train rows, excluding the five fixed demonstrations and all normalized-question overlap with the complete prior-consumption registry. The calibration cohort is 256 rows (ordered-index SHA-256 `9236163527dac17431ac43c9d094874ce644a211219a77de6783917ba15705c7`); the disjoint pilot-test cohort is 512 rows (ordered-index SHA-256 `f151f1c46c2421ed78aef43f1cd6e7bd99fc7c8ab5bb945e36adff346bad9c48`). The corrected 12,288-seed schedule hash is `8d3d567ba90da7ec7cdc0eb9c5764b545834975c0d477f0fc030888c9f2f03fd`.
+- **Design:** Six frozen policies share one 16-candidate bank: verifier argmax, fixed-margin incumbent, multiplicity-aware incumbent (primary), calibration-frozen stopping, verifier-blind answer plurality, and verifier-weighted answer plurality. CONFIRM is conjunctive against argmax and both voting baselines and remains scoped to the frozen generator–verifier pair and frozen GSM8K train-split cohort.
+- **Compute boundary:** Bank generation must fit the standing approximately 2.5 GPU-hour cap. If measured throughput projects the frozen 256+512 by 16 bank over the cap, a pre-data cohort-resize amendment is required before any retained generation.
+- **Launch blockers:** Cohort allocation is resolved. The remaining blockers are the unfilled prompt/parser/runner hash slots, the unfilled private manifest identity digest, runner build, and independent review.
+- **Line boundary:** Line 07 cannot alter, rescue, veto, or reinterpret E2 or the 0.5B semantic-ratchet program. A result here tests a model-agnostic product claim only.
+
+---
+
 ## 06: Unified Error-Space Dynamics (UESD)
 
 Framework where AI generation happens in continuous embedding space via iterative dynamics, with no softmax collapse. Tests whether self-consistency energy E(s) = ||F_theta(s,c)||^2 produces correct, stable attractors.

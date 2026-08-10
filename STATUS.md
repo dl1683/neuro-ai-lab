@@ -20,6 +20,7 @@ Audited snapshot through the terminal base-A/SVAMP adjudication and the single c
 | 04 Circuit-viability pruning | FROZEN / AUDITED | Claim audit `234/234`; SynFlow pathology audit passes; mechanism supported within recorded scope. | `docs/CIRCUIT_VIABILITY_PRUNING_REPORT.md`, `docs/CLAIM_EVIDENCE_LEDGER.md`, `docs/CLAIM_AUDIT.md`, `results/04_criticality_pruning/` |
 | 06 UESD — fixed-point arc | CONVERGENCE ARC CLOSED NEGATIVE | D40 falsifies the tested self-consistency fixed-point thesis; the system behaves as a finite-time transient solver. Surviving core: D22 variable-T k-suppression. | D40 ledger entry, `experiments/06_uesd/results/exp_d40_extended_convergence.json`, `docs/UNIFIED_ERROR_SPACE.md` |
 | 06 UESD — semantic ratchet | BASE-A TASK-BAND TERMINAL VOID / BASE-B TASK-BAND PASS / E2 LAUNCH CONDITIONS MET / 0.5B PROGRAM DEFERRED — COMPUTE POLICY (2026-08-10) | Base-A remains terminal **VOID** after its GSM8K below-band result and inapplicable SVAMP parser-repair branch. The single disjoint base-B GSM8K successor gate **PASS**ed with 143/256 correct numeric, 104/256 valid extracted incorrect, 0/256 model-empty, and 9/256 parser-recognition failures. E2 has clean independent review but has not run. The 0.5B registrations remain valid; the long program is deferred by policy, not scientifically closed. | `experiments/06_uesd/results/exp_e1_task_band_base_b.json`, prior base-A artifacts, `experiments/06_uesd/PREREGISTRATION.md` |
+| 07 Best-of-N safe selection | PREREGISTERED / NOT RUN / LAUNCH BLOCKED | Frozen GSM8K train-split calibration/test cohorts and six policies are registered. Cohort allocation is resolved. Launch remains blocked on three unfilled public hash slots, the unfilled private manifest identity digest, runner build, independent review, and the conditional pre-data resize requirement if measured bank throughput projects over 2.5 GPU-hours. | `experiments/07_safe_selection/PREREGISTRATION.md` |
 | 01/02/03/05 pilots | FROZEN HISTORICAL | Single-run pilots; no active roadmap or runner. 01 failed; 02/03 modest wins on toy tasks; 05 efficiency win with failed DDM fit. | `results/01..05/pilot_result.json`, `results/pilot_suite_summary.json`, frozen-pilots table in `experiments/EXPERIMENTS.md` |
 
 ## 04 — Circuit-Viability Pruning
@@ -136,6 +137,7 @@ The fixed-point convergence arc is closed. D40 stands at 15/16; rerunning the cr
 | UESD scientific synthesis | `docs/UNIFIED_ERROR_SPACE.md` |
 | UESD semantic-ratchet preregistration | `experiments/06_uesd/PREREGISTRATION.md` |
 | E2 optimizer's-curse secondary analysis | `experiments/06_uesd/E2_SECONDARY_ANALYSIS_CURSE.md` (informational only; subordinate to E2 adjudication) |
+| Best-of-N safe-selection preregistration | `experiments/07_safe_selection/PREREGISTRATION.md` |
 | Experiment chronology | `experiments/EXPERIMENTS.md` + `experiments/ledger.jsonl` |
 | UESD theorem catalog | `experiments/06_uesd/proofs/theory_summary.md` (supporting only) |
 | Raw evidence | `results/` for 01-05 and 04; `experiments/06_uesd/results/` for 06 (do not relocate) |

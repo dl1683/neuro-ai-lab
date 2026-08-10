@@ -38,6 +38,7 @@ Thumbs.db
 # Private local strategy notes
 .private/
 experiments/06_uesd/_local_manifest.md
+experiments/07_safe_selection/_local_manifest.md
 
 # Local agent/session state
 .claude/
