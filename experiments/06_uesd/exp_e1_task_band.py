@@ -39,7 +39,6 @@ import time
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from decimal import Decimal, InvalidOperation
 from fractions import Fraction
 from pathlib import Path
 from typing import Any, Sequence
@@ -123,13 +122,18 @@ MAX_EXTRACTION_FAILURE_RATE = 0.05
 HERE = Path(__file__).resolve().parent
 LOCAL_MANIFEST_PATH = HERE / "_local_manifest.md"
 
-UNSIGNED_DECIMAL_PATTERN = r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?"
+UNSIGNED_DECIMAL_PATTERN = r"(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\.[0-9]+)?"
+SIGNED_DECIMAL_PATTERN = rf"[-+]?{UNSIGNED_DECIMAL_PATTERN}"
+# A single ASCII slash may have horizontal whitespace on either side. Unicode
+# fraction/division slashes and line-spanning fractions are deliberately invalid.
 NUMBER_PATTERN = (
-    rf"[-+]?{UNSIGNED_DECIMAL_PATTERN}"
-    rf"(?:\s*/\s*[-+]?{UNSIGNED_DECIMAL_PATTERN})?"
+    rf"{SIGNED_DECIMAL_PATTERN}"
+    rf"(?:[ \t]*/[ \t]*{SIGNED_DECIMAL_PATTERN})?"
+    r"%?"
 )
+STRICT_NUMBER_RE = re.compile(rf"\A{NUMBER_PATTERN}\Z")
 ANSWER_BOUNDARY_LINE_RE = re.compile(r"(?m)^[ \t]*####[^\r\n]*(?:\r?$)")
-ANY_NUMBER_RE = re.compile(rf"(?<!/)({NUMBER_PATTERN})(?!/)")
+ANY_NUMBER_RE = re.compile(NUMBER_PATTERN)
 NEW_QUESTION_RE = re.compile(r"(?m)^\s*Question\s*:")
 MANIFEST_MODEL_ENTRY_RE = re.compile(r"^-\s*`base-A`:\s*`([^`]+)`\s*$")
 MANIFEST_REVISION_ENTRY_RE = re.compile(
@@ -390,22 +394,29 @@ def leakage_preflight(
 
 
 def normalize_number(raw: str) -> str | None:
-    candidate = re.sub(r"\s+", "", raw.replace(",", ""))
-    parts = candidate.split("/")
-    if len(parts) not in (1, 2) or any(not part for part in parts):
+    """Parse one complete token under the anchored numeric grammar.
+
+    The accepted grammar is a signed decimal, optionally a ratio of two signed
+    decimals separated by one ASCII slash with horizontal whitespace, followed
+    by at most one percent sign. The percent sign is a presentation suffix and
+    is stripped rather than scaled, preserving the recorded ``#### 25%`` GSM8K
+    behavior. Fractions are evaluated exactly with :class:`fractions.Fraction`.
+    """
+    if STRICT_NUMBER_RE.fullmatch(raw) is None:
         return None
+
+    candidate = raw[:-1] if raw.endswith("%") else raw
+    parts = re.split(r"[ \t]*/[ \t]*", candidate)
     try:
-        decimal_parts = [Decimal(part) for part in parts]
-    except InvalidOperation:
+        exact_parts = [Fraction(part.replace(",", "")) for part in parts]
+    except (ValueError, ZeroDivisionError):
         return None
-    if any(not part.is_finite() for part in decimal_parts):
-        return None
-    value = Fraction(decimal_parts[0])
-    if len(decimal_parts) == 2:
-        denominator_value = Fraction(decimal_parts[1])
-        if denominator_value == 0:
+
+    value = exact_parts[0]
+    if len(exact_parts) == 2:
+        if exact_parts[1] == 0:
             return None
-        value /= denominator_value
+        value /= exact_parts[1]
     if value == 0:
         return "0"
     if value.denominator == 1:
@@ -430,6 +441,52 @@ def normalize_number(raw: str) -> str | None:
     integer_part = digits[:-decimal_places]
     fractional_part = digits[-decimal_places:].rstrip("0")
     return f"{sign}{integer_part}.{fractional_part}"
+
+
+def numeric_candidate_is_isolated(text: str, start: int, end: int) -> bool:
+    """Reject fragments embedded in malformed numeric-looking syntax."""
+    slash_characters = "/\u2044\u2215"
+
+    left = start - 1
+    while left >= 0 and text[left] in " \t":
+        left -= 1
+    if left >= 0 and text[left] in slash_characters:
+        return False
+
+    right = end
+    while right < len(text) and text[right] in " \t":
+        right += 1
+    if right < len(text) and text[right] in slash_characters:
+        return False
+
+    if start:
+        previous = text[start - 1]
+        if previous.isalnum() or previous in f"_%{slash_characters}":
+            return False
+        if previous == ".":
+            return False
+        if previous == "," and start >= 2 and text[start - 2].isdigit():
+            return False
+
+    if end < len(text):
+        following = text[end]
+        if following.isalnum() or following in f"_%{slash_characters}":
+            return False
+        if following == "." and end + 1 < len(text) and text[end + 1].isdigit():
+            return False
+        if following == "," and end + 1 < len(text) and text[end + 1].isdigit():
+            return False
+
+    return True
+
+
+def numeric_candidates(text: str) -> list[str]:
+    """Return only complete, isolated candidates; never rescan rejected fragments."""
+    return [
+        match.group(0)
+        for match in ANY_NUMBER_RE.finditer(text)
+        if numeric_candidate_is_isolated(text, match.start(), match.end())
+    ]
 
 
 def extract_gold_answer(answer: str) -> str:
@@ -476,8 +533,7 @@ def extract_predicted_answer(
             return None, None, segment, segment_stop_reason
         return normalized, "first_final_hash_answer", segment, segment_stop_reason
 
-    numbers = ANY_NUMBER_RE.findall(segment)
-    for raw in reversed(numbers):
+    for raw in reversed(numeric_candidates(segment)):
         normalized = normalize_number(raw)
         if normalized is not None:
             return normalized, "last_numeric_token_in_first_segment", segment, segment_stop_reason
@@ -486,16 +542,23 @@ def extract_predicted_answer(
 
 def validate_numeric_extraction() -> None:
     exact_cases = (
+        ("1/2", "0.5"),
+        ("-1/2", "-0.5"),
+        ("392/196", "2"),
+        ("1.5/0.5", "3"),
         ("32.0", "32"),
         ("0.5", "0.5"),
-        ("1/2", "0.5"),
-        ("392/196", "2"),
+        ("25%", "25"),
+        ("1", "1"),
+        ("1,234", "1234"),
+        ("3 / 2", "1.5"),
+        ("+3/-2", "-1.5"),
     )
     for raw, expected in exact_cases:
         if normalize_number(raw) != expected:
-            raise RuntimeError("numeric normalizer self-check failed")
+            raise RuntimeError(f"numeric normalizer self-check failed for {raw!r}")
         if extract_gold_answer(f"#### {raw}") != expected:
-            raise RuntimeError("gold-answer parser self-check failed")
+            raise RuntimeError(f"gold-answer parser self-check failed for {raw!r}")
         primary, _, _, _ = extract_predicted_answer(
             f"#### {raw}",
             "end_of_message",
@@ -505,18 +568,38 @@ def validate_numeric_extraction() -> None:
             "end_of_message",
         )
         if primary != expected or fallback != expected:
-            raise RuntimeError("prediction parser self-check failed")
+            raise RuntimeError(f"prediction parser self-check failed for {raw!r}")
 
-    negative_cases = ("3/", "3//2", "3/x", "/2", "3/0")
+    negative_cases = (
+        "3/",
+        "/2",
+        "3//2",
+        "3/x",
+        "12/3x",
+        "1/2/3",
+        "1\u20442",
+        "1/2e3",
+        "1/2_3",
+        "1_000",
+        "3 / / 2",
+        "3 /",
+        "/ 2",
+        "3 / x",
+        "3/0",
+    )
     for raw in negative_cases:
         if normalize_number(raw) is not None:
-            raise RuntimeError("numeric normalizer negative self-check failed")
+            raise RuntimeError(
+                f"numeric normalizer negative self-check failed for {raw!r}"
+            )
         try:
             extract_gold_answer(f"#### {raw}")
         except RuntimeError:
             pass
         else:
-            raise RuntimeError("gold-answer parser negative self-check failed")
+            raise RuntimeError(
+                f"gold-answer parser negative self-check failed for {raw!r}"
+            )
         primary, _, _, _ = extract_predicted_answer(
             f"#### {raw}",
             "end_of_message",
@@ -526,16 +609,101 @@ def validate_numeric_extraction() -> None:
             "end_of_message",
         )
         if primary is not None or fallback is not None:
-            raise RuntimeError("prediction parser negative self-check failed")
+            raise RuntimeError(
+                f"prediction parser negative self-check failed for {raw!r}"
+            )
+
+
+def replay_gsm8k_parser_guard() -> dict[str, Any]:
+    """Preserve every recorded GSM8K extraction outcome and correctness label."""
+    artifact_path = result_path(DATASET_SPECS["gsm8k"])
+    try:
+        artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+        records = artifact["per_example"]
+    except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
+        raise RuntimeError("the immutable GSM8K replay artifact is invalid") from error
+
+    if (
+        artifact.get("mode") != "canonical"
+        or artifact.get("sample_count") != CANONICAL_SAMPLE_COUNT
+        or not isinstance(records, list)
+        or len(records) != CANONICAL_SAMPLE_COUNT
+    ):
+        raise RuntimeError("the immutable GSM8K replay artifact is incomplete")
+
+    extraction_outcome_mismatches = []
+    correctness_mismatches = []
+    for position, record in enumerate(records):
+        try:
+            gold_answer = record["gold_answer"]
+            expected_extraction_failed = record["extraction_failed"]
+            expected_correct = record["correct"]
+            actual_extraction, _, _, _ = extract_predicted_answer(
+                response=record["response"],
+                generation_stop_reason=record["stop_reason"],
+            )
+        except (KeyError, TypeError) as error:
+            raise RuntimeError(
+                f"GSM8K replay record {position} is invalid"
+            ) from error
+
+        actual_extraction_failed = actual_extraction is None
+        if actual_extraction_failed != expected_extraction_failed:
+            extraction_outcome_mismatches.append(
+                {
+                    "cohort_position": position,
+                    "expected_extraction_failed": expected_extraction_failed,
+                    "actual_extraction_failed": actual_extraction_failed,
+                }
+            )
+        actual_correct = actual_extraction == gold_answer
+        if actual_correct != expected_correct:
+            correctness_mismatches.append(
+                {
+                    "cohort_position": position,
+                    "expected": expected_correct,
+                    "actual": actual_correct,
+                }
+            )
+
+    if extraction_outcome_mismatches or correctness_mismatches:
+        mismatch_summary = {
+            "extraction_outcome_mismatch_count": len(
+                extraction_outcome_mismatches
+            ),
+            "correctness_mismatch_count": len(correctness_mismatches),
+            "first_extraction_outcome_mismatches": (
+                extraction_outcome_mismatches[:5]
+            ),
+            "first_correctness_mismatches": correctness_mismatches[:5],
+        }
+        raise RuntimeError(
+            "GSM8K parser replay guard failed: "
+            f"{json.dumps(mismatch_summary, sort_keys=True)}"
+        )
+
+    relative_path = artifact_path.relative_to(HERE.parent.parent)
+    return {
+        "status": "PASS",
+        "artifact": str(relative_path),
+        "extraction_outcome_matches": CANONICAL_SAMPLE_COUNT,
+        "correctness_label_matches": CANONICAL_SAMPLE_COUNT,
+        "total": CANONICAL_SAMPLE_COUNT,
+    }
 
 
 def parser_source_text() -> str:
     components = (
         normalize_number,
+        numeric_candidate_is_isolated,
+        numeric_candidates,
         first_answer_segment,
         extract_predicted_answer,
     )
-    return "\n\n".join(inspect.getsource(component) for component in components)
+    source_text = "\n\n".join(
+        inspect.getsource(component) for component in components
+    )
+    return f"NUMBER_PATTERN = {NUMBER_PATTERN!r}\n\n{source_text}"
 
 
 def sha256_text(value: str) -> str:
@@ -588,7 +756,10 @@ def parser_provenance(
     provenance: dict[str, Any] = {
         "attempt": attempt if mode == "canonical" else "smoke",
         "source_components": [
+            "NUMBER_PATTERN",
             "normalize_number",
+            "numeric_candidate_is_isolated",
+            "numeric_candidates",
             "first_answer_segment",
             "extract_predicted_answer",
         ],
@@ -1343,7 +1514,10 @@ def write_initial_parser_miss(
     )
 
 
-def smoke_console_summary(result: dict[str, Any]) -> dict[str, Any]:
+def smoke_console_summary(
+    result: dict[str, Any],
+    replay_guard: dict[str, Any],
+) -> dict[str, Any]:
     generation_verification_field = (
         "repeat_determinism"
         if result["protocol"]["dataset_key"] == "svamp"
@@ -1407,6 +1581,7 @@ def smoke_console_summary(result: dict[str, Any]) -> dict[str, Any]:
         generation_verification_field: result["protocol"]["decoding"][
             generation_verification_field
         ],
+        "gsm8k_replay_guard": replay_guard,
         "verdict": result["verdict"],
         "per_example_diagnostics": diagnostics,
     }
@@ -1502,6 +1677,15 @@ def run(args: argparse.Namespace) -> int:
     run_started = time.perf_counter()
     configure_runtime()
     validate_numeric_extraction()
+    replay_guard = replay_gsm8k_parser_guard()
+    print(
+        "GSM8K parser replay guard: "
+        f"{replay_guard['status']} "
+        f"({replay_guard['extraction_outcome_matches']}/{replay_guard['total']} "
+        "extraction outcomes, "
+        f"{replay_guard['correctness_label_matches']}/{replay_guard['total']} labels).",
+        flush=True,
+    )
 
     dataset_spec = DATASET_SPECS[args.dataset]
     canonical_result_path = result_path(dataset_spec)
@@ -1693,7 +1877,7 @@ def run(args: argparse.Namespace) -> int:
             )
         )
     else:
-        print(json.dumps(smoke_console_summary(result), indent=2))
+        print(json.dumps(smoke_console_summary(result, replay_guard), indent=2))
     return 0
 
 
