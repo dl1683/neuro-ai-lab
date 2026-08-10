@@ -2224,7 +2224,10 @@ def fit_confidence_calibrator(
     device: torch.device,
     *,
     seed: int,
+    corpus_split: str,
 ) -> dict[str, Any]:
+    if corpus_split != "selector_calibration":
+        raise ValueError("confidence calibrator must fit on selector_calibration")
     torch.manual_seed(seed + 30_000_000)
     calibrator.to(device)
     optimizer = torch.optim.Adam(
@@ -2250,7 +2253,12 @@ def fit_confidence_calibrator(
     calibrator.eval()
     for parameter in calibrator.parameters():
         parameter.requires_grad_(False)
-    return {"optimizer_steps": steps, "history": history}
+    return {
+        "optimizer_steps": steps,
+        "history": history,
+        "fit_corpus_split": corpus_split,
+        "frozen_before_external_scoring": True,
+    }
 
 
 @torch.no_grad()
@@ -2261,6 +2269,10 @@ def calibrator_scores(
     *,
     batch_size: int = 4096,
 ) -> Tensor:
+    if calibrator.training or any(
+        parameter.requires_grad for parameter in calibrator.parameters()
+    ):
+        raise RuntimeError("confidence calibrator must be frozen before scoring")
     scores: list[Tensor] = []
     for start in range(0, len(corpus), batch_size):
         features = corpus.confidence_features[start : start + batch_size].to(device)
@@ -3863,6 +3875,49 @@ def dataset_token_audit(
     return output
 
 
+def generator_integrity_gate(generator_audit: Mapping[str, Any]) -> dict[str, Any]:
+    required_observations = (
+        "skeleton_hash_disjoint",
+        "name_combination_disjoint",
+        "counterfactual_group_atomic",
+        "answer_position_balanced_within_strata",
+        "lure_mixture_exact",
+    )
+    observed = all(bool(generator_audit[key]) for key in required_observations)
+    return {
+        "observed": observed,
+        "required": True,
+        "required_observations": list(required_observations),
+        "pass": observed,
+    }
+
+
+def cuda_peak_record(
+    device: torch.device, *, phase: str, seed: int, wall_time_seconds: float
+) -> dict[str, Any]:
+    return {
+        "phase": phase,
+        "model_seed": seed,
+        "wall_time_seconds": wall_time_seconds,
+        "peak_vram_allocated_bytes": int(torch.cuda.max_memory_allocated(device)),
+        "peak_vram_reserved_bytes": int(torch.cuda.max_memory_reserved(device)),
+    }
+
+
+def summarize_vram_phases(phases: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    if not phases:
+        raise ValueError("run-level VRAM accounting requires at least one phase")
+    return {
+        "peak_vram_allocated_bytes": max(
+            int(phase["peak_vram_allocated_bytes"]) for phase in phases
+        ),
+        "peak_vram_reserved_bytes": max(
+            int(phase["peak_vram_reserved_bytes"]) for phase in phases
+        ),
+        "vram_phases": [dict(phase) for phase in phases],
+    }
+
+
 def write_immutable_result(result: Mapping[str, Any], path: Path) -> None:
     final_token = result.get("final_token")
     if final_token not in FINAL_TOKENS:
@@ -3940,6 +3995,7 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
 
     seed_preparation: dict[int, dict[str, Any]] = {}
     calibration_evaluations: dict[int, TrajectoryEvaluation] = {}
+    vram_phases: list[dict[str, Any]] = []
     model_seeds = tuple(int(seed) for seed in config["training"]["model_seeds"])
     checkpoint_root = HERE / "checkpoints" / "exp_e2_latch_mechanics"
     for seed in model_seeds:
@@ -4013,7 +4069,12 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
             device,
         )
         confidence_fit = fit_confidence_calibrator(
-            calibrator, training_corpus, config, device, seed=seed
+            calibrator,
+            calibration_corpus,
+            config,
+            device,
+            seed=seed,
+            corpus_split="selector_calibration",
         )
         training_confidence_scores = calibrator_scores(
             calibrator, training_corpus, device
@@ -4049,6 +4110,15 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
             },
             selector_path,
         )
+        preparation_phase = cuda_peak_record(
+            device,
+            phase="training_and_selector_fitting",
+            seed=seed,
+            wall_time_seconds=time.perf_counter() - seed_started,
+        )
+        vram_phases.append(preparation_phase)
+        torch.cuda.reset_peak_memory_stats(device)
+        calibration_started = time.perf_counter()
         calibration_evaluations[seed] = evaluate_trajectories(
             common,
             calibrator,
@@ -4058,12 +4128,24 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
             device,
             max_horizon=16,
         )
+        calibration_phase = cuda_peak_record(
+            device,
+            phase="selector_calibration_evaluation",
+            seed=seed,
+            wall_time_seconds=time.perf_counter() - calibration_started,
+        )
+        vram_phases.append(calibration_phase)
         seed_preparation[seed] = {
             "common_training": common_training,
             "encoder_training": encoder_training,
             "selector_training_corpus": training_corpus.audit(),
             "selector_calibration_corpus": calibration_corpus.audit(),
             "confidence_calibrator_fit": confidence_fit,
+            "confidence_score_provenance": {
+                "calibrator_fit_split": "selector_calibration",
+                "calibrator_frozen_before_scoring": True,
+                "critic_pair_construction_scored_split": "selector_harvest",
+            },
             "latent_critic_fit": critic_fit,
             "selector_provenance": provenance,
             "selector_checkpoint": {
@@ -4072,8 +4154,9 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
             },
             "compute": {
                 "wall_time_seconds": time.perf_counter() - seed_started,
-                "peak_vram_allocated_bytes": torch.cuda.max_memory_allocated(device),
-                "peak_vram_reserved_bytes": torch.cuda.max_memory_reserved(device),
+                **summarize_vram_phases(
+                    [preparation_phase, calibration_phase]
+                ),
             },
         }
         del common, critic, calibrator, training_corpus, calibration_corpus
@@ -4173,8 +4256,7 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
         base_result["completed_utc"] = dt.datetime.now(dt.timezone.utc).isoformat()
         base_result["compute"] = {
             "wall_time_seconds": time.perf_counter() - run_started,
-            "peak_vram_allocated_bytes": torch.cuda.max_memory_allocated(device),
-            "peak_vram_reserved_bytes": torch.cuda.max_memory_reserved(device),
+            **summarize_vram_phases(vram_phases),
         }
         base_result["final_token"] = final_token
         write_immutable_result(base_result, RESULT_PATH)
@@ -4183,7 +4265,10 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
 
     test_evaluations: dict[int, TrajectoryEvaluation] = {}
     encoder_results: dict[int, dict[str, int | float]] = {}
+    evaluation_compute_by_seed: dict[int, dict[str, Any]] = {}
     for seed in model_seeds:
+        torch.cuda.reset_peak_memory_stats(device)
+        evaluation_started = time.perf_counter()
         seed_dir = checkpoint_root / f"seed_{seed}"
         torch.manual_seed(seed)
         common = CommonRecurrentModel(config, len(tokenizer.id_to_token)).to(device)
@@ -4238,6 +4323,14 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
         encoder_results[seed] = evaluate_encoder_control(
             encoder, datasets["test"], tokenizer, device
         )
+        evaluation_phase = cuda_peak_record(
+            device,
+            phase="official_test_evaluation",
+            seed=seed,
+            wall_time_seconds=time.perf_counter() - evaluation_started,
+        )
+        vram_phases.append(evaluation_phase)
+        evaluation_compute_by_seed[seed] = evaluation_phase
         del common, critic, calibrator, encoder
         torch.cuda.empty_cache()
 
@@ -4276,20 +4369,7 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
     common_range = config["common_model"]["target_parameter_range"]
     critic_range = config["critic"]["target_parameter_range"]
     validity_gates: dict[str, dict[str, Any]] = {
-        "generator_and_split_integrity": {
-            "observed": all(
-                generator_audit[key]
-                for key in (
-                    "skeleton_hash_disjoint",
-                    "name_combination_disjoint",
-                    "counterfactual_group_atomic",
-                    "answer_position_balanced_within_strata",
-                    "lure_mixture_exact",
-                )
-            ),
-            "required": True,
-            "pass": True,
-        },
+        "generator_and_split_integrity": generator_integrity_gate(generator_audit),
         "feature_boundary": {
             "observed": feature_audit["pass"],
             "required": True,
@@ -4462,6 +4542,9 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
         "encoder_control": {
             str(seed): result for seed, result in encoder_results.items()
         },
+        "compute_by_seed": {
+            str(seed): record for seed, record in evaluation_compute_by_seed.items()
+        },
         "accuracy_grid": {
             str(seed): accuracy_grid(evaluation)
             for seed, evaluation in test_evaluations.items()
@@ -4486,8 +4569,7 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
     base_result["completed_utc"] = dt.datetime.now(dt.timezone.utc).isoformat()
     base_result["compute"] = {
         "wall_time_seconds": time.perf_counter() - run_started,
-        "peak_vram_allocated_bytes": torch.cuda.max_memory_allocated(device),
-        "peak_vram_reserved_bytes": torch.cuda.max_memory_reserved(device),
+        **summarize_vram_phases(vram_phases),
     }
     base_result["final_token"] = decision["final_token"]
     write_immutable_result(base_result, RESULT_PATH)
@@ -4822,6 +4904,65 @@ def _decision_logic_self_test(config: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _generator_integrity_false_observation_self_test(
+    config: Mapping[str, Any],
+) -> dict[str, Any]:
+    synthetic_audit = {
+        "skeleton_hash_disjoint": True,
+        "name_combination_disjoint": True,
+        "counterfactual_group_atomic": True,
+        "answer_position_balanced_within_strata": True,
+        "lure_mixture_exact": False,
+    }
+    gate = generator_integrity_gate(synthetic_audit)
+    passing_endpoints = {
+        endpoint: {
+            scope: _synthetic_metrics(0.10, 0.85, 0.95, 0.04, 0.75)
+            for scope in ("42", "31415", "pooled")
+        }
+        for endpoint in (16, 32)
+    }
+    decision = adjudicate(
+        passing_endpoints,
+        {"generator_and_split_integrity": gate},
+        config,
+    )
+    assert gate["observed"] is False
+    assert gate["pass"] is False
+    assert decision["final_token"] == "VOID"
+    assert decision["reason"] == "INTEGRITY_OR_VALIDITY_GATE_MISSED"
+    return {
+        "synthetic_false_observation": "lure_mixture_exact",
+        "gate": gate,
+        "decision": decision,
+        "pass": True,
+    }
+
+
+def _vram_accounting_self_test() -> dict[str, Any]:
+    phases = [
+        {
+            "phase": "training_and_selector_fitting",
+            "model_seed": 42,
+            "wall_time_seconds": 1.0,
+            "peak_vram_allocated_bytes": 300,
+            "peak_vram_reserved_bytes": 700,
+        },
+        {
+            "phase": "official_test_evaluation",
+            "model_seed": 31415,
+            "wall_time_seconds": 1.0,
+            "peak_vram_allocated_bytes": 500,
+            "peak_vram_reserved_bytes": 600,
+        },
+    ]
+    summary = summarize_vram_phases(phases)
+    assert summary["peak_vram_allocated_bytes"] == 500
+    assert summary["peak_vram_reserved_bytes"] == 700
+    assert summary["vram_phases"] == phases
+    return {**summary, "pass": True}
+
+
 def run_self_tests(config_path: Path) -> int:
     config = load_config(config_path)
     torch.set_num_threads(int(config["self_test"]["torch_threads"]))
@@ -4973,6 +5114,10 @@ def run_self_tests(config_path: Path) -> int:
         "hysteresis_delta_selection": _delta_selection_self_test(config),
         "trajectory_diagnostics": _diagnostics_self_test(),
         "decision_logic": _decision_logic_self_test(config),
+        "generator_integrity_false_observation": (
+            _generator_integrity_false_observation_self_test(config)
+        ),
+        "run_level_vram_accounting": _vram_accounting_self_test(),
         "training_or_gpu_executed": False,
     }
     print(json.dumps(report, indent=2))

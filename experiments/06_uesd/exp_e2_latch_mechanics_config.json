@@ -208,7 +208,13 @@
     "common_checkpoint_selection": "final_exact_500000_token_checkpoint",
     "checkpoint_directory": "experiments/06_uesd/checkpoints/exp_e2_latch_mechanics",
     "resume": true,
-    "workspace_hf_home": ".hf_cache"
+    "workspace_hf_home": ".hf_cache",
+    "wall_time_estimates_informational": {
+      "approximately_95_w_hours": [1.5, 2.5],
+      "at_15_w_hours": [10, 16],
+      "low_power_range_is_optimistic": true,
+      "changes_scientific_protocol": false
+    }
   },
   "selectors": {
     "fit_horizons": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
