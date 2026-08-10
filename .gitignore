@@ -45,3 +45,4 @@ experiments/06_uesd/_local_manifest.md
 # Raw run logs (result JSONs are the evidence trail)
 experiments/06_uesd/results/_*_stdout.log
 experiments/06_uesd/results/_*_stderr.log
+.hf_cache/
