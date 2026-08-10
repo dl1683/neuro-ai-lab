@@ -19,6 +19,8 @@ import os
 import random
 import re
 import statistics
+import subprocess
+import sys
 import tempfile
 import time
 from collections import Counter, defaultdict
@@ -37,6 +39,15 @@ DEFAULT_CONFIG = HERE / "exp_e2_latch_mechanics_config.json"
 RESULT_PATH = HERE / "results" / "exp_e2_latch_mechanics.json"
 FINAL_TOKENS = {"PROCEED", "FAIL", "VOID"}
 PUBLIC_SPLITS = ("controller_train", "selector_harvest", "selector_calibration")
+IMMUTABLE_RESULT_TEMP_PREFIX = ".e2-immutable-result-tmp-"
+IMMUTABLE_RESULT_TEMP_SUFFIX = ".tmp"
+IMMUTABLE_RESULT_TEMP_GLOB = (
+    f"{IMMUTABLE_RESULT_TEMP_PREFIX}*{IMMUTABLE_RESULT_TEMP_SUFFIX}"
+)
+ATOMIC_CRASH_WINDOWS = (
+    "after_fsync_before_link",
+    "after_link_before_unlink",
+)
 
 
 UNARY_FACT_TEMPLATES = (
@@ -4170,20 +4181,71 @@ def validate_result_schema(
             raise ValueError(f"trajectory diagnostics are missing arm 4 for {scope}")
 
 
-def write_immutable_result(result: Mapping[str, Any], path: Path) -> None:
+def _assert_immutable_temp_namespace_is_disjoint(final_path: Path) -> None:
+    """Prove that the scavenger's namespace cannot contain a final artifact."""
+    assert IMMUTABLE_RESULT_TEMP_SUFFIX != ".json"
+    if final_path.suffix != ".json":
+        raise ValueError("immutable result artifacts must use the .json suffix")
+    if final_path.match(IMMUTABLE_RESULT_TEMP_GLOB):
+        raise AssertionError("immutable temp pattern overlaps a final artifact name")
+
+
+def scavenge_stale_immutable_result_temps(
+    directory: Path, *, final_path: Path
+) -> list[Path]:
+    """Remove only stale files in the writer's disjoint private namespace."""
+    _assert_immutable_temp_namespace_is_disjoint(final_path)
+    if not directory.exists():
+        return []
+    removed: list[Path] = []
+    for candidate in directory.glob(IMMUTABLE_RESULT_TEMP_GLOB):
+        candidate.unlink()
+        removed.append(candidate)
+    if removed:
+        _fsync_directory(directory)
+    return removed
+
+
+def _fsync_directory(directory: Path) -> bool:
+    """Durably commit directory entries where Python exposes that operation.
+
+    Windows does not permit opening a directory with ``os.open`` for
+    ``os.fsync``. Returning ``False`` records that limitation honestly; it
+    does not claim directory-entry durability that the runtime cannot provide.
+    """
+    if os.name == "nt":
+        return False
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    descriptor = os.open(directory, flags)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+    return True
+
+
+def write_immutable_result(
+    result: Mapping[str, Any],
+    path: Path,
+    *,
+    _crash_probe: str | None = None,
+) -> None:
     final_token = result.get("final_token")
     if final_token not in FINAL_TOKENS:
         raise ValueError(f"invalid final token: {final_token}")
+    if _crash_probe is not None and _crash_probe not in ATOMIC_CRASH_WINDOWS:
+        raise ValueError(f"unknown atomic crash probe: {_crash_probe}")
+    _assert_immutable_temp_namespace_is_disjoint(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = (json.dumps(result, indent=2, sort_keys=False, allow_nan=False) + "\n").encode(
-        "utf-8"
-    )
+    payload = (
+        json.dumps(result, indent=2, sort_keys=False, allow_nan=False) + "\n"
+    ).encode("utf-8")
     temporary: Path | None = None
     try:
         with tempfile.NamedTemporaryFile(
             mode="wb",
-            prefix=f".{path.name}.",
-            suffix=".tmp",
+            prefix=IMMUTABLE_RESULT_TEMP_PREFIX,
+            suffix=IMMUTABLE_RESULT_TEMP_SUFFIX,
             dir=path.parent,
             delete=False,
         ) as handle:
@@ -4191,9 +4253,17 @@ def write_immutable_result(result: Mapping[str, Any], path: Path) -> None:
             handle.write(payload)
             handle.flush()
             os.fsync(handle.fileno())
-        os.link(temporary, path)
-    except FileExistsError as error:
-        raise RuntimeError(f"immutable result already exists: {path}") from error
+        if _crash_probe == "after_fsync_before_link":
+            os._exit(91)
+        try:
+            os.link(temporary, path)
+        except FileExistsError as error:
+            raise RuntimeError(f"immutable result already exists: {path}") from error
+        if _crash_probe == "after_link_before_unlink":
+            os._exit(92)
+        temporary.unlink()
+        temporary = None
+        _fsync_directory(path.parent)
     finally:
         if temporary is not None:
             with contextlib.suppress(FileNotFoundError):
@@ -5337,6 +5407,125 @@ def _vram_accounting_self_test() -> dict[str, Any]:
     return {**summary, "pass": True}
 
 
+def _atomic_hard_crash_self_test() -> dict[str, Any]:
+    probe_payload = {
+        "final_token": "VOID",
+        "probe": "atomic-hard-crash",
+        "complete": True,
+    }
+    reports: list[dict[str, Any]] = []
+    for window, expected_exit, expected_final in (
+        ("after_fsync_before_link", 91, False),
+        ("after_link_before_unlink", 92, True),
+    ):
+        with tempfile.TemporaryDirectory(prefix=f"e2-{window}-") as directory:
+            probe_directory = Path(directory)
+            final_path = probe_directory / f"{window}.json"
+            preserved_final = probe_directory / "preexisting-final-artifact.json"
+            preserved_payload = b'{"preserved": true}\n'
+            preserved_final.write_bytes(preserved_payload)
+            _assert_immutable_temp_namespace_is_disjoint(final_path)
+            _assert_immutable_temp_namespace_is_disjoint(preserved_final)
+
+            crash = subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(__file__).resolve()),
+                    "--_atomic-crash-probe",
+                    window,
+                    "--_atomic-probe-directory",
+                    str(probe_directory),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if crash.returncode != expected_exit:
+                raise AssertionError(
+                    f"{window} probe exited {crash.returncode}, expected {expected_exit}; "
+                    f"stdout={crash.stdout!r}; stderr={crash.stderr!r}"
+                )
+            orphan_temps = list(probe_directory.glob(IMMUTABLE_RESULT_TEMP_GLOB))
+            final_exists = final_path.exists()
+            final_complete = (
+                final_exists
+                and json.loads(final_path.read_text(encoding="utf-8")) == probe_payload
+            )
+            if final_exists != expected_final:
+                raise AssertionError(f"unexpected final-artifact state after {window}")
+            if final_exists and not final_complete:
+                raise AssertionError(f"partial final artifact after {window}")
+            if len(orphan_temps) != 1:
+                raise AssertionError(f"{window} did not leave exactly one crash temp")
+            if preserved_final.read_bytes() != preserved_payload:
+                raise AssertionError(
+                    "crash probe changed a pre-existing final artifact"
+                )
+
+            next_startup = subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(__file__).resolve()),
+                    "--_atomic-scavenge-probe",
+                    "--_atomic-probe-directory",
+                    str(probe_directory),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if next_startup.returncode != 0:
+                raise AssertionError(
+                    f"startup scavenger failed after {window}; "
+                    f"stdout={next_startup.stdout!r}; stderr={next_startup.stderr!r}"
+                )
+            remaining_temps = list(probe_directory.glob(IMMUTABLE_RESULT_TEMP_GLOB))
+            final_preserved = final_path.exists() == expected_final
+            if final_path.exists():
+                final_preserved = final_preserved and (
+                    json.loads(final_path.read_text(encoding="utf-8")) == probe_payload
+                )
+            preexisting_final_preserved = (
+                preserved_final.read_bytes() == preserved_payload
+            )
+            if remaining_temps:
+                raise AssertionError(f"startup scavenger missed a temp after {window}")
+            if not final_preserved or not preexisting_final_preserved:
+                raise AssertionError("startup scavenger touched a final artifact")
+            reports.append(
+                {
+                    "window": window,
+                    "subprocess_exit_code": crash.returncode,
+                    "post_crash": {
+                        "final_exists": final_exists,
+                        "final_complete": final_complete,
+                        "orphan_temp_count": len(orphan_temps),
+                    },
+                    "after_next_startup": {
+                        "final_exists": final_path.exists(),
+                        "final_complete_or_absent": final_preserved,
+                        "orphan_temp_count": len(remaining_temps),
+                        "preexisting_final_preserved": (preexisting_final_preserved),
+                    },
+                }
+            )
+    return {
+        "temp_pattern": IMMUTABLE_RESULT_TEMP_GLOB,
+        "temp_pattern_disjoint_from_json_finals": True,
+        "directory_fsync": {
+            "supported": os.name != "nt",
+            "platform": os.name,
+            "windows_limitation": (
+                "Python os.open/os.fsync cannot fsync directory handles on Windows"
+                if os.name == "nt"
+                else None
+            ),
+        },
+        "crash_windows": reports,
+        "pass": True,
+    }
+
+
 def _result_schema_and_atomic_write_self_test(
     config: Mapping[str, Any],
 ) -> dict[str, Any]:
@@ -5466,7 +5655,7 @@ def _result_schema_and_atomic_write_self_test(
             no_clobber_rejected = True
         if not no_clobber_rejected:
             raise AssertionError("immutable result overwrite was accepted")
-        orphan_temps = list(path.parent.glob(f".{path.name}.*.tmp"))
+        orphan_temps = list(path.parent.glob(IMMUTABLE_RESULT_TEMP_GLOB))
     assert installed == result
     assert not orphan_temps
     return {
@@ -5635,6 +5824,7 @@ def run_self_tests(config_path: Path) -> int:
             _generator_integrity_false_observation_self_test(config)
         ),
         "run_level_vram_accounting": _vram_accounting_self_test(),
+        "atomic_hard_crash": _atomic_hard_crash_self_test(),
         "result_schema_and_atomic_write": (
             _result_schema_and_atomic_write_self_test(config)
         ),
@@ -5654,6 +5844,21 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     mode.add_argument(
         "--run", action="store_true", help="launch the reviewed CUDA pilot"
     )
+    mode.add_argument(
+        "--_atomic-crash-probe",
+        choices=ATOMIC_CRASH_WINDOWS,
+        help=argparse.SUPPRESS,
+    )
+    mode.add_argument(
+        "--_atomic-scavenge-probe",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "--_atomic-probe-directory",
+        type=Path,
+        help=argparse.SUPPRESS,
+    )
     parser.add_argument(
         "--review-attestation",
         default="",
@@ -5664,6 +5869,29 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
+    if args._atomic_crash_probe or args._atomic_scavenge_probe:
+        if args._atomic_probe_directory is None:
+            raise ValueError("internal atomic probe requires a probe directory")
+        probe_directory = args._atomic_probe_directory.resolve()
+        probe_name = args._atomic_crash_probe or "startup-scavenger"
+        probe_path = probe_directory / f"{probe_name}.json"
+        scavenge_stale_immutable_result_temps(probe_directory, final_path=probe_path)
+        if args._atomic_scavenge_probe:
+            return 0
+        probe_payload = {
+            "final_token": "VOID",
+            "probe": "atomic-hard-crash",
+            "complete": True,
+        }
+        write_immutable_result(
+            probe_payload,
+            probe_path,
+            _crash_probe=args._atomic_crash_probe,
+        )
+        raise AssertionError("atomic crash probe returned instead of exiting")
+    if args._atomic_probe_directory is not None:
+        raise ValueError("probe directory is valid only for internal atomic probes")
+    scavenge_stale_immutable_result_temps(RESULT_PATH.parent, final_path=RESULT_PATH)
     if args.self_test:
         if args.review_attestation:
             raise ValueError("self-tests do not accept a launch attestation")
