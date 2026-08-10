@@ -149,6 +149,30 @@ def main():
         ),
     )
 
+    # 9b. The artifact is byte-identical to the recorded evidence hash, and the
+    #     documented protocol fields are bound (dataset revision-pinned, greedy,
+    #     five demonstrations, cap count).
+    import hashlib
+    artifact_sha = hashlib.sha256(
+        (RESULTS / "exp_e1_task_band.json").read_bytes()
+    ).hexdigest()
+    proto = e1["protocol"]
+    demo_indices = proto["five_shot_demonstrations"]["indices"]
+    if isinstance(demo_indices, str):
+        demo_indices = json.loads(demo_indices)
+    check(
+        "e1_artifact_hash_and_protocol_binding",
+        artifact_sha == "c8cf27cd55230724d0d3fdf662e9b0096fed52e429c529340b241133b23b1e45"
+        and e1["model"] == "base-A"
+        and proto["dataset"] == "GSM8K"
+        and proto["dataset_revision"] == "740312add88f781978c0658806c59bc2815b9866"
+        and demo_indices == [0, 1, 2, 3, 4]
+        and proto["decoding"]["strategy"] == "greedy"
+        and proto["answer_extraction"]["parser_attempt"] == "initial"
+        and e1["cap_reached"]["numerator"] == 15,
+        f"sha={artifact_sha[:12]}..., model={e1.get('model')}, dataset={proto['dataset']}",
+    )
+
     # 10. The frozen gate maps this valid below-band result to ABORT-AND-SWAP.
     verdict = e1["verdict"]
     check(
