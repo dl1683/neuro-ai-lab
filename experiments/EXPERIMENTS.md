@@ -32,14 +32,14 @@ Framework where AI generation happens in continuous embedding space via iterativ
 - **Generation diagnostics:** 15/256 responses (5.859375%) reached the 256-token cap. Mean response length was 93.18 tokens (median 75; nearest-rank p95 256). The artifact retains the complete stop-reason and answer-frequency distributions.
 - **Compute:** 168.23s total wall time (156.20s generation; 156.57s evaluation; 6.55s batch verification). Peak CUDA memory was 1,254,730,752 bytes allocated and 1,558,183,936 bytes reserved (6.07% of device memory).
 - **Verdict:** **ABORT-AND-SWAP.** Correct count was below both the preregistered lower band edge (26) and the minimum correct critic population (40). Extraction remained valid, so this is a below-band result rather than a parser `VOID`.
-- **Direction only:** The frozen fallback mapping is SVAMP below band or GSM-Hard above band. This result selects the SVAMP branch. The pinned fallback is now implemented and smoke-tested in the existing runner, but its canonical 256-example gate remains unlaunched; smoke diagnostics are not evidence.
+- **Direction only:** The frozen fallback mapping is SVAMP below band or GSM-Hard above band. This result selects the SVAMP branch. The pinned fallback is implemented, and an earlier 8-example diagnostic smoke passed before later parser repairs. Its canonical 256-example gate remains unlaunched, the current review loop remains in flight, and smoke diagnostics are not evidence.
 - **Operational deviation:** Two earlier canonical invocations were terminated while sandboxed dataset loading stalled on unwritable user-profile Hugging Face cache lock files. Both stopped before GPU use and wrote zero evidence artifacts. For this intact canonical attempt, the existing base-A and GSM8K cache subtrees were copied into ignored repo-local `.hf_cache/`, and the unchanged runner was launched with `HF_HOME=<repo>/.hf_cache`, `HF_HUB_OFFLINE=1`, and `HF_DATASETS_OFFLINE=1`.
 
-### Semantic-Ratchet Direction (PREREGISTERED / NOT YET RUN)
+### Semantic-Ratchet Direction (PREREGISTERED / MECHANISM NOT YET RUN)
 - **Event:** Fresh transient-solver hypothesis preregistered in commit `698832b`.
 - **Purpose:** Test whether outcome-trained best-state memory prevents overthinking and beats compute-matched independent sampling plus learned reranking.
 - **Canonical protocol:** `experiments/06_uesd/PREREGISTRATION.md`.
-- **Evidence status:** Zero runs, zero metrics, and zero result artifacts. The preregistration is a frozen prospective protocol, not empirical evidence.
+- **Evidence status:** Zero semantic-ratchet mechanism-training runs, metrics, or result artifacts. The completed GSM8K task-band gate above is prerequisite evidence only and supplies no evidence for the mechanism. The preregistration is a frozen prospective protocol, not empirical evidence.
 
 ### Exp D40: Extended Convergence — Multi-T Evaluation, No Flow (COMPLETE 15/16 — KEY NEGATIVE FINDING)
 - **Config:** `experiments/06_uesd/exp_d40_extended_convergence.py`

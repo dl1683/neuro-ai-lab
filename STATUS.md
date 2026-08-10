@@ -1,6 +1,6 @@
 # Repository Status
 
-Audited snapshot: commits `b1a3e5f` through `0ad75b5`, plus the SVAMP fallback implementation and smoke diagnostics described below.
+Audited snapshot: commits `b1a3e5f` through `fee5d8e`. The SVAMP fallback remains in-flight implementation and review work; only the completed GSM8K task-band gate constitutes landed E1 result evidence.
 
 **This file is the sole authority for current state.** Experiment writeups, proofs, and reviews are point-in-time evidence; earlier reviews and evidence gates may contain predictions that later experiments falsified.
 
@@ -19,7 +19,7 @@ Audited snapshot: commits `b1a3e5f` through `0ad75b5`, plus the SVAMP fallback i
 |---|---|---|---|
 | 04 Circuit-viability pruning | FROZEN / AUDITED | Claim audit `234/234`; SynFlow pathology audit passes; mechanism supported within recorded scope. | `docs/CIRCUIT_VIABILITY_PRUNING_REPORT.md`, `docs/CLAIM_EVIDENCE_LEDGER.md`, `docs/CLAIM_AUDIT.md`, `results/04_criticality_pruning/` |
 | 06 UESD — fixed-point arc | CONVERGENCE ARC CLOSED NEGATIVE | D40 falsifies the tested self-consistency fixed-point thesis; the system behaves as a finite-time transient solver. Surviving core: D22 variable-T k-suppression. | D40 ledger entry, `experiments/06_uesd/results/exp_d40_extended_convergence.json`, `docs/UNIFIED_ERROR_SPACE.md` |
-| 06 UESD — semantic ratchet | SVAMP FALLBACK IMPLEMENTED / CANONICAL GATE BLOCKED | The primary GSM8K gate remains validly **ABORT-AND-SWAP** at 18/256 correct. The pinned SVAMP path is implemented and passed an 8-example smoke only; the canonical fallback has not run, and no mechanism training is authorized. | `experiments/06_uesd/results/exp_e1_task_band.json`, `experiments/06_uesd/exp_e1_task_band.py`, `experiments/06_uesd/PREREGISTRATION.md` |
+| 06 UESD — semantic ratchet | SVAMP FALLBACK IMPLEMENTED / REVIEW IN FLIGHT / CANONICAL GATE BLOCKED | The primary GSM8K gate remains validly **ABORT-AND-SWAP** at 18/256 correct. An earlier 8-example SVAMP diagnostic smoke passed, but it predates later parser repairs; the canonical fallback has not run, the current review loop remains open, and no mechanism training is authorized. | `experiments/06_uesd/results/exp_e1_task_band.json`, `experiments/06_uesd/exp_e1_task_band.py`, `experiments/06_uesd/PREREGISTRATION.md` |
 | 01/02/03/05 pilots | FROZEN HISTORICAL | Single-run pilots; no active roadmap or runner. 01 failed; 02/03 modest wins on toy tasks; 05 efficiency win with failed DDM fit. | `results/01..05/pilot_result.json`, `results/pilot_suite_summary.json`, frozen-pilots table in `experiments/EXPERIMENTS.md` |
 
 ## 04 — Circuit-Viability Pruning
@@ -96,7 +96,7 @@ The semantic-ratchet transient-solver hypothesis is preregistered in `experiment
 
 This result is below the preregistered 26-correct band edge and the 40-correct minimum critic population. The frozen mapping is SVAMP below band or GSM-Hard above band, so this result selects the one-time SVAMP fallback. The existing E1 runner now supports a revision-pinned SVAMP train/test snapshot, a seeded 256-of-300 test cohort, five fixed train demonstrations, the frozen parser and thresholds, and the separate immutable target `experiments/06_uesd/results/exp_e1_task_band_svamp.json`. The canonical fallback has not been launched or written. The GSM8K result supplies no evidence for the semantic-ratchet mechanism, and no mechanics or full-program training is authorized yet.
 
-An independently reviewed 8-example SVAMP smoke passed after one diagnostic repair. The first smoke completed generation but failed the existing two-example batched-versus-unbatched equality check: one greedy response changed with padding/co-batch shape. SVAMP evaluation was therefore made per-example (`batch_size=1`) while GSM8K remains frozen at batch size 8; the review found no runner blocker for the smoke rerun. The passing smoke produced 3/8 correct, 4/8 valid extracted incorrect, and 1/8 extraction failures; all 8 stopped at end-of-message, none reached the cap, and both repeated responses and extracted answers matched. It projected 192.23 seconds for 256 examples. These are diagnostics, not task-band evidence. No smoke artifact was written, and the canonical SVAMP gate remains blocked pending its own independent pre-launch review and explicit launch decision.
+An independently reviewed 8-example SVAMP diagnostic smoke passed after one diagnostic repair. The first smoke completed generation but failed the existing two-example batched-versus-unbatched equality check: one greedy response changed with padding/co-batch shape. SVAMP evaluation was therefore made per-example (`batch_size=1`) while GSM8K remains frozen at batch size 8; the review found no runner blocker for that smoke rerun. The passing smoke produced 3/8 correct, 4/8 valid extracted incorrect, and 1/8 extraction failures; all 8 stopped at end-of-message, none reached the cap, and both repeated responses and extracted answers matched. It projected 192.23 seconds for 256 examples. That smoke predates the parser/provenance repairs in `b847504` and `fee5d8e`, so it does not validate the current repaired runner. These are engineering diagnostics, not task-band evidence. No smoke artifact was written, the current review loop remains in flight, and the canonical SVAMP gate remains blocked pending an independent pre-launch review and explicit launch decision.
 
 Operationally, two earlier canonical invocations were killed before GPU use while sandboxed dataset loading stalled on user-profile Hugging Face cache lock files; neither wrote an evidence artifact. The successful canonical attempt kept the frozen runner and parser unchanged, copied the existing base-A and GSM8K cache subtrees into ignored workspace-local `.hf_cache/`, and ran fully offline with `HF_HOME` pointed there.
 
@@ -112,7 +112,7 @@ python experiments\06_uesd\audit_uesd_claims.py
 
 ### Frozen vs Open
 
-The fixed-point convergence arc is closed. D40 stands at 15/16; rerunning the crashed run (seed 512, λ_sc=3.0) is publication-completeness work, not a blocker to the negative conclusion. The separately preregistered semantic-ratchet direction has not been run and is not evidence. `exp_d14_scaling_laws.py` and `exp_d26_criticality_recovery.py` are reviewed-but-unexecuted designs with no result JSON; do not cite them as empirical evidence.
+The fixed-point convergence arc is closed. D40 stands at 15/16; rerunning the crashed run (seed 512, λ_sc=3.0) is publication-completeness work, not a blocker to the negative conclusion. The separately preregistered semantic-ratchet mechanism and full-program experiment have not been run and are not evidence; only the prerequisite GSM8K task-band gate has run. `exp_d14_scaling_laws.py` and `exp_d26_criticality_recovery.py` are reviewed-but-unexecuted designs with no result JSON; do not cite them as empirical evidence.
 
 ## Canonical Document Map
 
