@@ -63,6 +63,11 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any, Sequence
 
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
+
 # Keep dependency output free of private checkpoint identifiers and make smoke
 # output machine-readable. These must be set before importing hub clients.
 os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
@@ -1069,6 +1074,14 @@ def repair_identity_payloads(artifact: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def repair_identity_hashes(artifact: dict[str, Any]) -> dict[str, str]:
+    payloads = repair_identity_payloads(artifact)
+    return {
+        field: hashlib.sha256(json_value_bytes(payloads[field])).hexdigest()
+        for field in REPAIR_IDENTITY_FIELDS
+    }
+
+
 INITIAL_RECORD_FIELD_TYPES: dict[str, tuple[type, ...]] = {
     "cohort_position": (int,),
     "dataset_index": (int,),
@@ -1178,11 +1191,11 @@ def immutable_generation_record(record: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def load_initial_parser_miss(
-    parser_miss_path: Path,
+def parse_initial_parser_miss(
+    serialized_artifact: str,
 ) -> tuple[dict[str, Any], str, str]:
     try:
-        artifact = json.loads(parser_miss_path.read_text(encoding="utf-8"))
+        artifact = json.loads(serialized_artifact)
         parser_provenance = artifact["protocol"]["answer_extraction"][
             "parser_provenance"
         ]
@@ -1209,6 +1222,16 @@ def load_initial_parser_miss(
         raise RuntimeError("the initial parser-miss artifact failed provenance checks")
     validate_initial_artifact_records(artifact)
     return artifact, initial_source, initial_fingerprint
+
+
+def load_initial_parser_miss(
+    parser_miss_path: Path,
+) -> tuple[dict[str, Any], str, str]:
+    try:
+        serialized_artifact = parser_miss_path.read_text(encoding="utf-8")
+    except OSError as error:
+        raise RuntimeError("the initial parser-miss artifact is invalid") from error
+    return parse_initial_parser_miss(serialized_artifact)
 
 
 def parser_provenance(
@@ -2459,15 +2482,58 @@ def write_terminal_assertion_void(
     return 2
 
 
+def repaired_qualification_void_result(
+    result: dict[str, Any],
+    qualification: dict[str, Any],
+) -> dict[str, Any]:
+    attempted_verdict = copy.deepcopy(result.get("verdict", {}))
+    protocol = result.get("protocol", {})
+    parser_evidence = protocol.get("answer_extraction", {}).get("parser_provenance", {})
+    dataset_key = protocol.get("dataset_key")
+    dataset_spec = DATASET_SPECS.get(dataset_key)
+    if dataset_spec is None:
+        raise RuntimeError("a repaired result lacks a recognized dataset binding")
+    error = TerminalAssertionError(
+        "provenance_assertion_failure",
+        "repaired_parser_write_qualification",
+        "repaired outcome failed qualification inside the evidence-write critical section",
+        {
+            "attempted_verdict": attempted_verdict,
+            "qualification": qualification,
+        },
+    )
+    void_result = terminal_assertion_void_result(
+        error=error,
+        dataset_spec=dataset_spec,
+        public_model_name=str(result.get("model")),
+        successor_base_b=result.get("model") == BASE_B_PUBLIC_NAME,
+        selection_evidence=copy.deepcopy(protocol.get("selection")),
+        dataset_provenance=copy.deepcopy(protocol.get("dataset_provenance")),
+        parser_evidence=copy.deepcopy(parser_evidence),
+    )
+    void_result["repaired_attempt_qualification"] = qualification
+    void_result["attempted_repaired_outcome"] = {
+        "status": "REJECTED",
+        "verdict": attempted_verdict,
+    }
+    return void_result
+
+
 def write_evidence_artifact(
     path: Path,
     result: dict[str, Any],
     evidence_label: str,
-) -> None:
+    repaired_parser_miss_path: Path | None = None,
+) -> dict[str, Any]:
     if path.exists():
-        raise RuntimeError(f"{evidence_label} already exists and will not be overwritten")
+        raise RuntimeError(
+            f"{evidence_label} already exists and will not be overwritten"
+        )
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary_path = path.with_suffix(".json.tmp")
+    locked_initial_artifact = None
+    lock_length = 0x7FFFFFFF
+    lock_acquired = False
     try:
         temporary_path.write_text(
             json.dumps(result, indent=2, sort_keys=False) + "\n",
@@ -2475,8 +2541,153 @@ def write_evidence_artifact(
         )
         if path.exists():
             raise RuntimeError(f"{evidence_label} appeared during the run")
+
+        parser_evidence = (
+            result.get("protocol", {})
+            .get("answer_extraction", {})
+            .get("parser_provenance", {})
+        )
+        repaired_publication = (
+            repaired_parser_miss_path is not None
+            and isinstance(parser_evidence, dict)
+            and parser_evidence.get("attempt") == "repaired"
+            and result.get("terminal_failure_evidence", {}).get("stage")
+            != "repaired_parser_write_qualification"
+        )
+        if repaired_publication:
+            qualification_error = None
+            live_artifact_sha256 = None
+            live_identity_hashes: dict[str, str] = {}
+            outgoing_identity_hashes: dict[str, str] = {}
+            try:
+                # Hold the source lock from the live re-read through replace().
+                # A writer therefore cannot alter the qualified bytes in between.
+                locked_initial_artifact = repaired_parser_miss_path.open("rb")
+                if os.name == "nt":
+                    msvcrt.locking(
+                        locked_initial_artifact.fileno(),
+                        msvcrt.LK_NBLCK,
+                        lock_length,
+                    )
+                else:
+                    fcntl.flock(locked_initial_artifact.fileno(), fcntl.LOCK_EX)
+                lock_acquired = True
+                serialized_initial_artifact = locked_initial_artifact.read()
+                live_artifact_sha256 = hashlib.sha256(
+                    serialized_initial_artifact
+                ).hexdigest()
+                live_initial_artifact, _, _ = parse_initial_parser_miss(
+                    serialized_initial_artifact.decode("utf-8")
+                )
+                live_identity_hashes = repair_identity_hashes(live_initial_artifact)
+                outgoing_identity_hashes = repair_identity_hashes(result)
+            except (
+                OSError,
+                UnicodeDecodeError,
+                RuntimeError,
+                TerminalAssertionError,
+                KeyError,
+                TypeError,
+                ValueError,
+            ) as error:
+                qualification_error = {
+                    "exception_type": type(error).__name__,
+                    "message": str(error),
+                }
+
+            reuse = parser_evidence.get("immutable_response_reuse", {})
+            recorded_identity_checks = reuse.get("identity_checks", {})
+            identity_hash_comparisons = {}
+            for field in REPAIR_IDENTITY_FIELDS:
+                recorded_check = recorded_identity_checks.get(field, {})
+                hashes = {
+                    "originally_loaded_initial_sha256": recorded_check.get(
+                        "initial_sha256"
+                    ),
+                    "originally_loaded_outgoing_sha256": recorded_check.get(
+                        "repaired_sha256"
+                    ),
+                    "live_initial_sha256": live_identity_hashes.get(field),
+                    "outgoing_artifact_sha256": outgoing_identity_hashes.get(field),
+                }
+                unique_hashes = set(hashes.values())
+                hashes_match = None not in unique_hashes and len(unique_hashes) == 1
+                identity_hash_comparisons[field] = {
+                    **hashes,
+                    "originally_loaded_status": recorded_check.get("status"),
+                    "originally_loaded_byte_identical": recorded_check.get(
+                        "byte_identical"
+                    ),
+                    "all_four_hashes_match": hashes_match,
+                }
+
+            all_five_hashes_match = all(
+                comparison["originally_loaded_status"] == "PASS"
+                and comparison["originally_loaded_byte_identical"] is True
+                and comparison["all_four_hashes_match"] is True
+                for comparison in identity_hash_comparisons.values()
+            )
+            recorded_artifact_hashes = {
+                "parser_provenance": parser_evidence.get(
+                    "initial_miss_artifact_sha256"
+                ),
+                "immutable_response_reuse": reuse.get("initial_miss_artifact_sha256"),
+            }
+            artifact_hash_matches = bool(
+                live_artifact_sha256
+                and all(
+                    recorded_hash == live_artifact_sha256
+                    for recorded_hash in recorded_artifact_hashes.values()
+                )
+            )
+            qualified = bool(
+                qualification_error is None
+                and lock_acquired
+                and reuse.get("status") == "PASS"
+                and reuse.get("generation_performed") is False
+                and reuse.get(
+                    "all_per_example_immutable_generation_fields_byte_identical"
+                )
+                is True
+                and set(recorded_identity_checks) == set(REPAIR_IDENTITY_FIELDS)
+                and artifact_hash_matches
+                and all_five_hashes_match
+            )
+            qualification = {
+                "status": "PASS" if qualified else "FAIL",
+                "stage": "repaired_parser_write_qualification",
+                "checked_inside_evidence_write_critical_section": True,
+                "candidate_temp_artifact_fully_prepared_before_check": True,
+                "initial_artifact_lock_held_through_atomic_rename": lock_acquired,
+                "qualification_error": qualification_error,
+                "recorded_initial_miss_artifact_sha256": recorded_artifact_hashes,
+                "live_initial_miss_artifact_sha256": live_artifact_sha256,
+                "initial_miss_artifact_hash_matches_live": artifact_hash_matches,
+                "required_identity_fields": list(REPAIR_IDENTITY_FIELDS),
+                "identity_hash_comparisons": identity_hash_comparisons,
+                "all_five_identity_hash_comparisons_pass": all_five_hashes_match,
+            }
+            if not qualified:
+                result = repaired_qualification_void_result(result, qualification)
+                temporary_path.write_text(
+                    json.dumps(result, indent=2, sort_keys=False) + "\n",
+                    encoding="utf-8",
+                )
         temporary_path.replace(path)
+        return result
     finally:
+        if locked_initial_artifact is not None:
+            if lock_acquired:
+                locked_initial_artifact.seek(0)
+                if os.name == "nt":
+                    msvcrt.locking(
+                        locked_initial_artifact.fileno(),
+                        msvcrt.LK_UNLCK,
+                        lock_length,
+                    )
+                else:
+                    fcntl.flock(locked_initial_artifact.fileno(), fcntl.LOCK_UN)
+            locked_initial_artifact.close()
         if temporary_path.exists():
             temporary_path.unlink()
 
@@ -2491,46 +2702,17 @@ def write_canonical_result(
         .get("answer_extraction", {})
         .get("parser_provenance", {})
     )
-    if isinstance(parser_evidence, dict) and parser_evidence.get("attempt") == "repaired":
+    if (
+        isinstance(parser_evidence, dict)
+        and parser_evidence.get("attempt") == "repaired"
+    ):
         qualification = repaired_attempt_qualification_evidence(
             parser_evidence,
             parser_miss_path,
         )
         result["repaired_attempt_qualification"] = qualification
         if qualification["status"] != "PASS":
-            attempted_verdict = copy.deepcopy(result.get("verdict", {}))
-            protocol = result.get("protocol", {})
-            dataset_key = protocol.get("dataset_key")
-            dataset_spec = DATASET_SPECS.get(dataset_key)
-            if dataset_spec is None:
-                raise RuntimeError(
-                    "a repaired result lacks a recognized dataset binding"
-                )
-            error = TerminalAssertionError(
-                "provenance_assertion_failure",
-                "repaired_parser_write_qualification",
-                "repaired outcome failed qualification immediately before canonical write",
-                {
-                    "attempted_verdict": attempted_verdict,
-                    "qualification": qualification,
-                },
-            )
-            result = terminal_assertion_void_result(
-                error=error,
-                dataset_spec=dataset_spec,
-                public_model_name=str(result.get("model")),
-                successor_base_b=result.get("model") == BASE_B_PUBLIC_NAME,
-                selection_evidence=copy.deepcopy(protocol.get("selection")),
-                dataset_provenance=copy.deepcopy(
-                    protocol.get("dataset_provenance")
-                ),
-                parser_evidence=copy.deepcopy(parser_evidence),
-            )
-            result["repaired_attempt_qualification"] = qualification
-            result["attempted_repaired_outcome"] = {
-                "status": "REJECTED",
-                "verdict": attempted_verdict,
-            }
+            result = repaired_qualification_void_result(result, qualification)
 
     verdict = result.get("verdict", {})
     if verdict.get("token") == "VOID":
@@ -2676,8 +2858,12 @@ def write_canonical_result(
                 raise RuntimeError("terminal fallback VOID lacks qualifying evidence")
         else:
             raise RuntimeError("unrecognized terminal VOID cannot be written")
-    write_evidence_artifact(canonical_result_path, result, "canonical E1 evidence")
-    return result
+    return write_evidence_artifact(
+        canonical_result_path,
+        result,
+        "canonical E1 evidence",
+        repaired_parser_miss_path=parser_miss_path,
+    )
 
 
 def write_initial_parser_miss(
