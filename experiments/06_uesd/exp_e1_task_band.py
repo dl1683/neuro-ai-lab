@@ -448,13 +448,13 @@ def numeric_candidate_is_isolated(text: str, start: int, end: int) -> bool:
     slash_characters = "/\u2044\u2215"
 
     left = start - 1
-    while left >= 0 and text[left] in " \t":
+    while left >= 0 and text[left].isspace():
         left -= 1
     if left >= 0 and text[left] in slash_characters:
         return False
 
     right = end
-    while right < len(text) and text[right] in " \t":
+    while right < len(text) and text[right].isspace():
         right += 1
     if right < len(text) and text[right] in slash_characters:
         return False
@@ -586,6 +586,10 @@ def validate_numeric_extraction() -> None:
         "/ 2",
         "3 / x",
         "3/0",
+        "8 /\n 2",
+        "8/\n2",
+        "\n/2",
+        "3 /\r\n x",
     )
     for raw in negative_cases:
         if normalize_number(raw) is not None:
