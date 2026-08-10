@@ -305,7 +305,7 @@
   "result_artifact": {
     "schema_version": "1.1.0",
     "path": "experiments/06_uesd/results/exp_e2_latch_mechanics.json",
-    "write_mode": "exclusive_create",
+    "write_mode": "same_directory_fsync_atomic_no_clobber",
     "final_tokens": ["PROCEED", "FAIL", "VOID"],
     "require_every_numerator_denominator": true,
     "include_per_example_records": true,

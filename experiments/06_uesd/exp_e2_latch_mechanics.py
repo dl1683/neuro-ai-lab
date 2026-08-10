@@ -140,6 +140,8 @@ def load_config(path: Path = DEFAULT_CONFIG) -> dict[str, Any]:
         config = json.load(handle)
     if config.get("experiment_id") != "exp_e2_latch_mechanics":
         raise ValueError("wrong mechanics-pilot configuration")
+    if config.get("schema_version") != "1.1.0":
+        raise ValueError("mechanics-pilot config schema version changed")
     expected_templates = config["generator"]["template_inventory_sha256"]
     if template_inventory_hash() != expected_templates:
         raise ValueError("rendering-template inventory differs from the frozen config")
@@ -192,6 +194,11 @@ def load_config(path: Path = DEFAULT_CONFIG) -> dict[str, Any]:
         raise ValueError("immutable result path changed")
     if config["result_artifact"].get("schema_version") != "1.1.0":
         raise ValueError("immutable result schema version changed")
+    if (
+        config["result_artifact"].get("write_mode")
+        != "same_directory_fsync_atomic_no_clobber"
+    ):
+        raise ValueError("immutable result write mode changed")
     return config
 
 
@@ -3918,19 +3925,279 @@ def summarize_vram_phases(phases: Sequence[Mapping[str, Any]]) -> dict[str, Any]
     }
 
 
+def not_applicable_record(reason: str) -> dict[str, str]:
+    return {"status": "not_applicable", "not_applicable_reason": reason}
+
+
+def pretest_terminal_evaluation(
+    reason: str, config: Mapping[str, Any]
+) -> dict[str, Any]:
+    arm4_not_applicable = not_applicable_record(reason)
+    return {
+        "status": "not_applicable",
+        "not_applicable_reason": reason,
+        "official_test_inspected": False,
+        "horizons": list(config["evaluation"]["horizons"]),
+        "encoder_control": not_applicable_record(reason),
+        "compute_by_seed": not_applicable_record(reason),
+        "accuracy_grid": {
+            **not_applicable_record(reason),
+            "hysteretic_critic_latch_informational": arm4_not_applicable,
+        },
+        "stratified_accuracy_grid": not_applicable_record(reason),
+        "trajectory_diagnostics": {
+            **not_applicable_record(reason),
+            "selector_switch_hazards": {
+                "hysteretic_critic_latch_informational": not_applicable_record(
+                    reason
+                )
+            },
+        },
+        "trajectory_accounting_assertions": not_applicable_record(reason),
+        "endpoint_metrics": {
+            **not_applicable_record(reason),
+            "hysteretic_critic_latch_endpoint_accuracy_informational": (
+                not_applicable_record(reason)
+            ),
+        },
+        "paired_counterfactual_group_bootstrap": not_applicable_record(reason),
+    }
+
+
+def pretest_terminal_per_example_records(reason: str) -> dict[str, Any]:
+    return {
+        **not_applicable_record(reason),
+        "official_test_inspected": False,
+        "records_by_seed": {},
+        "hysteretic_selected_horizons_b1_b32": not_applicable_record(reason),
+    }
+
+
+def _require_mapping(
+    container: Mapping[str, Any], key: str, *, context: str
+) -> Mapping[str, Any]:
+    value = container.get(key)
+    if not isinstance(value, Mapping):
+        raise ValueError(f"schema 1.1.0 requires mapping {context}.{key}")
+    return value
+
+
+def _validate_not_applicable(value: Mapping[str, Any], *, context: str) -> None:
+    if value.get("status") != "not_applicable" or not isinstance(
+        value.get("not_applicable_reason"), str
+    ):
+        raise ValueError(f"schema 1.1.0 requires explicit not_applicable at {context}")
+
+
+def validate_result_schema(
+    result: Mapping[str, Any], config: Mapping[str, Any]
+) -> None:
+    expected_schema = config["result_artifact"]["schema_version"]
+    if result.get("schema_version") != expected_schema or expected_schema != "1.1.0":
+        raise ValueError("result does not satisfy schema 1.1.0")
+    required_top_level = (
+        "experiment_id",
+        "started_utc",
+        "completed_utc",
+        "preregistration",
+        "review_attestation",
+        "hashes",
+        "parameter_counts",
+        "feature_boundary_audit",
+        "generator_audit",
+        "dataset_token_audit",
+        "training",
+        "calibration_frozen_t_star",
+        "calibration_frozen_hysteresis_by_seed",
+        "arm_definitions",
+        "evaluation",
+        "validity_gates",
+        "decision",
+        "compute",
+        "per_example_records",
+        "final_token",
+    )
+    missing = [key for key in required_top_level if result.get(key) is None]
+    if missing:
+        raise ValueError(f"schema 1.1.0 missing required sections: {missing}")
+    if result.get("experiment_id") != config["experiment_id"]:
+        raise ValueError("result experiment id does not match config")
+    if not isinstance(result.get("started_utc"), str) or not isinstance(
+        result.get("completed_utc"), str
+    ):
+        raise ValueError("result timestamps must be complete strings")
+
+    final_token = result.get("final_token")
+    if final_token not in FINAL_TOKENS:
+        raise ValueError(f"invalid final token: {final_token}")
+    decision = _require_mapping(result, "decision", context="result")
+    if decision.get("final_token") != final_token:
+        raise ValueError("decision and result final tokens differ")
+    if not isinstance(decision.get("reason"), str):
+        raise ValueError("decision requires an explicit reason")
+    official_test_inspected = decision.get("official_test_inspected")
+    if not isinstance(official_test_inspected, bool):
+        raise ValueError("decision must state whether official test was inspected")
+
+    for key in (
+        "hashes",
+        "parameter_counts",
+        "feature_boundary_audit",
+        "generator_audit",
+        "dataset_token_audit",
+        "arm_definitions",
+        "validity_gates",
+    ):
+        _require_mapping(result, key, context="result")
+    validity_gates = _require_mapping(result, "validity_gates", context="result")
+    if not validity_gates:
+        raise ValueError("validity_gates must not be empty")
+    for name, gate in validity_gates.items():
+        if not isinstance(gate, Mapping) or not isinstance(gate.get("pass"), bool):
+            raise ValueError(f"validity gate {name} lacks a boolean pass value")
+
+    training = _require_mapping(result, "training", context="result")
+    expected_seed_keys = {str(seed) for seed in config["training"]["model_seeds"]}
+    if set(training) != expected_seed_keys:
+        raise ValueError("training section does not contain exactly both model seeds")
+    for seed_key, record_value in training.items():
+        if not isinstance(record_value, Mapping):
+            raise ValueError(f"training record for seed {seed_key} is not a mapping")
+        for section in (
+            "selector_training_corpus",
+            "selector_calibration_corpus",
+            "confidence_calibrator_fit",
+            "confidence_score_provenance",
+            "selector_provenance",
+        ):
+            _require_mapping(record_value, section, context=f"training.{seed_key}")
+        confidence_fit = record_value["confidence_calibrator_fit"]
+        confidence_provenance = record_value["confidence_score_provenance"]
+        if (
+            confidence_fit.get("fit_corpus_split") != "selector_calibration"
+            or confidence_fit.get("frozen_before_external_scoring") is not True
+            or confidence_provenance.get("calibrator_fit_split")
+            != "selector_calibration"
+            or confidence_provenance.get("calibrator_frozen_before_scoring") is not True
+            or confidence_provenance.get("critic_pair_construction_scored_split")
+            != "selector_harvest"
+        ):
+            raise ValueError("confidence-calibrator split provenance is invalid")
+
+    _require_mapping(result, "calibration_frozen_t_star", context="result")
+    _require_mapping(
+        result, "calibration_frozen_hysteresis_by_seed", context="result"
+    )
+    evaluation = _require_mapping(result, "evaluation", context="result")
+    for section in config["result_artifact"]["required_evaluation_sections"]:
+        _require_mapping(evaluation, section, context="evaluation")
+    per_example = _require_mapping(result, "per_example_records", context="result")
+
+    compute = _require_mapping(result, "compute", context="result")
+    phases = compute.get("vram_phases")
+    if not isinstance(phases, list) or not phases:
+        raise ValueError("compute.vram_phases must record every measured phase")
+    for phase in phases:
+        if not isinstance(phase, Mapping):
+            raise ValueError("each VRAM phase must be a mapping")
+        for key in (
+            "phase",
+            "model_seed",
+            "wall_time_seconds",
+            "peak_vram_allocated_bytes",
+            "peak_vram_reserved_bytes",
+        ):
+            if key not in phase:
+                raise ValueError(f"VRAM phase is missing {key}")
+    expected_allocated = max(int(phase["peak_vram_allocated_bytes"]) for phase in phases)
+    expected_reserved = max(int(phase["peak_vram_reserved_bytes"]) for phase in phases)
+    if (
+        int(compute.get("peak_vram_allocated_bytes", -1)) != expected_allocated
+        or int(compute.get("peak_vram_reserved_bytes", -1)) != expected_reserved
+    ):
+        raise ValueError("run-level peak VRAM is not the maximum across phases")
+
+    if not official_test_inspected:
+        _validate_not_applicable(evaluation, context="evaluation")
+        for section in config["result_artifact"]["required_evaluation_sections"]:
+            _validate_not_applicable(
+                evaluation[section], context=f"evaluation.{section}"
+            )
+        _validate_not_applicable(per_example, context="per_example_records")
+        _validate_not_applicable(
+            evaluation["accuracy_grid"]["hysteretic_critic_latch_informational"],
+            context="evaluation.accuracy_grid.arm4",
+        )
+        _validate_not_applicable(
+            evaluation["endpoint_metrics"][
+                "hysteretic_critic_latch_endpoint_accuracy_informational"
+            ],
+            context="evaluation.endpoint_metrics.arm4",
+        )
+        _validate_not_applicable(
+            evaluation["trajectory_diagnostics"]["selector_switch_hazards"][
+                "hysteretic_critic_latch_informational"
+            ],
+            context="evaluation.trajectory_diagnostics.selector_switch_hazards.arm4",
+        )
+        _validate_not_applicable(
+            per_example["hysteretic_selected_horizons_b1_b32"],
+            context="per_example_records.arm4",
+        )
+        return
+
+    if evaluation.get("status") != "complete":
+        raise ValueError("completed official-test evaluation requires status=complete")
+    accuracy = evaluation["accuracy_grid"]
+    endpoint_metrics = evaluation["endpoint_metrics"]
+    diagnostics = evaluation["trajectory_diagnostics"]
+    for seed_key in expected_seed_keys:
+        if "hysteretic_critic_latch_informational" not in accuracy.get(seed_key, {}):
+            raise ValueError(f"accuracy grid is missing arm 4 for seed {seed_key}")
+        records = per_example.get(seed_key)
+        if not isinstance(records, list) or not records:
+            raise ValueError(f"per-example records missing for seed {seed_key}")
+        if any("hysteretic_selected_horizons_b1_b32" not in row for row in records):
+            raise ValueError(f"per-example arm-4 selections missing for seed {seed_key}")
+    for endpoint in ("16", "32"):
+        for scope in (*sorted(expected_seed_keys), "pooled"):
+            metrics = endpoint_metrics.get(endpoint, {}).get(scope, {})
+            if "hysteretic_critic_latch_endpoint_accuracy_informational" not in metrics:
+                raise ValueError(f"endpoint {endpoint}/{scope} is missing arm 4")
+    for scope in (*sorted(expected_seed_keys), "pooled"):
+        switches = diagnostics.get(scope, {}).get("selector_switch_hazards", {})
+        if "hysteretic_critic_latch_informational" not in switches:
+            raise ValueError(f"trajectory diagnostics are missing arm 4 for {scope}")
+
+
 def write_immutable_result(result: Mapping[str, Any], path: Path) -> None:
     final_token = result.get("final_token")
     if final_token not in FINAL_TOKENS:
         raise ValueError(f"invalid final token: {final_token}")
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps(result, indent=2, sort_keys=False, allow_nan=False) + "\n"
+    payload = (json.dumps(result, indent=2, sort_keys=False, allow_nan=False) + "\n").encode(
+        "utf-8"
+    )
+    temporary: Path | None = None
     try:
-        with path.open("x", encoding="utf-8", newline="\n") as handle:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            dir=path.parent,
+            delete=False,
+        ) as handle:
+            temporary = Path(handle.name)
             handle.write(payload)
             handle.flush()
             os.fsync(handle.fileno())
+        os.link(temporary, path)
     except FileExistsError as error:
         raise RuntimeError(f"immutable result already exists: {path}") from error
+    finally:
+        if temporary is not None:
+            with contextlib.suppress(FileNotFoundError):
+                temporary.unlink()
 
 
 def _checkpoint_lookup(
@@ -4253,12 +4520,115 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
             "model_seed_denominator": len(model_seeds),
             "official_test_inspected": False,
         }
+        pretest_validity_gates: dict[str, dict[str, Any]] = {
+            "generator_and_split_integrity": generator_integrity_gate(
+                generator_audit
+            ),
+            "feature_boundary": {
+                "observed": feature_audit["pass"],
+                "required": True,
+                "pass": bool(feature_audit["pass"]),
+            },
+            "both_model_seeds_prepared": {
+                "observed_numerator": len(seed_preparation),
+                "required_denominator": len(model_seeds),
+                "pass": set(seed_preparation) == set(model_seeds),
+            },
+        }
+        for seed in model_seeds:
+            training_record = seed_preparation[seed]
+            pretest_validity_gates.update(
+                {
+                    f"seed_{seed}_shared_controller_token_accounting": {
+                        "observed": training_record["common_training"][
+                            "processed_nonpadding_tokens"
+                        ],
+                        "required": config["training"]["shared_controller_tokens"],
+                        "pass": training_record["common_training"][
+                            "processed_nonpadding_tokens"
+                        ]
+                        == int(config["training"]["shared_controller_tokens"]),
+                    },
+                    f"seed_{seed}_selector_training_states": {
+                        "observed": training_record["selector_training_corpus"][
+                            "states"
+                        ],
+                        "minimum": config["selectors"][
+                            "minimum_training_states_per_seed"
+                        ],
+                        "pass": training_record["selector_training_corpus"][
+                            "states"
+                        ]
+                        >= int(
+                            config["selectors"]["minimum_training_states_per_seed"]
+                        ),
+                    },
+                    f"seed_{seed}_selector_calibration_states": {
+                        "observed": training_record["selector_calibration_corpus"][
+                            "states"
+                        ],
+                        "minimum": config["selectors"][
+                            "minimum_calibration_states_per_seed"
+                        ],
+                        "pass": training_record["selector_calibration_corpus"][
+                            "states"
+                        ]
+                        >= int(
+                            config["selectors"][
+                                "minimum_calibration_states_per_seed"
+                            ]
+                        ),
+                    },
+                    f"seed_{seed}_selector_fit_performed": {
+                        "observed": training_record["latent_critic_fit"][
+                            "fit_performed"
+                        ],
+                        "required": True,
+                        "pass": bool(
+                            training_record["latent_critic_fit"]["fit_performed"]
+                        ),
+                    },
+                    f"seed_{seed}_selector_provenance": {
+                        "observed": training_record["selector_provenance"][
+                            "all_gates_pass"
+                        ],
+                        "required": True,
+                        "pass": bool(
+                            training_record["selector_provenance"]["all_gates_pass"]
+                        ),
+                    },
+                    f"seed_{seed}_confidence_split_contract": {
+                        "observed": training_record["confidence_score_provenance"],
+                        "required": {
+                            "calibrator_fit_split": "selector_calibration",
+                            "calibrator_frozen_before_scoring": True,
+                            "critic_pair_construction_scored_split": (
+                                "selector_harvest"
+                            ),
+                        },
+                        "pass": training_record["confidence_score_provenance"]
+                        == {
+                            "calibrator_fit_split": "selector_calibration",
+                            "calibrator_frozen_before_scoring": True,
+                            "critic_pair_construction_scored_split": (
+                                "selector_harvest"
+                            ),
+                        },
+                    },
+                }
+            )
+        base_result["evaluation"] = pretest_terminal_evaluation(reason, config)
+        base_result["validity_gates"] = pretest_validity_gates
+        base_result["per_example_records"] = pretest_terminal_per_example_records(
+            reason
+        )
         base_result["completed_utc"] = dt.datetime.now(dt.timezone.utc).isoformat()
         base_result["compute"] = {
             "wall_time_seconds": time.perf_counter() - run_started,
             **summarize_vram_phases(vram_phases),
         }
         base_result["final_token"] = final_token
+        validate_result_schema(base_result, config)
         write_immutable_result(base_result, RESULT_PATH)
         print(final_token)
         return 0
@@ -4518,6 +4888,7 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
             }
         )
     decision = adjudicate(endpoint_metrics, validity_gates, config)
+    decision["official_test_inspected"] = True
     bootstraps: dict[str, Any] = {}
     for endpoint in (16, 32):
         bootstraps[str(endpoint)] = {
@@ -4538,6 +4909,8 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
             seed_offset=endpoint,
         )
     base_result["evaluation"] = {
+        "status": "complete",
+        "official_test_inspected": True,
         "horizons": list(range(1, 33)),
         "encoder_control": {
             str(seed): result for seed, result in encoder_results.items()
@@ -4572,6 +4945,7 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
         **summarize_vram_phases(vram_phases),
     }
     base_result["final_token"] = decision["final_token"]
+    validate_result_schema(base_result, config)
     write_immutable_result(base_result, RESULT_PATH)
     print(decision["final_token"])
     return 0
@@ -4930,7 +5304,7 @@ def _generator_integrity_false_observation_self_test(
     assert gate["observed"] is False
     assert gate["pass"] is False
     assert decision["final_token"] == "VOID"
-    assert decision["reason"] == "INTEGRITY_OR_VALIDITY_GATE_MISSED"
+    assert decision["reason"] == "VALIDITY_GATE_FAILURE"
     return {
         "synthetic_false_observation": "lure_mixture_exact",
         "gate": gate,
@@ -4961,6 +5335,149 @@ def _vram_accounting_self_test() -> dict[str, Any]:
     assert summary["peak_vram_reserved_bytes"] == 700
     assert summary["vram_phases"] == phases
     return {**summary, "pass": True}
+
+
+def _result_schema_and_atomic_write_self_test(
+    config: Mapping[str, Any],
+) -> dict[str, Any]:
+    reason = "SELF_TEST_PRETEST_TERMINAL"
+    phases = [
+        {
+            "phase": "training_and_selector_fitting",
+            "model_seed": 42,
+            "wall_time_seconds": 1.0,
+            "peak_vram_allocated_bytes": 100,
+            "peak_vram_reserved_bytes": 200,
+        }
+    ]
+    training = {
+        str(seed): {
+            "selector_training_corpus": {"states": 20_000},
+            "selector_calibration_corpus": {"states": 10_000},
+            "confidence_calibrator_fit": {
+                "fit_corpus_split": "selector_calibration",
+                "frozen_before_external_scoring": True,
+            },
+            "confidence_score_provenance": {
+                "calibrator_fit_split": "selector_calibration",
+                "calibrator_frozen_before_scoring": True,
+                "critic_pair_construction_scored_split": "selector_harvest",
+            },
+            "selector_provenance": {"all_gates_pass": False},
+        }
+        for seed in config["training"]["model_seeds"]
+    }
+    result = {
+        "schema_version": "1.1.0",
+        "experiment_id": config["experiment_id"],
+        "started_utc": "2026-08-10T00:00:00+00:00",
+        "completed_utc": "2026-08-10T00:00:01+00:00",
+        "preregistration": config["preregistration"],
+        "review_attestation": "INDEPENDENT_PRETRAINING_REVIEW_CLEAN",
+        "hashes": {"self_test": True},
+        "parameter_counts": {"self_test": True},
+        "feature_boundary_audit": {"pass": True},
+        "generator_audit": {"pass": True},
+        "dataset_token_audit": {"self_test": True},
+        "training": training,
+        "calibration_frozen_t_star": {"selected_t_star": 1},
+        "calibration_frozen_hysteresis_by_seed": {
+            str(seed): {"selected_delta": 0.0}
+            for seed in config["training"]["model_seeds"]
+        },
+        "arm_definitions": {"4": "hysteretic_critic_latch_informational_only"},
+        "evaluation": pretest_terminal_evaluation(reason, config),
+        "validity_gates": {
+            "self_test_pretest_terminal": {"observed": True, "pass": True}
+        },
+        "decision": {
+            "final_token": "VOID",
+            "reason": reason,
+            "official_test_inspected": False,
+        },
+        "compute": {"wall_time_seconds": 1.0, **summarize_vram_phases(phases)},
+        "per_example_records": pretest_terminal_per_example_records(reason),
+        "final_token": "VOID",
+    }
+    validate_result_schema(result, config)
+    seed_keys = [str(seed) for seed in config["training"]["model_seeds"]]
+    scopes = [*seed_keys, "pooled"]
+    complete = json.loads(json.dumps(result))
+    complete["decision"] = {
+        "final_token": "FAIL",
+        "reason": "SELF_TEST_COMPLETE_TERMINAL",
+        "official_test_inspected": True,
+    }
+    complete["final_token"] = "FAIL"
+    complete["evaluation"] = {
+        "status": "complete",
+        "official_test_inspected": True,
+        "horizons": list(range(1, 33)),
+        "encoder_control": {},
+        "compute_by_seed": {},
+        "accuracy_grid": {
+            seed_key: {"hysteretic_critic_latch_informational": {}}
+            for seed_key in seed_keys
+        },
+        "stratified_accuracy_grid": {},
+        "trajectory_diagnostics": {
+            scope: {
+                "selector_switch_hazards": {
+                    "hysteretic_critic_latch_informational": {}
+                }
+            }
+            for scope in scopes
+        },
+        "trajectory_accounting_assertions": {},
+        "endpoint_metrics": {
+            endpoint: {
+                scope: {
+                    "hysteretic_critic_latch_endpoint_accuracy_informational": {}
+                }
+                for scope in scopes
+            }
+            for endpoint in ("16", "32")
+        },
+        "paired_counterfactual_group_bootstrap": {},
+    }
+    complete["per_example_records"] = {
+        seed_key: [{"hysteretic_selected_horizons_b1_b32": [1] * 32}]
+        for seed_key in seed_keys
+    }
+    validate_result_schema(complete, config)
+    invalid = json.loads(json.dumps(result))
+    invalid["evaluation"]["endpoint_metrics"] = None
+    invalid_schema_rejected = False
+    try:
+        validate_result_schema(invalid, config)
+    except ValueError:
+        invalid_schema_rejected = True
+    if not invalid_schema_rejected:
+        raise AssertionError("invalid schema 1.1.0 result was accepted")
+
+    with tempfile.TemporaryDirectory(prefix="e2-result-self-test-") as directory:
+        path = Path(directory) / "result.json"
+        write_immutable_result(result, path)
+        installed = json.loads(path.read_text(encoding="utf-8"))
+        no_clobber_rejected = False
+        try:
+            write_immutable_result(result, path)
+        except RuntimeError:
+            no_clobber_rejected = True
+        if not no_clobber_rejected:
+            raise AssertionError("immutable result overwrite was accepted")
+        orphan_temps = list(path.parent.glob(f".{path.name}.*.tmp"))
+    assert installed == result
+    assert not orphan_temps
+    return {
+        "schema_1_1_0_validated": True,
+        "complete_terminal_variant_validated": True,
+        "invalid_schema_rejected": invalid_schema_rejected,
+        "atomic_no_clobber_rejected_overwrite": no_clobber_rejected,
+        "installed_payload_complete": installed == result,
+        "orphan_temporary_files": len(orphan_temps),
+        "pass": True,
+    }
 
 
 def run_self_tests(config_path: Path) -> int:
@@ -5118,6 +5635,9 @@ def run_self_tests(config_path: Path) -> int:
             _generator_integrity_false_observation_self_test(config)
         ),
         "run_level_vram_accounting": _vram_accounting_self_test(),
+        "result_schema_and_atomic_write": (
+            _result_schema_and_atomic_write_self_test(config)
+        ),
         "training_or_gpu_executed": False,
     }
     print(json.dumps(report, indent=2))
