@@ -935,3 +935,100 @@ common typed-decoding regime.
 This interface amendment applies only to the future 0.5B program. It does not
 alter the E1 task-band gates, their free-text parser, or any existing E1
 evidence or verdict.
+
+### 2026-08-10 — 0.5B primary-selector family freeze
+(pre-E2 data)
+
+This amendment is recorded before any E2 training, calibration, or test
+result exists. It controls only selector identity in the future 0.5B
+program. It does not alter E2 adjudication or promote arm 4 within E2.
+
+#### E2 prerequisite remains controlling
+
+The 0.5B program requires either:
+
+- E2 arm 3 PROCEED under every existing pooled and per-seed condition; or
+- the already-registered admissible `UNMEASURABLE_REGRESSION` VOID.
+
+An E2 FAIL or any blocking VOID prevents the 0.5B launch regardless of
+arm-4 accuracy, regression, optimizer's-curse diagnostics, or apparent
+curse suppression. Arm 4 cannot rescue or reinterpret E2.
+
+#### Frozen 0.5B primary selector
+
+The 0.5B primary selector is the hysteretic incumbent-replacement family
+
+j_1 = 1,
+
+j_t = t if q_t - q_{j_{t-1}} > delta_s, and
+j_t = j_{t-1} otherwise.
+
+For each 0.5B model/critic seed, select delta_s from the frozen grid
+
+D = {0.00, 0.02, 0.05, 0.10}
+
+using only that seed's 0.5B selector-calibration trajectories through
+T=16. No E2 threshold value, E2 effect size, or E2 test outcome enters
+this selection.
+
+On 0.5B calibration data, freeze the no-latch best earlier horizon t*
+over horizons 1,...,15, breaking ties toward the smaller horizon. For
+each delta, simulate the complete sequential latch through B=16 and
+record gain retention, B=16 accuracy, harmful-switch-example rate,
+harmful-challenge acceptance, rejected beneficial challenges, and total
+replacement rate with all numerators and denominators.
+
+A delta is feasible only if calibration gain retention is at least 90%.
+Among feasible values select lexicographically:
+
+1. smallest harmful-switch-example rate;
+2. highest B=16 accuracy;
+3. larger delta.
+
+If none is feasible, freeze delta_s=0 and record
+`calibration_constraint_miss=true`.
+
+The selected delta is frozen before any 0.5B final in-domain or transfer
+evaluation and is not refitted through T=32.
+
+Because delta=0 is exactly the cumulative strict first-argmax rule, arm 3
+is nested within this primary selector family. The explicit delta=0
+arm-3 selector runs as the mandatory informational secondary. The
+confidence latch and all other registered baselines remain unchanged.
+
+E2 arm-4 results may be reported as mechanism evidence but may not
+change the 0.5B grid, selection procedure, calibration cohort, primary
+selector identity, endpoint, or outcome mapping.
+
+### 2026-08-10 — Claim-language contract (pre-E2-data)
+
+The E2 mechanics pilot is a design gate and is not publishable evidence. A
+PROCEED result may be described internally only through its registered
+quantities: the critic latch reduced observed correct-to-wrong regression by
+at least 80%, retained at least 90% of the registered gain, and satisfied the
+remaining per-seed and pooled gates.
+
+An 80% regression reduction may be phrased as “at most one-fifth the observed
+no-latch regression rate” only when both rates, numerators, denominators, and
+uncertainty intervals are reported. “Five times less likely” is discouraged
+because it is ambiguous.
+
+For the future full experiment, the \(\le2\%\) correct-to-wrong condition
+licenses only: “the observed correct-to-wrong regression rate was at most 2%
+on the preregistered evaluation,” together with its numerator, denominator,
+and confidence interval. It does not license “never,” “virtually never,”
+“cannot think itself out of a correct answer,” “eliminates overthinking,” or
+a population-level 2% bound.
+
+The 90% gain-retention condition describes retained improvement, not safety.
+It may not be used as evidence that correct answers were preserved.
+
+If CONFIRM occurs, replace the narrative shorthand “without thinking itself
+out of a correct answer” with:
+
+> “A tiny local reasoner gained accuracy from additional computation while
+> keeping observed right-to-wrong regression at or below 2%, and outperformed
+> compute-matched independent sampling.”
+
+All writeups must report transition-rate numerators and denominators and must
+distinguish observed point estimates from confidence bounds.
