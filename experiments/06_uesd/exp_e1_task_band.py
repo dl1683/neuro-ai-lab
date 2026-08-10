@@ -1069,6 +1069,97 @@ def repair_identity_payloads(artifact: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+INITIAL_RECORD_FIELD_TYPES: dict[str, tuple[type, ...]] = {
+    "cohort_position": (int,),
+    "dataset_index": (int,),
+    "question": (str,),
+    "gold_answer": (str,),
+    "response": (str,),
+    "scored_response_segment": (str,),
+    "extracted_answer": (str, type(None)),
+    "extraction_source": (str, type(None)),
+    "extraction_segment_stop_reason": (str,),
+    "stop_reason": (str,),
+    "cap_reached": (bool,),
+    "generated_tokens": (int,),
+    "extraction_failed": (bool,),
+    "valid_extracted_incorrect": (bool,),
+    "correct": (bool,),
+    "prompt_tokens": (int,),
+    "generation_seconds_share": (int, float),
+}
+SUCCESSOR_INITIAL_RECORD_FIELD_TYPES: dict[str, tuple[type, ...]] = {
+    "outcome_category": (str,),
+    "correct_numeric": (bool,),
+    "model_empty_non_answer": (bool,),
+    "parser_recognition_failure": (bool,),
+    "exact_answer_failure": (bool,),
+}
+
+
+def expected_type_label(expected_types: tuple[type, ...]) -> str:
+    return " | ".join(expected_type.__name__ for expected_type in expected_types)
+
+
+def validate_initial_artifact_records(artifact: dict[str, Any]) -> None:
+    required_types = dict(INITIAL_RECORD_FIELD_TYPES)
+    if artifact.get("model") == BASE_B_PUBLIC_NAME:
+        required_types.update(SUCCESSOR_INITIAL_RECORD_FIELD_TYPES)
+
+    record_errors: list[dict[str, Any]] = []
+    for record_index, record in enumerate(artifact["per_example"]):
+        if not isinstance(record, dict):
+            record_errors.append(
+                {
+                    "record_index": record_index,
+                    "missing_fields": sorted(required_types),
+                    "invalid_field_types": {
+                        "__record__": {
+                            "expected": "dict",
+                            "actual": type(record).__name__,
+                        }
+                    },
+                }
+            )
+            continue
+
+        missing_fields = sorted(set(required_types) - set(record))
+        invalid_field_types = {}
+        for field, expected_types in required_types.items():
+            if field not in record:
+                continue
+            value = record[field]
+            valid_type = type(value) in expected_types
+            if not valid_type:
+                invalid_field_types[field] = {
+                    "expected": expected_type_label(expected_types),
+                    "actual": type(value).__name__,
+                }
+        if missing_fields or invalid_field_types:
+            record_errors.append(
+                {
+                    "record_index": record_index,
+                    "missing_fields": missing_fields,
+                    "invalid_field_types": invalid_field_types,
+                }
+            )
+
+    if record_errors:
+        raise TerminalAssertionError(
+            "provenance_assertion_failure",
+            "initial_parser_miss_record_structure",
+            "initial parser-miss records failed required-field and type validation",
+            {
+                "record_count": len(artifact["per_example"]),
+                "malformed_record_count": len(record_errors),
+                "malformed_record_indices": [
+                    record_error["record_index"] for record_error in record_errors
+                ],
+                "record_errors": record_errors,
+            },
+        )
+
+
 def immutable_generation_record(record: dict[str, Any]) -> dict[str, Any]:
     return {
         field: record[field]
@@ -1116,6 +1207,7 @@ def load_initial_parser_miss(
     )
     if not valid_artifact:
         raise RuntimeError("the initial parser-miss artifact failed provenance checks")
+    validate_initial_artifact_records(artifact)
     return artifact, initial_source, initial_fingerprint
 
 
@@ -1455,19 +1547,22 @@ def response_length_stats(lengths: Sequence[int]) -> dict[str, int | float]:
     }
 
 
+REPAIR_IDENTITY_FIELDS = (
+    "response_set",
+    "cohort",
+    "prompt",
+    "decoding",
+    "stopping",
+)
+
+
 def repaired_attempt_is_qualified(
     parser_evidence: dict[str, Any],
     parser_miss_path: Path,
 ) -> bool:
     reuse = parser_evidence.get("immutable_response_reuse", {})
     identity_checks = reuse.get("identity_checks", {})
-    required_identity_fields = {
-        "response_set",
-        "cohort",
-        "prompt",
-        "decoding",
-        "stopping",
-    }
+    required_identity_fields = set(REPAIR_IDENTITY_FIELDS)
     return bool(
         parser_evidence.get("attempt") == "repaired"
         and parser_evidence.get("source_changed_from_initial") is True
@@ -1491,6 +1586,60 @@ def repaired_attempt_is_qualified(
             for field in required_identity_fields
         )
     )
+
+
+def repaired_attempt_qualification_evidence(
+    parser_evidence: dict[str, Any],
+    parser_miss_path: Path,
+) -> dict[str, Any]:
+    reuse = parser_evidence.get("immutable_response_reuse", {})
+    identity_checks = reuse.get("identity_checks", {})
+    artifact_exists = parser_miss_path.is_file()
+    live_artifact_sha256 = sha256_file(parser_miss_path) if artifact_exists else None
+    identity_hash_comparisons = {
+        field: {
+            "status": identity_checks.get(field, {}).get("status"),
+            "byte_identical": identity_checks.get(field, {}).get(
+                "byte_identical"
+            ),
+            "initial_sha256": identity_checks.get(field, {}).get(
+                "initial_sha256"
+            ),
+            "repaired_sha256": identity_checks.get(field, {}).get(
+                "repaired_sha256"
+            ),
+            "hashes_match": (
+                identity_checks.get(field, {}).get("initial_sha256")
+                == identity_checks.get(field, {}).get("repaired_sha256")
+                and identity_checks.get(field, {}).get("initial_sha256")
+                is not None
+            ),
+        }
+        for field in REPAIR_IDENTITY_FIELDS
+    }
+    qualified = repaired_attempt_is_qualified(parser_evidence, parser_miss_path)
+    return {
+        "status": "PASS" if qualified else "FAIL",
+        "checked_immediately_before_canonical_write": True,
+        "initial_miss_artifact_exists": artifact_exists,
+        "recorded_initial_miss_artifact_sha256": parser_evidence.get(
+            "initial_miss_artifact_sha256"
+        ),
+        "live_initial_miss_artifact_sha256": live_artifact_sha256,
+        "initial_miss_artifact_hash_matches_live": (
+            artifact_exists
+            and parser_evidence.get("initial_miss_artifact_sha256")
+            == live_artifact_sha256
+        ),
+        "required_identity_fields": list(REPAIR_IDENTITY_FIELDS),
+        "identity_hash_comparisons": identity_hash_comparisons,
+        "all_five_identity_hash_comparisons_pass": all(
+            comparison["status"] == "PASS"
+            and comparison["byte_identical"] is True
+            and comparison["hashes_match"] is True
+            for comparison in identity_hash_comparisons.values()
+        ),
+    }
 
 
 def canonical_verdict(
@@ -2336,7 +2485,53 @@ def write_canonical_result(
     result: dict[str, Any],
     canonical_result_path: Path,
     parser_miss_path: Path,
-) -> None:
+) -> dict[str, Any]:
+    parser_evidence = (
+        result.get("protocol", {})
+        .get("answer_extraction", {})
+        .get("parser_provenance", {})
+    )
+    if isinstance(parser_evidence, dict) and parser_evidence.get("attempt") == "repaired":
+        qualification = repaired_attempt_qualification_evidence(
+            parser_evidence,
+            parser_miss_path,
+        )
+        result["repaired_attempt_qualification"] = qualification
+        if qualification["status"] != "PASS":
+            attempted_verdict = copy.deepcopy(result.get("verdict", {}))
+            protocol = result.get("protocol", {})
+            dataset_key = protocol.get("dataset_key")
+            dataset_spec = DATASET_SPECS.get(dataset_key)
+            if dataset_spec is None:
+                raise RuntimeError(
+                    "a repaired result lacks a recognized dataset binding"
+                )
+            error = TerminalAssertionError(
+                "provenance_assertion_failure",
+                "repaired_parser_write_qualification",
+                "repaired outcome failed qualification immediately before canonical write",
+                {
+                    "attempted_verdict": attempted_verdict,
+                    "qualification": qualification,
+                },
+            )
+            result = terminal_assertion_void_result(
+                error=error,
+                dataset_spec=dataset_spec,
+                public_model_name=str(result.get("model")),
+                successor_base_b=result.get("model") == BASE_B_PUBLIC_NAME,
+                selection_evidence=copy.deepcopy(protocol.get("selection")),
+                dataset_provenance=copy.deepcopy(
+                    protocol.get("dataset_provenance")
+                ),
+                parser_evidence=copy.deepcopy(parser_evidence),
+            )
+            result["repaired_attempt_qualification"] = qualification
+            result["attempted_repaired_outcome"] = {
+                "status": "REJECTED",
+                "verdict": attempted_verdict,
+            }
+
     verdict = result.get("verdict", {})
     if verdict.get("token") == "VOID":
         reason = verdict.get("reason")
@@ -2482,6 +2677,7 @@ def write_canonical_result(
         else:
             raise RuntimeError("unrecognized terminal VOID cannot be written")
     write_evidence_artifact(canonical_result_path, result, "canonical E1 evidence")
+    return result
 
 
 def write_initial_parser_miss(
@@ -2770,11 +2966,38 @@ def run(args: argparse.Namespace) -> int:
                 public_model_name=public_model_name,
                 successor_base_b=args.successor_base_b,
             )
-        write_canonical_result(
+        written_result = write_canonical_result(
             result,
             canonical_result_path,
             parser_miss_path,
         )
+        if (
+            written_result.get("terminal_failure_evidence", {}).get("stage")
+            == "repaired_parser_write_qualification"
+        ):
+            print(
+                json.dumps(
+                    {
+                        "status": written_result["status"],
+                        "model": public_model_name,
+                        "sample_count": written_result["sample_count"],
+                        "verdict": written_result["verdict"],
+                        "failure_evidence": written_result[
+                            "terminal_failure_evidence"
+                        ],
+                        "result_path": str(
+                            canonical_result_path.relative_to(HERE.parent.parent)
+                        ),
+                    },
+                    indent=2,
+                )
+            )
+            print(
+                "ERROR: repaired outcome rejected by final qualification.",
+                file=sys.stderr,
+            )
+            return 2
+        result = written_result
         print(
             json.dumps(
                 {
