@@ -9,6 +9,7 @@ audited as separate claims — D22 is a compute-window robustness result,
 and D40 is the controlling (negative) fixed-point result.
 """
 
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -22,6 +23,12 @@ def check(name, ok, detail=""):
     checks.append({"name": name, "ok": bool(ok), "detail": detail})
 
 
+def canonical_lf_sha256(path: Path) -> str:
+    """Hash Git's canonical LF representation, independent of checkout EOLs."""
+    canonical_bytes = path.read_bytes().replace(b"\r\n", b"\n")
+    return hashlib.sha256(canonical_bytes).hexdigest()
+
+
 def main():
     d40 = json.loads(
         (RESULTS / "exp_d40_extended_convergence.json").read_text(encoding="utf-8")
@@ -31,6 +38,11 @@ def main():
     )
     e1 = json.loads(
         (RESULTS / "exp_e1_task_band.json").read_text(encoding="utf-8")
+    )
+    e1_svamp_initial = json.loads(
+        (
+            RESULTS / "exp_e1_task_band_svamp_initial_parser_miss.json"
+        ).read_text(encoding="utf-8")
     )
 
     runs = d40["runs"]
@@ -149,20 +161,17 @@ def main():
         ),
     )
 
-    # 9b. The artifact is byte-identical to the recorded evidence hash, and the
-    #     documented protocol fields are bound (dataset revision-pinned, greedy,
-    #     five demonstrations, cap count).
-    import hashlib
-    artifact_sha = hashlib.sha256(
-        (RESULTS / "exp_e1_task_band.json").read_bytes()
-    ).hexdigest()
+    # 9b. The artifact's checkout-stable canonical-LF bytes and documented
+    #     protocol fields are bound (dataset revision-pinned, greedy, five
+    #     demonstrations, cap count).
+    artifact_sha = canonical_lf_sha256(RESULTS / "exp_e1_task_band.json")
     proto = e1["protocol"]
     demo_indices = proto["five_shot_demonstrations"]["indices"]
     if isinstance(demo_indices, str):
         demo_indices = json.loads(demo_indices)
     check(
         "e1_artifact_hash_and_protocol_binding",
-        artifact_sha == "c8cf27cd55230724d0d3fdf662e9b0096fed52e429c529340b241133b23b1e45"
+        artifact_sha == "d5bd9d3b5bbd0a902625df6341973b0c4c6996d6ebe94f965ef6497cd15a0c62"
         and e1["model"] == "base-A"
         and proto["dataset"] == "GSM8K"
         and proto["dataset_revision"] == "740312add88f781978c0658806c59bc2815b9866"
@@ -183,6 +192,118 @@ def main():
         and verdict["reason"] == "below_band_or_fewer_than_40_correct"
         and not verdict["terminal"],
         f"correct={e1['correct_count']}, verdict={verdict}",
+    )
+
+    # 11. The one allowed SVAMP fallback's initial parser attempt is a full
+    #     canonical-mode cohort, but it is not a completed gate result.
+    check(
+        "e1_svamp_initial_complete_cohort",
+        e1_svamp_initial["status"] == "PARSER_REPAIR_REQUIRED"
+        and e1_svamp_initial["mode"] == "canonical"
+        and e1_svamp_initial["sample_count"] == 256
+        and len(e1_svamp_initial["per_example"]) == 256
+        and not (RESULTS / "exp_e1_task_band_svamp.json").exists(),
+        (
+            f"status={e1_svamp_initial['status']}, "
+            f"mode={e1_svamp_initial['mode']}, "
+            f"sample_count={e1_svamp_initial['sample_count']}, "
+            f"records={len(e1_svamp_initial['per_example'])}"
+        ),
+    )
+
+    # 12. All SVAMP outcomes are accounted for with explicit denominators.
+    svamp_extraction_failures = e1_svamp_initial["extraction_failures"]
+    svamp_accounted = (
+        e1_svamp_initial["correct_count"]
+        + e1_svamp_initial["valid_extracted_incorrect_count"]
+        + svamp_extraction_failures["numerator"]
+    )
+    check(
+        "e1_svamp_initial_outcome_accounting",
+        e1_svamp_initial["correct_count"] == 66
+        and e1_svamp_initial["valid_extracted_incorrect_count"] == 177
+        and svamp_extraction_failures
+        == {"numerator": 13, "denominator": 256, "rate": 0.05078125}
+        and svamp_accounted == 256
+        and e1_svamp_initial["exact_answer_accuracy"]
+        == {"numerator": 66, "denominator": 256, "rate": 0.2578125},
+        (
+            f"correct={e1_svamp_initial['correct_count']}, "
+            "valid_incorrect="
+            f"{e1_svamp_initial['valid_extracted_incorrect_count']}, "
+            f"extraction_failures={svamp_extraction_failures}, "
+            f"accounted={svamp_accounted}"
+        ),
+    )
+
+    # 13. Bind the immutable initial-attempt bytes and the frozen SVAMP protocol.
+    svamp_initial_path = RESULTS / "exp_e1_task_band_svamp_initial_parser_miss.json"
+    svamp_initial_sha = canonical_lf_sha256(svamp_initial_path)
+    svamp_proto = e1_svamp_initial["protocol"]
+    svamp_demo_indices = svamp_proto["five_shot_demonstrations"]["indices"]
+    if isinstance(svamp_demo_indices, str):
+        svamp_demo_indices = json.loads(svamp_demo_indices)
+    check(
+        "e1_svamp_initial_artifact_hash_and_protocol_binding",
+        svamp_initial_sha
+        == "d092eb628a5279085e6c2de2974463937efe95f4c1c7d769ff7a83e21d0b242d"
+        and e1_svamp_initial["model"] == "base-A"
+        and svamp_proto["dataset"] == "SVAMP"
+        and svamp_proto["dataset_revision"]
+        == "5e0bf1e5e7c0e9c4bc39180d224f41f3f801b7ef"
+        and svamp_demo_indices == [0, 1, 2, 3, 4]
+        and svamp_proto["decoding"]["strategy"] == "greedy"
+        and svamp_proto["decoding"]["batch_size"] == 1
+        and svamp_proto["decoding"]["repeat_determinism"]["status"] == "PASS"
+        and svamp_proto["leakage_preflight"]["status"] == "PASS"
+        and svamp_proto["answer_extraction"]["parser_attempt"] == "initial"
+        and e1_svamp_initial["cap_reached"]
+        == {"numerator": 0, "denominator": 256, "rate": 0.0},
+        (
+            f"sha={svamp_initial_sha[:12]}..., "
+            f"model={e1_svamp_initial.get('model')}, "
+            f"dataset={svamp_proto['dataset']}"
+        ),
+    )
+
+    # 14. The frozen mapping requires parser repair rather than PASS or terminal
+    #     VOID on an initial extraction-failure rate just above five percent.
+    svamp_verdict = e1_svamp_initial["verdict"]
+    check(
+        "e1_svamp_initial_verdict_mapping",
+        26 <= e1_svamp_initial["correct_count"] <= 217
+        and e1_svamp_initial["correct_count"] >= 40
+        and e1_svamp_initial["valid_extracted_incorrect_count"] >= 40
+        and svamp_extraction_failures["rate"] > 0.05
+        and svamp_verdict["token"] == "PARSER-REPAIR-REQUIRED"
+        and svamp_verdict["reason"]
+        == "initial_extraction_failure_rate_above_5_percent"
+        and not svamp_verdict["terminal"],
+        (
+            f"correct={e1_svamp_initial['correct_count']}, "
+            f"valid_incorrect={e1_svamp_initial['valid_extracted_incorrect_count']}, "
+            f"extraction_rate={svamp_extraction_failures['rate']}, "
+            f"verdict={svamp_verdict}"
+        ),
+    )
+
+    # 15. The extraction failures contain no numeric output for a parser to
+    #     recover; all are the literal empty answer prefix emitted by the model.
+    svamp_failed_records = [
+        record
+        for record in e1_svamp_initial["per_example"]
+        if record["extraction_failed"]
+    ]
+    check(
+        "e1_svamp_initial_failure_characterization",
+        len(svamp_failed_records) == 13
+        and all(record["response"] == "Answer:" for record in svamp_failed_records)
+        and all(record["generated_tokens"] == 3 for record in svamp_failed_records),
+        (
+            f"failed_records={len(svamp_failed_records)}, "
+            "responses="
+            f"{sorted({record['response'] for record in svamp_failed_records})}"
+        ),
     )
 
     failed = [c for c in checks if not c["ok"]]

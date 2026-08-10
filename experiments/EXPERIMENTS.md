@@ -23,9 +23,21 @@ Suite aggregate: `results/pilot_suite_summary.json`.
 
 Framework where AI generation happens in continuous embedding space via iterative dynamics, with no softmax collapse. Tests whether self-consistency energy E(s) = ||F_theta(s,c)||^2 produces correct, stable attractors.
 
+### E1 SVAMP Fallback, Initial Parser Attempt (PARSER-REPAIR-REQUIRED — GATE INCOMPLETE)
+- **Config:** `experiments/06_uesd/exp_e1_task_band.py` (executed from commit `b035793`)
+- **Artifact:** `experiments/06_uesd/results/exp_e1_task_band_svamp_initial_parser_miss.json` (checkout-stable canonical-LF SHA-256 `d092eb628a5279085e6c2de2974463937efe95f4c1c7d769ff7a83e21d0b242d`; original runtime-byte SHA-256 `84a78ac257b8f1b22a1a4d02da9c5cab9ea414c2f4fea1d2cbdf0c31e4c69386`)
+- **Purpose:** Execute the one allowed SVAMP fallback on the canonical seeded 256-of-300 test cohort after the primary GSM8K gate selected the below-band branch.
+- **Protocol:** Revision-pinned SVAMP train/test snapshot; fixed five-shot train demonstrations; greedy per-example decoding at batch size 1; 256-token cap; initial frozen exact-numeric parser. Leakage preflight passed with 0/256 overlaps, and repeat determinism passed on 2/2 checked examples.
+- **Outcome accounting:** 66/256 correct, 177/256 valid extracted incorrect, and 13/256 extraction failures. Exact-answer accuracy was 25.78125% (66/256). The three outcome counts exhaust all 256 examples; there are at least 40 correct and 40 valid extracted incorrect responses.
+- **Generation diagnostics:** 0/256 responses (0%) reached the cap. Mean response length was 26.48 tokens (median 26; nearest-rank p95 38). All 256 stopped at end-of-message.
+- **Compute:** 208.19s total wall time (200.89s generation; 201.40s evaluation; 1.62s repeat verification). Peak CUDA memory was 842,769,408 bytes allocated and 901,775,360 bytes reserved (3.52% of device memory by reserved bytes).
+- **Verdict:** **PARSER-REPAIR-REQUIRED / task-band gate incomplete.** The correct count lies inside the 26–217 band and both outcome populations exceed 40, but 13/256 extraction failures is 5.078125%, one example above the preregistered 5% ceiling. The runner therefore wrote the immutable initial-miss artifact and did not write `exp_e1_task_band_svamp.json`.
+- **Claim boundary:** This is band-placement evidence for frozen `base-A` only. It is not a capability result and supplies no evidence for the semantic-ratchet hypothesis. All 13 extraction failures are literal `Answer:` responses with no numeric content, so no parser change is claimed in this block. The mechanics pilot and full program remain blocked; resolving the preregistered repair edge case returns to steering rather than an adaptive unilateral change.
+- **Deviations:** No execution deviation. The mandated repo-local cache and offline flags were used; GPU loading began immediately. The requested canonical-result path was not written because the runner's preregistered initial-parser guard diverted the above-threshold attempt to the immutable initial-miss path.
+
 ### E1 Task-Band Gate (COMPLETE — ABORT-AND-SWAP)
 - **Config:** `experiments/06_uesd/exp_e1_task_band.py` (canonical runner at commit `fa82203`; executed from commit `76c6a84`)
-- **Artifact:** `experiments/06_uesd/results/exp_e1_task_band.json` (SHA-256 `c8cf27cd55230724d0d3fdf662e9b0096fed52e429c529340b241133b23b1e45`)
+- **Artifact:** `experiments/06_uesd/results/exp_e1_task_band.json` (checkout-stable canonical-LF SHA-256 `d5bd9d3b5bbd0a902625df6341973b0c4c6996d6ebe94f965ef6497cd15a0c62`; original runtime-byte SHA-256 `c8cf27cd55230724d0d3fdf662e9b0096fed52e429c529340b241133b23b1e45`)
 - **Purpose:** Evaluate the frozen `base-A` checkpoint on exactly 256 held-out GSM8K examples before training and determine whether the preregistered task band is usable.
 - **Protocol:** Initial frozen exact-numeric parser; fixed five-shot prompt; greedy decoding; 256-token generation cap; canonical seeded cohort. Leakage preflight passed with 0/256 overlaps. The two-example batched-versus-unbatched equivalence check passed.
 - **Outcome accounting:** 18/256 correct, 238/256 valid extracted incorrect, and 0/256 extraction failures. Exact-answer accuracy was 7.03125%. The counts exhaust all 256 examples.
