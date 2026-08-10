@@ -1,9 +1,11 @@
 """E2 shortcut-resistant latch-mechanics pilot.
 
-This is a provenance runner, not a landing command.  ``--self-test`` is the
-only CPU-only verification entry point.  ``--run`` performs the preregistered
-two-seed training/evaluation and must not be used until the independent
-pre-training review required by AGENTS.md has passed.
+This is a provenance runner, not a landing command. ``--self-test-fast`` is the
+routine CPU-only verification tier: its deliberately tiny fixtures prove
+code-path determinism, not scientific generator, model, or training properties.
+``--self-test`` retains the full 500K-token resume regression for attestation.
+``--run`` performs the preregistered two-seed training/evaluation and must not be
+used until the independent pre-training review required by AGENTS.md has passed.
 """
 
 from __future__ import annotations
@@ -18,11 +20,12 @@ import math
 import os
 import random
 import re
+import shutil
 import statistics
 import subprocess
 import sys
-import tempfile
 import time
+import uuid
 from collections import Counter, defaultdict
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
@@ -172,6 +175,9 @@ def load_config(path: Path = DEFAULT_CONFIG) -> dict[str, Any]:
         raise ValueError("shared controller token budget changed")
     if int(config["training"]["logical_arm_exposure"]) != 500_000:
         raise ValueError("logical arm exposure changed")
+    fast_resume_tokens = int(config["self_test"]["fast_resume_tokens"])
+    if fast_resume_tokens != 2_140:
+        raise ValueError("fast resume-regression token budget changed")
     if int(config["generator"]["examples_per_split"]["test"]) != 4096:
         raise ValueError("fixed test size changed")
     if int(config["generator"]["test_counterfactual_pairs"]) * 2 != 4096:
@@ -1413,16 +1419,46 @@ def trainable_parameter_count(model: nn.Module) -> int:
     )
 
 
+def _open_exclusive_private_temp(
+    directory: Path, *, prefix: str, suffix: str
+) -> tuple[Path, Any]:
+    """Create a private temp without the pathological Windows tempfile path."""
+    for _ in range(128):
+        temporary = directory / f"{prefix}{uuid.uuid4().hex}{suffix}"
+        try:
+            descriptor = os.open(
+                temporary,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                0o600,
+            )
+        except FileExistsError:
+            continue
+        try:
+            return temporary, os.fdopen(descriptor, "wb")
+        except BaseException:
+            os.close(descriptor)
+            with contextlib.suppress(FileNotFoundError):
+                temporary.unlink()
+            raise
+    raise FileExistsError("could not allocate a unique private temporary file")
+
+
 def atomic_torch_save(payload: Mapping[str, Any], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(
-        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent, delete=False
-    ) as handle:
-        temporary = Path(handle.name)
+    temporary, handle = _open_exclusive_private_temp(
+        path.parent,
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+    )
     try:
-        torch.save(dict(payload), temporary)
+        with handle:
+            torch.save(dict(payload), handle)
+            handle.flush()
+            os.fsync(handle.fileno())
         os.replace(temporary, path)
     finally:
+        if not handle.closed:
+            handle.close()
         with contextlib.suppress(FileNotFoundError):
             temporary.unlink()
 
@@ -3959,9 +3995,7 @@ def pretest_terminal_evaluation(
         "trajectory_diagnostics": {
             **not_applicable_record(reason),
             "selector_switch_hazards": {
-                "hysteretic_critic_latch_informational": not_applicable_record(
-                    reason
-                )
+                "hysteretic_critic_latch_informational": not_applicable_record(reason)
             },
         },
         "trajectory_accounting_assertions": not_applicable_record(reason),
@@ -4096,9 +4130,7 @@ def validate_result_schema(
             raise ValueError("confidence-calibrator split provenance is invalid")
 
     _require_mapping(result, "calibration_frozen_t_star", context="result")
-    _require_mapping(
-        result, "calibration_frozen_hysteresis_by_seed", context="result"
-    )
+    _require_mapping(result, "calibration_frozen_hysteresis_by_seed", context="result")
     evaluation = _require_mapping(result, "evaluation", context="result")
     for section in config["result_artifact"]["required_evaluation_sections"]:
         _require_mapping(evaluation, section, context="evaluation")
@@ -4120,7 +4152,9 @@ def validate_result_schema(
         ):
             if key not in phase:
                 raise ValueError(f"VRAM phase is missing {key}")
-    expected_allocated = max(int(phase["peak_vram_allocated_bytes"]) for phase in phases)
+    expected_allocated = max(
+        int(phase["peak_vram_allocated_bytes"]) for phase in phases
+    )
     expected_reserved = max(int(phase["peak_vram_reserved_bytes"]) for phase in phases)
     if (
         int(compute.get("peak_vram_allocated_bytes", -1)) != expected_allocated
@@ -4169,7 +4203,9 @@ def validate_result_schema(
         if not isinstance(records, list) or not records:
             raise ValueError(f"per-example records missing for seed {seed_key}")
         if any("hysteretic_selected_horizons_b1_b32" not in row for row in records):
-            raise ValueError(f"per-example arm-4 selections missing for seed {seed_key}")
+            raise ValueError(
+                f"per-example arm-4 selections missing for seed {seed_key}"
+            )
     for endpoint in ("16", "32"):
         for scope in (*sorted(expected_seed_keys), "pooled"):
             metrics = endpoint_metrics.get(endpoint, {}).get(scope, {})
@@ -4242,14 +4278,12 @@ def write_immutable_result(
     ).encode("utf-8")
     temporary: Path | None = None
     try:
-        with tempfile.NamedTemporaryFile(
-            mode="wb",
+        temporary, handle = _open_exclusive_private_temp(
+            path.parent,
             prefix=IMMUTABLE_RESULT_TEMP_PREFIX,
             suffix=IMMUTABLE_RESULT_TEMP_SUFFIX,
-            dir=path.parent,
-            delete=False,
-        ) as handle:
-            temporary = Path(handle.name)
+        )
+        with handle:
             handle.write(payload)
             handle.flush()
             os.fsync(handle.fileno())
@@ -4491,9 +4525,7 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
             },
             "compute": {
                 "wall_time_seconds": time.perf_counter() - seed_started,
-                **summarize_vram_phases(
-                    [preparation_phase, calibration_phase]
-                ),
+                **summarize_vram_phases([preparation_phase, calibration_phase]),
             },
         }
         del common, critic, calibrator, training_corpus, calibration_corpus
@@ -4591,9 +4623,7 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
             "official_test_inspected": False,
         }
         pretest_validity_gates: dict[str, dict[str, Any]] = {
-            "generator_and_split_integrity": generator_integrity_gate(
-                generator_audit
-            ),
+            "generator_and_split_integrity": generator_integrity_gate(generator_audit),
             "feature_boundary": {
                 "observed": feature_audit["pass"],
                 "required": True,
@@ -4626,12 +4656,8 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
                         "minimum": config["selectors"][
                             "minimum_training_states_per_seed"
                         ],
-                        "pass": training_record["selector_training_corpus"][
-                            "states"
-                        ]
-                        >= int(
-                            config["selectors"]["minimum_training_states_per_seed"]
-                        ),
+                        "pass": training_record["selector_training_corpus"]["states"]
+                        >= int(config["selectors"]["minimum_training_states_per_seed"]),
                     },
                     f"seed_{seed}_selector_calibration_states": {
                         "observed": training_record["selector_calibration_corpus"][
@@ -4640,13 +4666,9 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
                         "minimum": config["selectors"][
                             "minimum_calibration_states_per_seed"
                         ],
-                        "pass": training_record["selector_calibration_corpus"][
-                            "states"
-                        ]
+                        "pass": training_record["selector_calibration_corpus"]["states"]
                         >= int(
-                            config["selectors"][
-                                "minimum_calibration_states_per_seed"
-                            ]
+                            config["selectors"]["minimum_calibration_states_per_seed"]
                         ),
                     },
                     f"seed_{seed}_selector_fit_performed": {
@@ -5120,14 +5142,12 @@ def _resume_determinism_self_test() -> dict[str, Any]:
 
     uninterrupted, uninterrupted_optimizer = initialize()
     uninterrupted_history: list[dict[str, Any]] = []
-    train_updates(
-        uninterrupted, uninterrupted_optimizer, uninterrupted_history, 0, 6
-    )
+    train_updates(uninterrupted, uninterrupted_optimizer, uninterrupted_history, 0, 6)
 
     interrupted, interrupted_optimizer = initialize()
     interrupted_history: list[dict[str, Any]] = []
     train_updates(interrupted, interrupted_optimizer, interrupted_history, 0, 3)
-    with tempfile.TemporaryDirectory(prefix="e2-resume-self-test-") as directory:
+    with _self_test_temporary_directory(prefix="e2-resume-self-test-") as directory:
         checkpoint = Path(directory) / "interrupted.pt"
         atomic_torch_save(
             checkpoint_payload(
@@ -5418,7 +5438,7 @@ def _atomic_hard_crash_self_test() -> dict[str, Any]:
         ("after_fsync_before_link", 91, False),
         ("after_link_before_unlink", 92, True),
     ):
-        with tempfile.TemporaryDirectory(prefix=f"e2-{window}-") as directory:
+        with _self_test_temporary_directory(prefix=f"e2-{window}-") as directory:
             probe_directory = Path(directory)
             final_path = probe_directory / f"{window}.json"
             preserved_final = probe_directory / "preexisting-final-artifact.json"
@@ -5611,18 +5631,14 @@ def _result_schema_and_atomic_write_self_test(
         "stratified_accuracy_grid": {},
         "trajectory_diagnostics": {
             scope: {
-                "selector_switch_hazards": {
-                    "hysteretic_critic_latch_informational": {}
-                }
+                "selector_switch_hazards": {"hysteretic_critic_latch_informational": {}}
             }
             for scope in scopes
         },
         "trajectory_accounting_assertions": {},
         "endpoint_metrics": {
             endpoint: {
-                scope: {
-                    "hysteretic_critic_latch_endpoint_accuracy_informational": {}
-                }
+                scope: {"hysteretic_critic_latch_endpoint_accuracy_informational": {}}
                 for scope in scopes
             }
             for endpoint in ("16", "32")
@@ -5644,7 +5660,7 @@ def _result_schema_and_atomic_write_self_test(
     if not invalid_schema_rejected:
         raise AssertionError("invalid schema 1.1.0 result was accepted")
 
-    with tempfile.TemporaryDirectory(prefix="e2-result-self-test-") as directory:
+    with _self_test_temporary_directory(prefix="e2-result-self-test-") as directory:
         path = Path(directory) / "result.json"
         write_immutable_result(result, path)
         installed = json.loads(path.read_text(encoding="utf-8"))
@@ -5669,14 +5685,183 @@ def _result_schema_and_atomic_write_self_test(
     }
 
 
-def run_self_tests(config_path: Path) -> int:
+def _nested_checkpoint_values_equal(left: Any, right: Any) -> bool:
+    if isinstance(left, Tensor) and isinstance(right, Tensor):
+        return torch.equal(left, right)
+    if isinstance(left, Mapping) and isinstance(right, Mapping):
+        return left.keys() == right.keys() and all(
+            _nested_checkpoint_values_equal(left[key], right[key]) for key in left
+        )
+    if isinstance(left, (list, tuple)) and isinstance(right, (list, tuple)):
+        return len(left) == len(right) and all(
+            _nested_checkpoint_values_equal(a, b) for a, b in zip(left, right)
+        )
+    return bool(left == right)
+
+
+@contextlib.contextmanager
+def _self_test_temporary_directory(*, prefix: str) -> Iterator[str]:
+    """Keep disposable fixtures on the workspace filesystem.
+
+    The default Windows user-temp tree can impose minute-scale file-creation
+    latency in sandboxed runs. These directories contain self-test fixtures
+    only; canonical checkpoints and immutable result paths are unchanged.
+    """
+    directory = (HERE / f".{prefix}{uuid.uuid4().hex}").resolve()
+    if directory.parent != HERE.resolve():
+        raise AssertionError("self-test fixture escaped its workspace directory")
+    directory.mkdir()
+    try:
+        yield str(directory)
+    finally:
+        shutil.rmtree(directory)
+
+
+def _production_resume_schedule_self_test(
+    config: Mapping[str, Any],
+    datasets: Mapping[str, Sequence[DeductionExample]],
+    tokenizer: LocalTokenizer,
+    *,
+    token_budget: int,
+    reduced_model: bool,
+) -> dict[str, Any]:
+    """Compare uninterrupted and resumed production code paths.
+
+    In the fast tier, the tiny fixture establishes checkpoint, optimizer, and
+    RNG determinism only. It is not evidence about the scientific generator,
+    model capacity, optimization budget, or preregistered E2 outcome.
+    """
+    fixture = json.loads(json.dumps(config))
+    fixture["training"]["shared_controller_tokens"] = token_budget
+    fixture["training"]["logical_arm_exposure"] = token_budget
+    fixture["training"]["common_checkpoint_selection"] = (
+        f"self_test_final_exact_{token_budget}_token_checkpoint"
+    )
+    if reduced_model:
+        fixture["common_model"].update(fixture["self_test"]["fast_resume_model"])
+    seed = int(fixture["self_test"]["seed"])
+    config_hash = hashlib.sha256(
+        json.dumps(fixture, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    code_hash = sha256_file(Path(__file__).resolve())
+    checkpoint_fields = (
+        "model_state",
+        "optimizer_state",
+        "history",
+        "python_rng_state",
+        "torch_rng_state",
+        "cuda_rng_state_all",
+    )
+
+    def initialize_model() -> CommonRecurrentModel:
+        torch.manual_seed(seed)
+        random.seed(seed)
+        return CommonRecurrentModel(fixture, len(tokenizer.id_to_token))
+
+    started = time.perf_counter()
+    with _self_test_temporary_directory(
+        prefix="e2-production-resume-self-test-"
+    ) as root:
+        root_path = Path(root)
+        uninterrupted_dir = root_path / "uninterrupted"
+        resumed_dir = root_path / "resumed"
+        uninterrupted_model = initialize_model()
+        uninterrupted_record = train_common_model(
+            uninterrupted_model,
+            datasets["controller_train"],
+            datasets["selector_calibration"],
+            tokenizer,
+            fixture,
+            torch.device("cpu"),
+            seed=seed,
+            checkpoint_dir=uninterrupted_dir,
+            config_hash=config_hash,
+            code_hash=code_hash,
+        )
+        interruption_index = 2  # initial, 10%, then the frozen 30% checkpoint
+        copied_checkpoints = uninterrupted_record["checkpoints"][
+            : interruption_index + 1
+        ]
+        resumed_dir.mkdir(parents=True)
+        for checkpoint in copied_checkpoints:
+            source = Path(checkpoint["path"])
+            shutil.copy2(source, resumed_dir / source.name)
+
+        resumed_model = initialize_model()
+        resumed_record = train_common_model(
+            resumed_model,
+            datasets["controller_train"],
+            datasets["selector_calibration"],
+            tokenizer,
+            fixture,
+            torch.device("cpu"),
+            seed=seed,
+            checkpoint_dir=resumed_dir,
+            config_hash=config_hash,
+            code_hash=code_hash,
+        )
+        uninterrupted_payload = torch.load(
+            uninterrupted_record["selected_checkpoint"]["path"],
+            map_location="cpu",
+            weights_only=False,
+        )
+        resumed_payload = torch.load(
+            resumed_record["selected_checkpoint"]["path"],
+            map_location="cpu",
+            weights_only=False,
+        )
+        field_equality = {
+            field: _nested_checkpoint_values_equal(
+                uninterrupted_payload[field], resumed_payload[field]
+            )
+            for field in checkpoint_fields
+        }
+        if not all(field_equality.values()):
+            mismatches = [field for field, equal in field_equality.items() if not equal]
+            raise AssertionError(
+                f"production resume schedule diverged in fields: {mismatches}"
+            )
+
+    return {
+        "token_budget": token_budget,
+        "reduced_model": reduced_model,
+        "model_width": fixture["common_model"]["width"],
+        "resume_from_tokens": copied_checkpoints[-1]["processed_tokens"],
+        "production_train_common_model_path": True,
+        "checkpoint_fields_identical": field_equality,
+        "wall_time_seconds": time.perf_counter() - started,
+        "pass": True,
+    }
+
+
+def run_self_tests(config_path: Path, *, fast: bool) -> int:
     config = load_config(config_path)
     torch.set_num_threads(int(config["self_test"]["torch_threads"]))
     counts = {
-        "controller_train": int(config["self_test"]["examples_per_public_split"]),
-        "selector_harvest": int(config["self_test"]["examples_per_public_split"]),
-        "selector_calibration": int(config["self_test"]["examples_per_public_split"]),
-        "test": int(config["self_test"]["test_examples"]),
+        "controller_train": int(
+            config["self_test"][
+                "fast_examples_per_public_split"
+                if fast
+                else "examples_per_public_split"
+            ]
+        ),
+        "selector_harvest": int(
+            config["self_test"][
+                "fast_examples_per_public_split"
+                if fast
+                else "examples_per_public_split"
+            ]
+        ),
+        "selector_calibration": int(
+            config["self_test"][
+                "fast_examples_per_public_split"
+                if fast
+                else "examples_per_public_split"
+            ]
+        ),
+        "test": int(
+            config["self_test"]["fast_test_examples" if fast else "test_examples"]
+        ),
     }
     generator = DeductionGenerator(config)
     first = generator.generate_dataset(counts, seed_offset=1)
@@ -5816,6 +6001,17 @@ def run_self_tests(config_path: Path) -> int:
         },
         "feature_boundary": feature_audit,
         "resume_determinism": _resume_determinism_self_test(),
+        "production_resume_schedule": _production_resume_schedule_self_test(
+            config,
+            first,
+            tokenizer,
+            token_budget=(
+                int(config["self_test"]["fast_resume_tokens"])
+                if fast
+                else int(config["training"]["shared_controller_tokens"])
+            ),
+            reduced_model=fast,
+        ),
         "hysteresis_rule": _hysteresis_rule_self_test(),
         "hysteresis_delta_selection": _delta_selection_self_test(config),
         "trajectory_diagnostics": _diagnostics_self_test(),
@@ -5829,6 +6025,7 @@ def run_self_tests(config_path: Path) -> int:
             _result_schema_and_atomic_write_self_test(config)
         ),
         "training_or_gpu_executed": False,
+        "self_test_tier": "fast" if fast else "full",
     }
     print(json.dumps(report, indent=2))
     return 0
@@ -5840,6 +6037,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument(
         "--self-test", action="store_true", help="run CPU-only structural tests"
+    )
+    mode.add_argument(
+        "--self-test-fast",
+        action="store_true",
+        help="run structural tests with a reduced production resume fixture",
     )
     mode.add_argument(
         "--run", action="store_true", help="launch the reviewed CUDA pilot"
@@ -5892,10 +6094,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args._atomic_probe_directory is not None:
         raise ValueError("probe directory is valid only for internal atomic probes")
     scavenge_stale_immutable_result_temps(RESULT_PATH.parent, final_path=RESULT_PATH)
-    if args.self_test:
+    if args.self_test or args.self_test_fast:
         if args.review_attestation:
             raise ValueError("self-tests do not accept a launch attestation")
-        return run_self_tests(args.config.resolve())
+        return run_self_tests(args.config.resolve(), fast=args.self_test_fast)
     return run_pilot(args.config.resolve(), args.review_attestation)
 
 

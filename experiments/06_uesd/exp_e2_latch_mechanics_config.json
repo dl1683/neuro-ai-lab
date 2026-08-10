@@ -329,6 +329,18 @@
     "seed": 20260812,
     "examples_per_public_split": 48,
     "test_examples": 96,
-    "torch_threads": 2
+    "fast_examples_per_public_split": 16,
+    "fast_test_examples": 32,
+    "torch_threads": 2,
+    "fast_resume_tokens": 2140,
+    "fast_resume_model": {
+      "input_encoder_layers": 1,
+      "width": 16,
+      "attention_heads": 1,
+      "ffn_width": 32,
+      "latent_plan_slots": 1,
+      "controller_layers": 1,
+      "prefix_projector_hidden": 16
+    }
   }
 }
