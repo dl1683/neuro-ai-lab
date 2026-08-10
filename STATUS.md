@@ -111,6 +111,8 @@ Calibration no-latch accuracy was exactly 256/1,024 in each seed at every candid
 
 The current 0.5B semantic-ratchet program remains **LAUNCH BLOCKED BY E2 VOID**. The attempt did not satisfy the mechanics prerequisite, but its denominator failure also did not produce the registered `FAIL` that would automatically route the next full experiment to Direction 2. Direction 2 causal isolation and E2-CERT remain possible subjects for a fresh steering decision; neither is unlocked, authorized, or allowed to rescue or reinterpret this attempt. No E2 rerun, threshold change, or adaptive mechanics redesign is authorized without an explicit reopening decision recorded here.
 
+E2-DIAG is now **PREREGISTERED / NOT RUN / DIAGNOSTIC ONLY** in `experiments/06_uesd/E2_DIAG_PREREGISTRATION.md`. It authorizes only the bounded competence-and-learnability diagnostic sequence registered there: tiny-set hard-task memorization, a one-hop learnability probe, the frozen clip/schedule matrix, and—only after the registered gates—the seed-42 hard-task continuation ladder. It does not alter or rescue E2, inspect the original E2 official test, unlock any successor by itself, or unblock the 0.5B program. Line 07 retains first GPU-queue priority. No E2-DIAG runner, result, metric, or launch exists yet.
+
 Operationally, two earlier GSM8K canonical invocations were killed before GPU use while sandboxed dataset loading stalled on user-profile Hugging Face cache lock files; neither wrote an evidence artifact. The successful GSM8K attempt and the SVAMP initial attempt used the ignored workspace-local `.hf_cache/` fully offline. The SVAMP loader began GPU work immediately, so its 10-minute watchdog did not trigger.
 
 ### Canonical Documents and Evidence
@@ -140,6 +142,7 @@ The fixed-point convergence arc is closed. D40 stands at 15/16; rerunning the cr
 | 04 generated audit | `docs/CLAIM_AUDIT.md` |
 | UESD scientific synthesis | `docs/UNIFIED_ERROR_SPACE.md` |
 | UESD semantic-ratchet preregistration | `experiments/06_uesd/PREREGISTRATION.md` |
+| E2-DIAG competence/learnability preregistration | `experiments/06_uesd/E2_DIAG_PREREGISTRATION.md` |
 | E2 optimizer's-curse secondary analysis | `experiments/06_uesd/E2_SECONDARY_ANALYSIS_CURSE.md` (informational only; subordinate to E2 adjudication) |
 | Best-of-N safe-selection preregistration | `experiments/07_safe_selection/PREREGISTRATION.md` |
 | Experiment chronology | `experiments/EXPERIMENTS.md` + `experiments/ledger.jsonl` |

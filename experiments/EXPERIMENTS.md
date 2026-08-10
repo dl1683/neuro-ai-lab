@@ -37,6 +37,16 @@ Suite aggregate: `results/pilot_suite_summary.json`.
 
 Framework where AI generation happens in continuous embedding space via iterative dynamics, with no softmax collapse. Tests whether self-consistency energy E(s) = ||F_theta(s,c)||^2 produces correct, stable attractors.
 
+### E2-DIAG Competence and Learnability Diagnostic (PREREGISTERED / NOT RUN)
+
+- **Event:** The bounded E2-DIAG post-mortem program was preregistered on 2026-08-10 before any diagnostic runner, launch, result, or metric existed.
+- **Canonical protocol:** `experiments/06_uesd/E2_DIAG_PREREGISTRATION.md`.
+- **Question sequence:** First test whether the existing 30M recurrent pipeline can memorize 128 frozen full-hard examples; then test one-hop generalization; then separate gradient-clip and learning-rate-schedule sensitivity in a frozen 2×2 matrix; only after the registered gates, continue the exact seed-42 E2 checkpoint to 2M and 5M tokens for competence diagnostics.
+- **Compute boundary:** At most 90 cumulative GPU minutes, no individual invocation over 30 minutes, with internal wall-time stops. The original E2 official-test split and every selector/latch path remain inaccessible.
+- **Claim and route boundary:** E2-DIAG is diagnostic only. It cannot rescue or reinterpret the controlling E2 `VOID`, satisfy the original mechanics prerequisite, unblock the 0.5B program, or launch a successor. Any branch token permits only fresh steering and preregistration. Line 07 keeps first GPU-queue priority.
+
+---
+
 ### E2 Latch-Mechanics Pilot (COMPLETE — CONTROLLING VOID BEFORE OFFICIAL TEST)
 
 - **Runner/config:** `experiments/06_uesd/exp_e2_latch_mechanics.py` and `experiments/06_uesd/exp_e2_latch_mechanics_config.json`, executed from `832e379` with the independently reviewed runner/config unchanged from `fba181cd30f6465ce4149c10fd08eab459e1b0bf`.
