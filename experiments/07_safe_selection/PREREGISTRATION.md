@@ -1089,3 +1089,42 @@ No amendment may convert a valid KILL into CONFIRM.
 8. **Run the calibration stage and freeze parameters.** Land or cryptographically freeze the calibration artifact and selected thresholds before any test generation.
 
 Cohort allocation is resolved by the revision-pinned train-split construction above. The remaining launch blockers are the unfilled hash slots, local manifest identities, runner build, and independent review. This registration authorizes no GPU work by itself.
+
+## Amendment 2026-08-10 — pre-data slot-filling pass
+
+This amendment fills the four launch-blocking provenance slots after the
+CPU-only cohort pass and corrects one supplied schedule digest. It was appended
+before any selected calibration/test response, verifier score, threshold, or
+outcome existed. One out-of-range synthetic engineering fixture was used only
+to verify staged model loading and the documented verifier interface; it was
+not retained and did not enter cohort construction, policy selection, or any
+metric.
+
+The original permutation digest was inconsistent with the already-frozen
+algorithm and its stated 1,000-line serialization. Re-derivation found that
+sorting ordinals exactly as registered, serializing each permutation as
+comma-joined decimal ordinals, joining rows with LF, and writing no terminal LF
+has SHA-256
+`354b34427aa1ff857b6c281f57cd07a7b24a0ebfd4771f2645f1b3dfa1dcca14`,
+not `de246a58e5514c5d8a058b6a2e97af73a449d213ea4fd8e1c5b96c4284b052df`.
+Only the binding is corrected; the seed string, sort rule, ordinal tie-break,
+permutation count, and every adjudicating condition remain unchanged.
+
+The prompt digest is over compact canonical JSON records containing partition,
+cohort position, dataset index, and the native-chat-template prompt string for
+all 256 calibration and 512 pilot-test prompts in frozen order. The parser
+digest is over the qualified E1 parser components returned by
+`parser_source_text()`. The runner digest is over the runner's raw source
+bytes. The private manifest identity digest is over compact canonical JSON of
+all parsed manifest entries; it discloses no private entry.
+
+- `prompt_serialization_sha256`: `53a11fe44669f4558f98addf056ec03caf23e44fc386d3638b1048073f81558d`
+- `parser_source_sha256`: `4555cf412805a261cfc8de094990ac700566022f420d556bd7860bbd7ea3c3a4`
+- `runner_source_sha256`: `2c36b2dacfb2b39f066c1c98c91bb8754d59f1f540bb494586b7d1f01ecc7633`
+- `local_manifest_identity_digest`: `b1f285c108843ea435e3d398c790f7fd4bac13cc529daee9ff9380a55be9f625`
+
+All supplied cohort, prior-consumption, content, and generation-seed hashes
+revalidated exactly in the slot-filling pass. The runner imports the qualified
+E1 numeric parser directly. Independent pre-launch review remains mandatory
+and must bind this exact runner and private-manifest identity before any
+canonical calibration or test run.
