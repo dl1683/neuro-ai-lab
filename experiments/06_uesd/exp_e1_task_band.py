@@ -1,6 +1,6 @@
 """E1 task-band evaluator for the preregistered semantic-ratchet direction.
 
-Canonical protocol (``--dataset gsm8k`` by default):
+Base-A protocol (``--dataset gsm8k`` by default):
   - deterministically select 256 examples without replacement from the
     selected dataset's test split using seed 20260809;
   - use the first five training examples from that dataset as a fixed
@@ -17,9 +17,21 @@ Smoke protocol (``--smoke N``):
   - never write the canonical result artifact unless the canonical-cohort
     leakage preflight detects the preregistered terminal VOID condition.
 
-The exact base-A identifier is private repository-local configuration. This
-script reads it from the gitignored ``_local_manifest.md`` and never logs or
-serializes it.
+Successor protocol (``--successor-base-b``):
+  - use the preregistered revision-pinned GSM8K task only;
+  - construct the precommitted 256-example cohort disjoint from base-A;
+  - decode from frozen base-B under the same five-shot/parser contract;
+  - apply the four-category outcome taxonomy and successor PASS/VOID rules;
+  - write only ``exp_e1_task_band_base_b.json`` (or the qualified initial
+    parser-miss sidecar), refusing to overwrite evidence.
+
+The ``--cohort-only`` successor path loads the cached dataset, runs every
+cohort/provenance assertion, prints the evidence, and exits before any model
+coordinates are read or any generation code is reached.
+
+The exact base-A and base-B identifiers are private repository-local
+configuration. This script reads them from the gitignored
+``_local_manifest.md`` and never logs or serializes them.
 """
 
 from __future__ import annotations
@@ -59,7 +71,8 @@ from transformers.utils import logging as transformers_logging
 
 
 EXPERIMENT = "E1 task-band gate"
-PUBLIC_MODEL_NAME = "base-A"
+BASE_A_PUBLIC_NAME = "base-A"
+BASE_B_PUBLIC_NAME = "base-B"
 TEST_SPLIT = "test"
 TRAIN_SPLIT = "train"
 
@@ -118,9 +131,24 @@ PASS_MAX_CORRECT = 217
 MIN_CORRECT_POPULATION = 40
 MIN_INCORRECT_POPULATION = 40
 MAX_EXTRACTION_FAILURE_RATE = 0.05
+MAX_FAILURE_COUNT = 12
 
 HERE = Path(__file__).resolve().parent
 LOCAL_MANIFEST_PATH = HERE / "_local_manifest.md"
+
+BASE_A_GSM8K_ARTIFACT = HERE / "results" / "exp_e1_task_band.json"
+BASE_A_SORTED_INDICES_SHA256 = (
+    "0cc16e5a27c42ed8cab155006c25883a2695cac4131150b7e1d61334e912192b"
+)
+BASE_B_SELECTION_STRING = "semantic-ratchet-base-b-gsm8k-v1-2026-08-09"
+BASE_B_ORDERED_INDICES_SHA256 = (
+    "670705ea2936f75f0e90a4048d3f5b5ec3a63b42577c0d7a9df87253b77444ff"
+)
+GSM8K_TEST_SPLIT_SIZE = 1319
+BASE_B_RESULT_FILENAME = "exp_e1_task_band_base_b.json"
+BASE_B_INITIAL_PARSER_MISS_FILENAME = (
+    "exp_e1_task_band_base_b_initial_parser_miss.json"
+)
 
 UNSIGNED_DECIMAL_PATTERN = r"(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\.[0-9]+)?"
 SIGNED_DECIMAL_PATTERN = rf"[-+]?{UNSIGNED_DECIMAL_PATTERN}"
@@ -135,11 +163,6 @@ STRICT_NUMBER_RE = re.compile(rf"\A{NUMBER_PATTERN}\Z")
 ANSWER_BOUNDARY_LINE_RE = re.compile(r"(?m)^[ \t]*####[^\r\n]*(?:\r?$)")
 ANY_NUMBER_RE = re.compile(NUMBER_PATTERN)
 NEW_QUESTION_RE = re.compile(r"(?m)^\s*Question\s*:")
-MANIFEST_MODEL_ENTRY_RE = re.compile(r"^-\s*`base-A`:\s*`([^`]+)`\s*$")
-MANIFEST_REVISION_ENTRY_RE = re.compile(
-    r"^-\s*`base-A-revision`:\s*`([0-9a-f]{40})`\s*$"
-)
-
 PROMPT_PREAMBLE = (
     "Solve each grade-school math problem step by step. End every answer with "
     "a separate line in exactly this form:\n#### <numeric answer>"
@@ -153,6 +176,19 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         choices=tuple(DATASET_SPECS),
         default="gsm8k",
         help="task-band dataset; defaults to the immutable GSM8K primary path",
+    )
+    parser.add_argument(
+        "--successor-base-b",
+        action="store_true",
+        help="use the preregistered disjoint GSM8K successor gate for base-B",
+    )
+    parser.add_argument(
+        "--cohort-only",
+        action="store_true",
+        help=(
+            "assert and report the successor cohort without loading a model or "
+            "generating responses; requires --successor-base-b"
+        ),
     )
     parser.add_argument(
         "--smoke",
@@ -177,6 +213,14 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         parser.error(f"--smoke N must satisfy 1 <= N <= {CANONICAL_SAMPLE_COUNT}")
     if args.smoke is not None and args.parser_attempt != "initial":
         parser.error("--parser-attempt repaired is only valid for the canonical run")
+    if args.successor_base_b and args.dataset != "gsm8k":
+        parser.error("--successor-base-b is restricted to the frozen GSM8K task")
+    if args.cohort_only and not args.successor_base_b:
+        parser.error("--cohort-only requires --successor-base-b")
+    if args.cohort_only and args.smoke is not None:
+        parser.error("--cohort-only and --smoke are mutually exclusive")
+    if args.cohort_only and args.parser_attempt != "initial":
+        parser.error("--cohort-only does not perform a parser attempt")
     return args
 
 
@@ -191,35 +235,122 @@ def configure_runtime() -> None:
     torch.backends.cuda.matmul.allow_tf32 = False
 
 
-def load_private_model_coordinates() -> tuple[str, str]:
+def load_private_model_coordinates(
+    public_model_name: str,
+) -> tuple[str, str, str | None]:
     if not LOCAL_MANIFEST_PATH.is_file():
-        raise RuntimeError("the gitignored local manifest for base-A is missing")
+        raise RuntimeError("the gitignored local model manifest is missing")
+
+    model_entry_re = re.compile(
+        rf"^-\s*`{re.escape(public_model_name)}`:\s*`([^`]+)`\s*$"
+    )
+    revision_entry_re = re.compile(
+        rf"^-\s*`{re.escape(public_model_name)}-revision`:\s*`([0-9a-f]{{40}})`\s*$"
+    )
+    digest_entry_re = re.compile(
+        rf"^-\s*`{re.escape(public_model_name)}-local-content-sha256`:\s*"
+        r"`([0-9a-f]{64})`\s*$"
+    )
 
     model_matches = []
     revision_matches = []
+    digest_matches = []
     for line in LOCAL_MANIFEST_PATH.read_text(encoding="utf-8").splitlines():
         stripped = line.strip()
-        model_match = MANIFEST_MODEL_ENTRY_RE.fullmatch(stripped)
+        model_match = model_entry_re.fullmatch(stripped)
         if model_match:
             model_matches.append(model_match.group(1).strip())
-        revision_match = MANIFEST_REVISION_ENTRY_RE.fullmatch(stripped)
+        revision_match = revision_entry_re.fullmatch(stripped)
         if revision_match:
             revision_matches.append(revision_match.group(1))
+        digest_match = digest_entry_re.fullmatch(stripped)
+        if digest_match:
+            digest_matches.append(digest_match.group(1))
 
     if len(model_matches) != 1 or not model_matches[0]:
-        raise RuntimeError("the local manifest must contain exactly one base-A entry")
+        raise RuntimeError(
+            f"the local manifest must contain exactly one {public_model_name} entry"
+        )
     if len(revision_matches) != 1:
         raise RuntimeError(
-            "the local manifest must contain exactly one base-A-revision entry"
+            "the local manifest must contain exactly one "
+            f"{public_model_name}-revision entry"
         )
-    return model_matches[0], revision_matches[0]
+    if public_model_name == BASE_B_PUBLIC_NAME and len(digest_matches) != 1:
+        raise RuntimeError(
+            "the local manifest must contain exactly one base-B content digest"
+        )
+    return (
+        model_matches[0],
+        revision_matches[0],
+        digest_matches[0] if digest_matches else None,
+    )
 
 
-def result_path(dataset_spec: DatasetSpec) -> Path:
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(8 * 1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def snapshot_content_digest(snapshot_path: Path) -> str:
+    digest = hashlib.sha256()
+    files = sorted(path for path in snapshot_path.rglob("*") if path.is_file())
+    if not files:
+        raise RuntimeError("the private checkpoint snapshot is empty")
+    for path in files:
+        relative_path = path.relative_to(snapshot_path).as_posix()
+        digest.update(relative_path.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(str(path.stat().st_size).encode("ascii"))
+        digest.update(b"\0")
+        digest.update(file_sha256(path).encode("ascii"))
+        digest.update(b"\n")
+    return digest.hexdigest()
+
+
+def validate_local_checkpoint_snapshot(
+    model_identifier: str,
+    model_revision: str,
+    recorded_content_digest: str | None,
+    public_model_name: str,
+) -> None:
+    if public_model_name != BASE_B_PUBLIC_NAME:
+        return
+    if os.environ.get("HF_HUB_OFFLINE") != "1":
+        raise RuntimeError("base-B execution requires HF_HUB_OFFLINE=1")
+
+    configured_home = os.environ.get("HF_HOME")
+    if not configured_home:
+        raise RuntimeError("base-B execution requires the workspace-local HF_HOME")
+    expected_home = (HERE.parent.parent / ".hf_cache").resolve()
+    if Path(configured_home).resolve() != expected_home:
+        raise RuntimeError("base-B execution requires HF_HOME=<repo>/.hf_cache")
+
+    cache_key = f"models--{model_identifier.replace('/', '--')}"
+    snapshot_path = expected_home / "hub" / cache_key / "snapshots" / model_revision
+    if not snapshot_path.is_dir():
+        raise RuntimeError("the revision-pinned base-B snapshot is absent offline")
+    if not recorded_content_digest:
+        raise RuntimeError("the base-B local content digest is absent")
+    if snapshot_content_digest(snapshot_path) != recorded_content_digest:
+        raise RuntimeError("the base-B local snapshot content digest changed")
+
+
+def result_path(dataset_spec: DatasetSpec, successor_base_b: bool = False) -> Path:
+    if successor_base_b:
+        return HERE / "results" / BASE_B_RESULT_FILENAME
     return HERE / "results" / dataset_spec.result_filename
 
 
-def initial_parser_miss_path(dataset_spec: DatasetSpec) -> Path:
+def initial_parser_miss_path(
+    dataset_spec: DatasetSpec,
+    successor_base_b: bool = False,
+) -> Path:
+    if successor_base_b:
+        return HERE / "results" / BASE_B_INITIAL_PARSER_MISS_FILENAME
     return HERE / "results" / dataset_spec.initial_parser_miss_filename
 
 
@@ -268,6 +399,69 @@ def canonical_test_indices(split_size: int) -> list[int]:
 def selection_digest(indices: Sequence[int]) -> str:
     payload = ",".join(str(index) for index in indices).encode("ascii")
     return hashlib.sha256(payload).hexdigest()
+
+
+def load_base_a_consumed_gsm8k_indices() -> list[int]:
+    try:
+        artifact = json.loads(BASE_A_GSM8K_ARTIFACT.read_text(encoding="utf-8"))
+        indices = sorted(
+            int(record["dataset_index"]) for record in artifact["per_example"]
+        )
+    except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError) as error:
+        raise RuntimeError("the immutable base-A GSM8K cohort is invalid") from error
+
+    if len(indices) != CANONICAL_SAMPLE_COUNT or len(set(indices)) != len(indices):
+        raise RuntimeError("the immutable base-A GSM8K cohort is not 256 unique rows")
+    if selection_digest(indices) != BASE_A_SORTED_INDICES_SHA256:
+        raise RuntimeError("the immutable base-A GSM8K cohort hash changed")
+    return indices
+
+
+def successor_base_b_test_indices(split_size: int) -> tuple[list[int], dict[str, Any]]:
+    if split_size != GSM8K_TEST_SPLIT_SIZE:
+        raise RuntimeError("the revision-pinned GSM8K test split size changed")
+
+    consumed = load_base_a_consumed_gsm8k_indices()
+    consumed_set = set(consumed)
+    pool = [index for index in range(split_size) if index not in consumed_set]
+    if len(pool) != 1063:
+        raise RuntimeError("the disjoint base-B candidate pool must contain 1063 rows")
+
+    def ranking_key(index: int) -> tuple[bytes, int]:
+        payload = (
+            f"{DATASET_SPECS['gsm8k'].revision}\n"
+            f"{BASE_B_SELECTION_STRING}\n{index}"
+        ).encode("ascii")
+        return hashlib.sha256(payload).digest(), index
+
+    selected = sorted(pool, key=ranking_key)[:CANONICAL_SAMPLE_COUNT]
+    selected_hash = selection_digest(selected)
+    overlap_count = len(set(selected) & consumed_set)
+    remaining_count = split_size - len(consumed_set | set(selected))
+    if len(selected) != CANONICAL_SAMPLE_COUNT:
+        raise RuntimeError("the base-B cohort does not contain 256 rows")
+    if len(set(selected)) != CANONICAL_SAMPLE_COUNT:
+        raise RuntimeError("the base-B cohort contains duplicate rows")
+    if overlap_count != 0:
+        raise RuntimeError("the base-B cohort overlaps the base-A cohort")
+    if remaining_count != 807:
+        raise RuntimeError("the reserved final-evaluation pool must contain 807 rows")
+    if selected_hash != BASE_B_ORDERED_INDICES_SHA256:
+        raise RuntimeError("the base-B ordered cohort hash changed")
+
+    return selected, {
+        "method": "sha256_ranked_disjoint_official_test_pool",
+        "selection_string": BASE_B_SELECTION_STRING,
+        "base_a_consumed_count": len(consumed),
+        "base_a_sorted_indices_sha256": selection_digest(consumed),
+        "candidate_pool_count": len(pool),
+        "canonical_sample_count": len(selected),
+        "canonical_unique_count": len(set(selected)),
+        "canonical_indices_sha256": selected_hash,
+        "overlap_with_base_a_count": overlap_count,
+        "remaining_unconsumed_official_test_count": remaining_count,
+        "smoke_uses_canonical_prefix": True,
+    }
 
 
 def build_five_shot_messages(
@@ -538,6 +732,38 @@ def extract_predicted_answer(
         if normalized is not None:
             return normalized, "last_numeric_token_in_first_segment", segment, segment_stop_reason
     return None, None, segment, segment_stop_reason
+
+
+def successor_outcome_taxonomy(
+    predicted: str | None,
+    gold: str,
+    scored_response_segment: str,
+) -> dict[str, bool | str]:
+    correct = predicted == gold
+    valid_incorrect = predicted is not None and not correct
+    if predicted is None:
+        model_empty = not bool(numeric_candidates(scored_response_segment))
+        parser_failure = not model_empty
+    else:
+        model_empty = False
+        parser_failure = False
+
+    categories = {
+        "correct_numeric": correct,
+        "valid_extracted_incorrect": valid_incorrect,
+        "model_empty_non_answer": model_empty,
+        "parser_recognition_failure": parser_failure,
+    }
+    if sum(categories.values()) != 1:
+        raise RuntimeError("successor outcome taxonomy is not mutually exclusive")
+    category = next(name for name, active in categories.items() if active)
+    return {
+        "outcome_category": category,
+        **categories,
+        "correct": correct,
+        "extraction_failed": predicted is None,
+        "exact_answer_failure": not correct,
+    }
 
 
 def validate_numeric_extraction() -> None:
@@ -952,27 +1178,101 @@ def canonical_verdict(
     }
 
 
-def load_base_a(
+def successor_canonical_verdict(
+    correct_count: int,
+    usable_incorrect_count: int,
+    model_empty_non_answer_count: int,
+    parser_recognition_failure_count: int,
+    parser_evidence: dict[str, Any],
+    parser_miss_path: Path,
+) -> dict[str, Any]:
+    if model_empty_non_answer_count > MAX_FAILURE_COUNT:
+        return {
+            "token": "VOID",
+            "reason": "model_empty_non_answer_count_above_12_of_256",
+            "next_action": "return to steering; no successor fallback is permitted",
+            "terminal": True,
+        }
+
+    if parser_recognition_failure_count > MAX_FAILURE_COUNT:
+        if parser_evidence["attempt"] == "initial":
+            return {
+                "token": "PARSER-REPAIR-REQUIRED",
+                "reason": "initial_parser_recognition_failure_count_above_12_of_256",
+                "next_action": (
+                    "independently review the failed scored segments and perform "
+                    "at most one eligible parser repair under the frozen scope"
+                ),
+                "terminal": False,
+            }
+        repaired_attempt_is_qualified = (
+            parser_evidence["attempt"] == "repaired"
+            and parser_evidence.get("source_changed_from_initial") is True
+            and bool(parser_evidence.get("initial_miss_artifact_sha256"))
+            and parser_miss_path.is_file()
+        )
+        if not repaired_attempt_is_qualified:
+            raise RuntimeError(
+                "terminal parser-recognition VOID requires a qualified repair"
+            )
+        return {
+            "token": "VOID",
+            "reason": "repaired_parser_recognition_failure_count_above_12_of_256",
+            "next_action": "return to steering; no successor fallback is permitted",
+            "terminal": True,
+        }
+
+    if correct_count < PASS_MIN_CORRECT or correct_count < MIN_CORRECT_POPULATION:
+        return {
+            "token": "VOID",
+            "reason": "below_band_or_fewer_than_40_correct",
+            "next_action": "return to steering; no successor fallback is permitted",
+            "terminal": True,
+        }
+    if correct_count > PASS_MAX_CORRECT or usable_incorrect_count < 40:
+        return {
+            "token": "VOID",
+            "reason": "above_band_or_fewer_than_40_usable_incorrect",
+            "next_action": "return to steering; no successor fallback is permitted",
+            "terminal": True,
+        }
+    return {
+        "token": "PASS",
+        "reason": "all_successor_task_band_thresholds_satisfied",
+        "next_action": (
+            "the full program still requires an admissible mechanics outcome, "
+            "replacement transfer-set preregistration, and launch review"
+        ),
+        "terminal": False,
+    }
+
+
+def load_frozen_base(
     model_identifier: str,
     model_revision: str,
     device: torch.device,
+    public_model_name: str,
 ):
     tokenizer = AutoTokenizer.from_pretrained(
         model_identifier,
         revision=model_revision,
+        local_files_only=True,
         trust_remote_code=False,
     )
     if tokenizer.chat_template is None:
-        raise RuntimeError("base-A tokenizer has no chat template")
+        raise RuntimeError(f"{public_model_name} tokenizer has no chat template")
     if tokenizer.pad_token_id is None:
         if tokenizer.eos_token_id is None:
-            raise RuntimeError("base-A tokenizer has neither a pad nor EOS token")
+            raise RuntimeError(
+                f"{public_model_name} tokenizer has neither a pad nor EOS token"
+            )
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"
 
     model = AutoModelForCausalLM.from_pretrained(
         model_identifier,
         revision=model_revision,
+        local_files_only=True,
         torch_dtype=torch.bfloat16,
         trust_remote_code=False,
     )
@@ -981,10 +1281,16 @@ def load_base_a(
     return tokenizer, model
 
 
-def validate_context_window(model, prompt_tokens: int) -> None:
+def validate_context_window(
+    model,
+    prompt_tokens: int,
+    public_model_name: str,
+) -> None:
     context_limit = getattr(model.config, "max_position_embeddings", None)
     if context_limit is not None and prompt_tokens + MAX_NEW_TOKENS > context_limit:
-        raise RuntimeError("the fixed five-shot prompt exceeds base-A's context window")
+        raise RuntimeError(
+            f"the fixed five-shot prompt exceeds {public_model_name}'s context window"
+        )
 
 
 def evaluate_examples(
@@ -996,6 +1302,8 @@ def evaluate_examples(
     model,
     device: torch.device,
     batch_size: int,
+    public_model_name: str,
+    successor_base_b: bool,
 ) -> tuple[list[dict[str, Any]], float, float]:
     records: list[dict[str, Any]] = []
     started = time.perf_counter()
@@ -1029,7 +1337,7 @@ def evaluate_examples(
         input_ids = encoded["input_ids"].to(device)
         attention_mask = encoded["attention_mask"].to(device)
         generation_start = int(input_ids.shape[1])
-        validate_context_window(model, generation_start)
+        validate_context_window(model, generation_start, public_model_name)
         boundary_criteria = NewQuestionBoundaryCriteria(
             tokenizer=tokenizer,
             generation_start=generation_start,
@@ -1118,6 +1426,20 @@ def evaluate_examples(
         ):
             gold = row_gold_answer(row, dataset_spec)
             predicted = metadata["extracted_answer"]
+            if successor_base_b:
+                outcome_fields = successor_outcome_taxonomy(
+                    predicted=predicted,
+                    gold=gold,
+                    scored_response_segment=metadata["scored_response_segment"],
+                )
+            else:
+                outcome_fields = {
+                    "extraction_failed": predicted is None,
+                    "valid_extracted_incorrect": (
+                        predicted is not None and predicted != gold
+                    ),
+                    "correct": predicted == gold,
+                }
             token_share = (
                 int(metadata["generated_tokens"]) / batch_token_total
                 if batch_token_total
@@ -1130,11 +1452,7 @@ def evaluate_examples(
                     "question": row_question(row, dataset_spec),
                     "gold_answer": gold,
                     **metadata,
-                    "extraction_failed": predicted is None,
-                    "valid_extracted_incorrect": (
-                        predicted is not None and predicted != gold
-                    ),
-                    "correct": predicted == gold,
+                    **outcome_fields,
                     "prompt_tokens": int(attention_mask[row_index].sum().item()),
                     "generation_seconds_share": batch_generation_seconds * token_share,
                 }
@@ -1162,6 +1480,9 @@ def summarize(
     vram: dict[str, Any],
     dataset_spec: DatasetSpec,
     parser_miss_path: Path,
+    public_model_name: str,
+    successor_base_b: bool,
+    selection_evidence: dict[str, Any],
 ) -> dict[str, Any]:
     generation_verification_field = (
         "repeat_determinism"
@@ -1199,15 +1520,56 @@ def summarize(
     )
 
     extraction_failure_rate = failure_count / denominator
-    if mode == "canonical":
-        verdict = canonical_verdict(
-            correct_count=correct_count,
-            valid_extracted_incorrect_count=valid_extracted_incorrect_count,
-            extraction_failure_rate=extraction_failure_rate,
-            parser_evidence=parser_evidence,
-            dataset_spec=dataset_spec,
-            parser_miss_path=parser_miss_path,
+    successor_counts: dict[str, int] = {}
+    if successor_base_b:
+        successor_counts = {
+            category: sum(record[category] for record in records)
+            for category in (
+                "correct_numeric",
+                "valid_extracted_incorrect",
+                "model_empty_non_answer",
+                "parser_recognition_failure",
+            )
+        }
+        if sum(successor_counts.values()) != denominator:
+            raise RuntimeError("successor outcome categories do not exhaust the cohort")
+        if successor_counts["correct_numeric"] != correct_count:
+            raise RuntimeError("successor correct-category accounting diverged")
+        if (
+            successor_counts["model_empty_non_answer"]
+            + successor_counts["parser_recognition_failure"]
+            != failure_count
+        ):
+            raise RuntimeError("successor extraction-failure accounting diverged")
+        usable_incorrect_count = (
+            successor_counts["valid_extracted_incorrect"]
+            + successor_counts["model_empty_non_answer"]
         )
+    else:
+        usable_incorrect_count = valid_extracted_incorrect_count
+    if mode == "canonical":
+        if successor_base_b:
+            verdict = successor_canonical_verdict(
+                correct_count=correct_count,
+                usable_incorrect_count=usable_incorrect_count,
+                model_empty_non_answer_count=successor_counts[
+                    "model_empty_non_answer"
+                ],
+                parser_recognition_failure_count=successor_counts[
+                    "parser_recognition_failure"
+                ],
+                parser_evidence=parser_evidence,
+                parser_miss_path=parser_miss_path,
+            )
+        else:
+            verdict = canonical_verdict(
+                correct_count=correct_count,
+                valid_extracted_incorrect_count=valid_extracted_incorrect_count,
+                extraction_failure_rate=extraction_failure_rate,
+                parser_evidence=parser_evidence,
+                dataset_spec=dataset_spec,
+                parser_miss_path=parser_miss_path,
+            )
     else:
         verdict = {
             "token": "SMOKE_ONLY",
@@ -1224,7 +1586,7 @@ def summarize(
             else ("COMPLETE" if mode == "canonical" else "SMOKE_ONLY")
         ),
         "mode": mode,
-        "model": PUBLIC_MODEL_NAME,
+        "model": public_model_name,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "protocol": {
             "dataset": dataset_spec.name,
@@ -1235,13 +1597,7 @@ def summarize(
             "evaluation_split": TEST_SPLIT,
             "dataset_provenance": dataset_provenance,
             "leakage_preflight": leakage_check,
-            "selection": {
-                "method": "python_random_sample_without_replacement",
-                "seed": SEED,
-                "canonical_sample_count": CANONICAL_SAMPLE_COUNT,
-                "canonical_indices_sha256": selection_digest(canonical_indices),
-                "smoke_uses_canonical_prefix": True,
-            },
+            "selection": selection_evidence,
             "five_shot_demonstrations": {
                 "split": TRAIN_SPLIT,
                 "indices": list(DEMONSTRATION_INDICES),
@@ -1285,19 +1641,69 @@ def summarize(
                 "parser_source_sha256": parser_evidence["source_sha256"],
                 "parser_provenance": parser_evidence,
             },
-            "thresholds": {
-                "correct_count_inclusive": [PASS_MIN_CORRECT, PASS_MAX_CORRECT],
-                "minimum_correct_population": MIN_CORRECT_POPULATION,
-                "minimum_valid_extracted_incorrect_population": (
-                    MIN_INCORRECT_POPULATION
-                ),
-                "maximum_extraction_failure_rate": MAX_EXTRACTION_FAILURE_RATE,
-            },
+            "thresholds": (
+                {
+                    "correct_count_inclusive": [PASS_MIN_CORRECT, PASS_MAX_CORRECT],
+                    "minimum_correct_population": MIN_CORRECT_POPULATION,
+                    "minimum_usable_incorrect_population": MIN_INCORRECT_POPULATION,
+                    "maximum_model_empty_non_answer_count": MAX_FAILURE_COUNT,
+                    "maximum_parser_recognition_failure_count": MAX_FAILURE_COUNT,
+                    "denominator": CANONICAL_SAMPLE_COUNT,
+                }
+                if successor_base_b
+                else {
+                    "correct_count_inclusive": [PASS_MIN_CORRECT, PASS_MAX_CORRECT],
+                    "minimum_correct_population": MIN_CORRECT_POPULATION,
+                    "minimum_valid_extracted_incorrect_population": (
+                        MIN_INCORRECT_POPULATION
+                    ),
+                    "maximum_extraction_failure_rate": MAX_EXTRACTION_FAILURE_RATE,
+                }
+            ),
         },
         "sample_count": denominator,
         "correct_count": correct_count,
         "exact_answer_failure_count": exact_answer_failure_count,
         "valid_extracted_incorrect_count": valid_extracted_incorrect_count,
+        **(
+            {
+                "correct_numeric_count": successor_counts["correct_numeric"],
+                "model_empty_non_answer_count": successor_counts[
+                    "model_empty_non_answer"
+                ],
+                "parser_recognition_failure_count": successor_counts[
+                    "parser_recognition_failure"
+                ],
+                "usable_incorrect_count": usable_incorrect_count,
+                "outcome_categories": {
+                    category: {
+                        "numerator": count,
+                        "denominator": denominator,
+                        "rate": count / denominator,
+                    }
+                    for category, count in successor_counts.items()
+                },
+                "model_empty_non_answers": {
+                    "numerator": successor_counts["model_empty_non_answer"],
+                    "denominator": denominator,
+                    "rate": successor_counts["model_empty_non_answer"] / denominator,
+                },
+                "parser_recognition_failures": {
+                    "numerator": successor_counts["parser_recognition_failure"],
+                    "denominator": denominator,
+                    "rate": (
+                        successor_counts["parser_recognition_failure"] / denominator
+                    ),
+                },
+                "usable_incorrect": {
+                    "numerator": usable_incorrect_count,
+                    "denominator": denominator,
+                    "rate": usable_incorrect_count / denominator,
+                },
+            }
+            if successor_base_b
+            else {}
+        ),
         "exact_answer_accuracy": {
             "numerator": correct_count,
             "denominator": denominator,
@@ -1339,6 +1745,8 @@ def leakage_void_result(
     leakage_check: dict[str, Any],
     parser_evidence: dict[str, Any],
     dataset_spec: DatasetSpec,
+    public_model_name: str,
+    selection_evidence: dict[str, Any],
 ) -> dict[str, Any]:
     if leakage_check["status"] != "FAIL" or leakage_check["overlap_count"] < 1:
         raise RuntimeError("leakage VOID requires positive leakage evidence")
@@ -1347,7 +1755,7 @@ def leakage_void_result(
         "status": "COMPLETE",
         "mode": "canonical",
         "trigger_mode": trigger_mode,
-        "model": PUBLIC_MODEL_NAME,
+        "model": public_model_name,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "protocol": {
             "dataset": dataset_spec.name,
@@ -1358,12 +1766,7 @@ def leakage_void_result(
             "evaluation_split": TEST_SPLIT,
             "dataset_provenance": dataset_provenance,
             "leakage_preflight": leakage_check,
-            "selection": {
-                "method": "python_random_sample_without_replacement",
-                "seed": SEED,
-                "canonical_sample_count": CANONICAL_SAMPLE_COUNT,
-                "canonical_indices_sha256": selection_digest(canonical_indices),
-            },
+            "selection": selection_evidence,
             "five_shot_demonstrations": {
                 "split": TRAIN_SPLIT,
                 "indices": list(DEMONSTRATION_INDICES),
@@ -1416,7 +1819,10 @@ def write_canonical_result(
     verdict = result.get("verdict", {})
     if verdict.get("token") == "VOID":
         reason = verdict.get("reason")
-        if reason == "repaired_extraction_failure_rate_above_5_percent":
+        if reason in {
+            "repaired_extraction_failure_rate_above_5_percent",
+            "repaired_parser_recognition_failure_count_above_12_of_256",
+        }:
             parser_evidence = result.get("protocol", {}).get(
                 "answer_extraction", {}
             ).get("parser_provenance", {})
@@ -1442,6 +1848,15 @@ def write_canonical_result(
                 raise RuntimeError(
                     "terminal extraction-failure VOID lacks qualified repair evidence"
                 )
+            if (
+                reason
+                == "repaired_parser_recognition_failure_count_above_12_of_256"
+                and result.get("parser_recognition_failure_count", 0)
+                <= MAX_FAILURE_COUNT
+            ):
+                raise RuntimeError(
+                    "terminal parser-recognition VOID lacks a threshold miss"
+                )
         elif reason == "demonstration_or_cohort_leakage_detected":
             leakage_check = result.get("protocol", {}).get("leakage_preflight", {})
             if (
@@ -1450,6 +1865,51 @@ def write_canonical_result(
                 or not leakage_check.get("overlaps")
             ):
                 raise RuntimeError("terminal leakage VOID lacks leakage evidence")
+        elif result.get("model") == BASE_B_PUBLIC_NAME and reason in {
+            "model_empty_non_answer_count_above_12_of_256",
+            "below_band_or_fewer_than_40_correct",
+            "above_band_or_fewer_than_40_usable_incorrect",
+        }:
+            correct_count = result.get("correct_count")
+            usable_incorrect_count = result.get("usable_incorrect_count")
+            model_empty_count = result.get("model_empty_non_answer_count")
+            parser_failure_count = result.get("parser_recognition_failure_count")
+            successor_counts = (
+                result.get("correct_numeric_count", 0)
+                + result.get("valid_extracted_incorrect_count", 0)
+                + (model_empty_count or 0)
+                + (parser_failure_count or 0)
+            )
+            reason_is_supported = (
+                (
+                    reason == "model_empty_non_answer_count_above_12_of_256"
+                    and isinstance(model_empty_count, int)
+                    and model_empty_count > MAX_FAILURE_COUNT
+                )
+                or (
+                    reason == "below_band_or_fewer_than_40_correct"
+                    and isinstance(correct_count, int)
+                    and (
+                        correct_count < PASS_MIN_CORRECT
+                        or correct_count < MIN_CORRECT_POPULATION
+                    )
+                )
+                or (
+                    reason == "above_band_or_fewer_than_40_usable_incorrect"
+                    and isinstance(correct_count, int)
+                    and isinstance(usable_incorrect_count, int)
+                    and (
+                        correct_count > PASS_MAX_CORRECT
+                        or usable_incorrect_count < MIN_INCORRECT_POPULATION
+                    )
+                )
+            )
+            if (
+                result.get("sample_count") != CANONICAL_SAMPLE_COUNT
+                or successor_counts != CANONICAL_SAMPLE_COUNT
+                or not reason_is_supported
+            ):
+                raise RuntimeError("terminal successor VOID lacks qualifying evidence")
         elif reason in {
             "fallback_below_band_or_fewer_than_40_correct",
             "fallback_above_band_or_fewer_than_40_valid_extracted_incorrect",
@@ -1601,6 +2061,8 @@ def verify_batch_equivalence(
     tokenizer,
     model,
     device: torch.device,
+    public_model_name: str,
+    successor_base_b: bool,
 ) -> tuple[dict[str, Any], float]:
     check_count = min(EQUIVALENCE_CHECK_COUNT, len(selected_indices))
     if check_count == 0:
@@ -1615,6 +2077,8 @@ def verify_batch_equivalence(
         model=model,
         device=device,
         batch_size=1,
+        public_model_name=public_model_name,
+        successor_base_b=successor_base_b,
     )
     comparisons = []
     for batched, unbatched in zip(
@@ -1692,19 +2156,24 @@ def run(args: argparse.Namespace) -> int:
     )
 
     dataset_spec = DATASET_SPECS[args.dataset]
-    canonical_result_path = result_path(dataset_spec)
-    parser_miss_path = initial_parser_miss_path(dataset_spec)
-    mode = "smoke" if args.smoke is not None else "canonical"
+    public_model_name = (
+        BASE_B_PUBLIC_NAME if args.successor_base_b else BASE_A_PUBLIC_NAME
+    )
+    canonical_result_path = result_path(dataset_spec, args.successor_base_b)
+    parser_miss_path = initial_parser_miss_path(
+        dataset_spec,
+        args.successor_base_b,
+    )
+    mode = (
+        "cohort_only"
+        if args.cohort_only
+        else ("smoke" if args.smoke is not None else "canonical")
+    )
     if mode == "canonical" and canonical_result_path.exists():
         raise RuntimeError(
             f"canonical {dataset_spec.name} E1 evidence already exists and will not "
             "be overwritten"
         )
-    parser_evidence = parser_provenance(
-        mode,
-        args.parser_attempt,
-        parser_miss_path,
-    )
 
     print(
         f"Loading revision-pinned {dataset_spec.name} train/test splits.",
@@ -1717,7 +2186,19 @@ def run(args: argparse.Namespace) -> int:
     )
     train_split = dataset[TRAIN_SPLIT]
     test_split = dataset[TEST_SPLIT]
-    canonical_indices = canonical_test_indices(len(test_split))
+    if args.successor_base_b:
+        canonical_indices, selection_evidence = successor_base_b_test_indices(
+            len(test_split)
+        )
+    else:
+        canonical_indices = canonical_test_indices(len(test_split))
+        selection_evidence = {
+            "method": "python_random_sample_without_replacement",
+            "seed": SEED,
+            "canonical_sample_count": CANONICAL_SAMPLE_COUNT,
+            "canonical_indices_sha256": selection_digest(canonical_indices),
+            "smoke_uses_canonical_prefix": True,
+        }
     selected_indices = (
         canonical_indices[: args.smoke]
         if args.smoke is not None
@@ -1748,6 +2229,39 @@ def run(args: argparse.Namespace) -> int:
             dataset_spec,
         ),
     }
+    selection_evidence.update(
+        {
+            "selected_row_content_sha256": dataset_provenance[
+                "canonical_cohort_content_sha256"
+            ],
+            "dataset_split_fingerprint": dataset_provenance[
+                "test_split_fingerprint"
+            ],
+        }
+    )
+    if args.cohort_only:
+        print(
+            json.dumps(
+                {
+                    "status": "COHORT_ASSERTIONS_PASS",
+                    "model": public_model_name,
+                    "dataset": dataset_spec.name,
+                    "dataset_revision": dataset_spec.revision,
+                    "selection": selection_evidence,
+                    "dataset_provenance": dataset_provenance,
+                    "generation_performed": False,
+                    "model_coordinates_read": False,
+                },
+                indent=2,
+            )
+        )
+        return 0
+
+    parser_evidence = parser_provenance(
+        mode,
+        args.parser_attempt,
+        parser_miss_path,
+    )
     if leakage_check["status"] == "FAIL":
         result = leakage_void_result(
             trigger_mode=mode,
@@ -1756,6 +2270,8 @@ def run(args: argparse.Namespace) -> int:
             leakage_check=leakage_check,
             parser_evidence=parser_evidence,
             dataset_spec=dataset_spec,
+            public_model_name=public_model_name,
+            selection_evidence=selection_evidence,
         )
         write_canonical_result(
             result,
@@ -1766,7 +2282,7 @@ def run(args: argparse.Namespace) -> int:
             json.dumps(
                 {
                     "status": result["status"],
-                    "model": PUBLIC_MODEL_NAME,
+                    "model": public_model_name,
                     "sample_count": result["sample_count"],
                     "verdict": result["verdict"],
                     "leakage_evidence": leakage_check,
@@ -1780,11 +2296,26 @@ def run(args: argparse.Namespace) -> int:
         return 2
 
     if not torch.cuda.is_available():
-        raise RuntimeError("CUDA is required for the base-A task-band evaluator")
-    model_identifier, model_revision = load_private_model_coordinates()
-    print(f"Loading {PUBLIC_MODEL_NAME} on CUDA.", flush=True)
+        raise RuntimeError(
+            f"CUDA is required for the {public_model_name} task-band evaluator"
+        )
+    model_identifier, model_revision, recorded_content_digest = (
+        load_private_model_coordinates(public_model_name)
+    )
+    validate_local_checkpoint_snapshot(
+        model_identifier=model_identifier,
+        model_revision=model_revision,
+        recorded_content_digest=recorded_content_digest,
+        public_model_name=public_model_name,
+    )
+    print(f"Loading {public_model_name} on CUDA.", flush=True)
     device = torch.device("cuda:0")
-    tokenizer, model = load_base_a(model_identifier, model_revision, device)
+    tokenizer, model = load_frozen_base(
+        model_identifier,
+        model_revision,
+        device,
+        public_model_name,
+    )
 
     print(
         (
@@ -1804,6 +2335,8 @@ def run(args: argparse.Namespace) -> int:
             model=model,
             device=device,
             batch_size=dataset_spec.batch_size,
+            public_model_name=public_model_name,
+            successor_base_b=args.successor_base_b,
         )
     )
     if dataset_spec.key == "svamp":
@@ -1820,6 +2353,8 @@ def run(args: argparse.Namespace) -> int:
         tokenizer=tokenizer,
         model=model,
         device=device,
+        public_model_name=public_model_name,
+        successor_base_b=args.successor_base_b,
     )
     device_total_bytes = torch.cuda.get_device_properties(device).total_memory
     peak_allocated_bytes = torch.cuda.max_memory_allocated(device)
@@ -1851,6 +2386,9 @@ def run(args: argparse.Namespace) -> int:
         vram=vram,
         dataset_spec=dataset_spec,
         parser_miss_path=parser_miss_path,
+        public_model_name=public_model_name,
+        successor_base_b=args.successor_base_b,
+        selection_evidence=selection_evidence,
     )
 
     if mode == "canonical":
@@ -1869,7 +2407,7 @@ def run(args: argparse.Namespace) -> int:
             json.dumps(
                 {
                     "status": result["status"],
-                    "model": PUBLIC_MODEL_NAME,
+                    "model": public_model_name,
                     "sample_count": result["sample_count"],
                     "verdict": result["verdict"],
                     "result_path": str(
@@ -1889,13 +2427,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         return run(parse_args(argv))
     except KeyboardInterrupt:
-        print("ERROR: base-A task-band evaluation interrupted.", file=sys.stderr)
+        print("ERROR: task-band evaluation interrupted.", file=sys.stderr)
         return 130
     except Exception as error:
         # Exception messages from dependency clients can contain the private
         # identifier. Report only the public alias and exception class.
         print(
-            f"ERROR: base-A task-band evaluation failed ({type(error).__name__}).",
+            f"ERROR: task-band evaluation failed ({type(error).__name__}).",
             file=sys.stderr,
         )
         return 1
