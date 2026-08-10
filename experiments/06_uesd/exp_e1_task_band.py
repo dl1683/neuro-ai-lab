@@ -25,6 +25,13 @@ Successor protocol (``--successor-base-b``):
   - write only ``exp_e1_task_band_base_b.json`` (or the qualified initial
     parser-miss sidecar), refusing to overwrite evidence.
 
+Repaired parser protocol (canonical ``--parser-attempt repaired`` only):
+  - load the exact immutable responses from the initial parser-miss artifact;
+  - perform extraction and outcome classification only, with no model load or
+    generation;
+  - require byte-identical response-set, cohort, prompt, decoding, and stopping
+    evidence before a repaired verdict can be written.
+
 The ``--cohort-only`` successor path loads the cached dataset, runs every
 cohort/provenance assertion, prints the evidence, and exits before any model
 coordinates are read or any generation code is reached.
@@ -37,6 +44,7 @@ configuration. This script reads them from the gitignored
 from __future__ import annotations
 
 import argparse
+import copy
 import difflib
 import hashlib
 import inspect
@@ -150,6 +158,32 @@ BASE_B_INITIAL_PARSER_MISS_FILENAME = (
     "exp_e1_task_band_base_b_initial_parser_miss.json"
 )
 
+TERMINAL_ASSERTION_REASONS = {
+    "cohort_assertion_failure",
+    "provenance_assertion_failure",
+    "accounting_assertion_failure",
+    "determinism_assertion_failure",
+}
+
+
+class TerminalAssertionError(RuntimeError):
+    """An amendment-defined canonical failure that must land as terminal VOID."""
+
+    def __init__(
+        self,
+        reason: str,
+        stage: str,
+        message: str,
+        evidence: dict[str, Any] | None = None,
+    ) -> None:
+        if reason not in TERMINAL_ASSERTION_REASONS:
+            raise ValueError(f"unsupported terminal assertion reason: {reason}")
+        super().__init__(message)
+        self.reason = reason
+        self.stage = stage
+        self.public_message = message
+        self.evidence = evidence or {}
+
 UNSIGNED_DECIMAL_PATTERN = r"(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\.[0-9]+)?"
 SIGNED_DECIMAL_PATTERN = rf"[-+]?{UNSIGNED_DECIMAL_PATTERN}"
 # A single ASCII slash may have horizontal whitespace on either side. Unicode
@@ -204,8 +238,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         choices=("initial", "repaired"),
         default="initial",
         help=(
-            "mark the canonical parser attempt; only a repeated extraction "
-            "miss on 'repaired' may emit terminal VOID"
+            "mark the canonical parser attempt; 'repaired' re-adjudicates only "
+            "the immutable initial-attempt responses and never regenerates"
         ),
     )
     args = parser.parse_args(argv)
@@ -352,6 +386,33 @@ def initial_parser_miss_path(
     if successor_base_b:
         return HERE / "results" / BASE_B_INITIAL_PARSER_MISS_FILENAME
     return HERE / "results" / dataset_spec.initial_parser_miss_filename
+
+
+def evaluation_batch_size(
+    dataset_spec: DatasetSpec,
+    successor_base_b: bool,
+) -> int:
+    # Base-B is padding-sensitive on GSM8K. Keep the frozen base-A GSM8K
+    # batch-8 path intact while forcing the successor through batch-1.
+    return 1 if successor_base_b else dataset_spec.batch_size
+
+
+def uses_repeat_determinism(
+    dataset_spec: DatasetSpec,
+    successor_base_b: bool,
+) -> bool:
+    return dataset_spec.key == "svamp" or successor_base_b
+
+
+def generation_verification_field(
+    dataset_spec: DatasetSpec,
+    successor_base_b: bool,
+) -> str:
+    return (
+        "repeat_determinism"
+        if uses_repeat_determinism(dataset_spec, successor_base_b)
+        else "batch_vs_unbatched_equivalence"
+    )
 
 
 def row_question(row: dict[str, Any], dataset_spec: DatasetSpec) -> str:
@@ -755,7 +816,16 @@ def successor_outcome_taxonomy(
         "parser_recognition_failure": parser_failure,
     }
     if sum(categories.values()) != 1:
-        raise RuntimeError("successor outcome taxonomy is not mutually exclusive")
+        raise TerminalAssertionError(
+            "accounting_assertion_failure",
+            "successor_outcome_taxonomy",
+            "successor outcome taxonomy is not mutually exclusive",
+            {
+                "predicted_answer_present": predicted is not None,
+                "gold_answer_present": bool(gold),
+                "category_flags": categories,
+            },
+        )
     category = next(name for name, active in categories.items() if active)
     return {
         "outcome_category": category,
@@ -944,6 +1014,79 @@ def sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def json_value_bytes(value: Any) -> bytes:
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=False,
+    ).encode("utf-8")
+
+
+def repair_identity_payloads(artifact: dict[str, Any]) -> dict[str, Any]:
+    protocol = artifact["protocol"]
+    records = artifact["per_example"]
+    return {
+        "response_set": [
+            {
+                "cohort_position": record["cohort_position"],
+                "dataset_index": record["dataset_index"],
+                "response": record["response"],
+            }
+            for record in records
+        ],
+        "cohort": {
+            "sample_count": artifact["sample_count"],
+            "dataset_provenance": protocol["dataset_provenance"],
+            "selection": protocol["selection"],
+            "per_example": [
+                {
+                    "cohort_position": record["cohort_position"],
+                    "dataset_index": record["dataset_index"],
+                    "question": record["question"],
+                    "gold_answer": record["gold_answer"],
+                }
+                for record in records
+            ],
+        },
+        "prompt": {
+            "five_shot_demonstrations": protocol["five_shot_demonstrations"],
+            "prompt_serialization": protocol["prompt_serialization"],
+        },
+        "decoding": protocol["decoding"],
+        "stopping": {
+            "per_sequence_stops": protocol["decoding"]["per_sequence_stops"],
+            "per_example": [
+                {
+                    "cohort_position": record["cohort_position"],
+                    "stop_reason": record["stop_reason"],
+                    "cap_reached": record["cap_reached"],
+                    "generated_tokens": record["generated_tokens"],
+                }
+                for record in records
+            ],
+        },
+    }
+
+
+def immutable_generation_record(record: dict[str, Any]) -> dict[str, Any]:
+    return {
+        field: record[field]
+        for field in (
+            "cohort_position",
+            "dataset_index",
+            "question",
+            "gold_answer",
+            "response",
+            "stop_reason",
+            "cap_reached",
+            "generated_tokens",
+            "prompt_tokens",
+            "generation_seconds_share",
+        )
+    }
+
+
 def load_initial_parser_miss(
     parser_miss_path: Path,
 ) -> tuple[dict[str, Any], str, str]:
@@ -1037,6 +1180,220 @@ def parser_provenance(
     return provenance
 
 
+def re_adjudicate_initial_responses(
+    initial_artifact: dict[str, Any],
+    parser_miss_path: Path,
+    parser_evidence: dict[str, Any],
+    dataset_spec: DatasetSpec,
+    public_model_name: str,
+    successor_base_b: bool,
+) -> dict[str, Any]:
+    re_adjudication_started = time.perf_counter()
+    initial_protocol = initial_artifact["protocol"]
+    if (
+        initial_artifact.get("model") != public_model_name
+        or initial_protocol.get("dataset_key") != dataset_spec.key
+        or initial_protocol.get("dataset_revision") != dataset_spec.revision
+    ):
+        raise TerminalAssertionError(
+            "provenance_assertion_failure",
+            "repaired_parser_initial_artifact_binding",
+            "the initial parser-miss artifact is not bound to this model and dataset",
+            {
+                "expected_model": public_model_name,
+                "recorded_model": initial_artifact.get("model"),
+                "expected_dataset_key": dataset_spec.key,
+                "recorded_dataset_key": initial_protocol.get("dataset_key"),
+                "expected_dataset_revision": dataset_spec.revision,
+                "recorded_dataset_revision": initial_protocol.get(
+                    "dataset_revision"
+                ),
+            },
+        )
+
+    repaired_records: list[dict[str, Any]] = []
+    per_example_comparisons: list[dict[str, Any]] = []
+    for initial_record in initial_artifact["per_example"]:
+        repaired_record = copy.deepcopy(initial_record)
+        predicted, extraction_source, scored_segment, segment_stop_reason = (
+            extract_predicted_answer(
+                response=initial_record["response"],
+                generation_stop_reason=initial_record["stop_reason"],
+            )
+        )
+        repaired_record.update(
+            {
+                "scored_response_segment": scored_segment,
+                "extracted_answer": predicted,
+                "extraction_source": extraction_source,
+                "extraction_segment_stop_reason": segment_stop_reason,
+            }
+        )
+        if successor_base_b:
+            repaired_record.update(
+                successor_outcome_taxonomy(
+                    predicted=predicted,
+                    gold=initial_record["gold_answer"],
+                    scored_response_segment=scored_segment,
+                )
+            )
+        else:
+            repaired_record.update(
+                {
+                    "extraction_failed": predicted is None,
+                    "valid_extracted_incorrect": (
+                        predicted is not None
+                        and predicted != initial_record["gold_answer"]
+                    ),
+                    "correct": predicted == initial_record["gold_answer"],
+                }
+            )
+
+        immutable_fields_match = json_value_bytes(
+            immutable_generation_record(initial_record)
+        ) == json_value_bytes(immutable_generation_record(repaired_record))
+        comparison = {
+            "cohort_position": initial_record["cohort_position"],
+            "dataset_index": initial_record["dataset_index"],
+            "response_sha256": sha256_text(initial_record["response"]),
+            "immutable_generation_fields_byte_identical": immutable_fields_match,
+            "initial_extracted_answer": initial_record["extracted_answer"],
+            "repaired_extracted_answer": repaired_record["extracted_answer"],
+            "initial_extraction_failed": initial_record["extraction_failed"],
+            "repaired_extraction_failed": repaired_record["extraction_failed"],
+            "initial_correct": initial_record["correct"],
+            "repaired_correct": repaired_record["correct"],
+        }
+        if successor_base_b:
+            comparison.update(
+                {
+                    "initial_outcome_category": initial_record["outcome_category"],
+                    "repaired_outcome_category": repaired_record[
+                        "outcome_category"
+                    ],
+                }
+            )
+        per_example_comparisons.append(comparison)
+        repaired_records.append(repaired_record)
+
+    repaired_identity_artifact = {
+        "sample_count": initial_artifact["sample_count"],
+        "protocol": copy.deepcopy(initial_protocol),
+        "per_example": repaired_records,
+    }
+    initial_payloads = repair_identity_payloads(initial_artifact)
+    repaired_payloads = repair_identity_payloads(repaired_identity_artifact)
+    identity_checks = {}
+    for field in ("response_set", "cohort", "prompt", "decoding", "stopping"):
+        initial_bytes = json_value_bytes(initial_payloads[field])
+        repaired_bytes = json_value_bytes(repaired_payloads[field])
+        identity_checks[field] = {
+            "status": "PASS" if initial_bytes == repaired_bytes else "FAIL",
+            "byte_identical": initial_bytes == repaired_bytes,
+            "initial_sha256": hashlib.sha256(initial_bytes).hexdigest(),
+            "repaired_sha256": hashlib.sha256(repaired_bytes).hexdigest(),
+        }
+
+    failed_identity_checks = [
+        field
+        for field, check in identity_checks.items()
+        if not check["byte_identical"]
+    ]
+    failed_record_checks = [
+        comparison["cohort_position"]
+        for comparison in per_example_comparisons
+        if not comparison["immutable_generation_fields_byte_identical"]
+    ]
+    if failed_identity_checks or failed_record_checks:
+        raise TerminalAssertionError(
+            "provenance_assertion_failure",
+            "repaired_parser_immutable_response_reuse",
+            "the repaired parser attempt changed immutable generation evidence",
+            {
+                "failed_identity_checks": failed_identity_checks,
+                "failed_record_positions": failed_record_checks[:20],
+                "identity_checks": identity_checks,
+            },
+        )
+
+    response_reuse = {
+        "status": "PASS",
+        "generation_performed": False,
+        "initial_miss_artifact_path": str(
+            parser_miss_path.relative_to(HERE.parent.parent)
+        ),
+        "initial_miss_artifact_sha256": sha256_file(parser_miss_path),
+        "checked_examples": len(per_example_comparisons),
+        "all_per_example_immutable_generation_fields_byte_identical": True,
+        "identity_checks": identity_checks,
+        "per_example_comparisons": per_example_comparisons,
+    }
+    parser_evidence["immutable_response_reuse"] = response_reuse
+
+    verification_field = generation_verification_field(
+        dataset_spec,
+        successor_base_b,
+    )
+    result = summarize(
+        records=repaired_records,
+        wall_time_seconds=initial_artifact["wall_time_seconds"],
+        evaluation_wall_time_seconds=initial_artifact[
+            "evaluation_wall_time_seconds"
+        ],
+        generation_wall_time_seconds=initial_artifact[
+            "generation_wall_time_seconds"
+        ],
+        verification_wall_time_seconds=initial_artifact[
+            "verification_wall_time_seconds"
+        ],
+        canonical_indices=[
+            int(record["dataset_index"])
+            for record in initial_artifact["per_example"]
+        ],
+        mode="canonical",
+        parser_evidence=parser_evidence,
+        dataset_provenance=copy.deepcopy(initial_protocol["dataset_provenance"]),
+        leakage_check=copy.deepcopy(initial_protocol["leakage_preflight"]),
+        batch_equivalence=copy.deepcopy(
+            initial_protocol["decoding"][verification_field]
+        ),
+        vram=copy.deepcopy(initial_artifact["peak_vram"]),
+        dataset_spec=dataset_spec,
+        parser_miss_path=parser_miss_path,
+        public_model_name=public_model_name,
+        successor_base_b=successor_base_b,
+        selection_evidence=copy.deepcopy(initial_protocol["selection"]),
+    )
+    for field in (
+        "dataset",
+        "dataset_key",
+        "dataset_id",
+        "dataset_revision",
+        "dataset_config",
+        "evaluation_split",
+        "dataset_provenance",
+        "leakage_preflight",
+        "selection",
+        "five_shot_demonstrations",
+        "prompt_serialization",
+        "decoding",
+        "thresholds",
+    ):
+        result["protocol"][field] = copy.deepcopy(initial_protocol[field])
+    result["protocol"]["answer_extraction"]["parser_attempt"] = "repaired"
+    result["protocol"]["answer_extraction"]["parser_source_sha256"] = (
+        parser_evidence["source_sha256"]
+    )
+    result["protocol"]["answer_extraction"]["parser_provenance"] = parser_evidence
+    result["generation_performed"] = False
+    result["generation_metrics_reused_from_initial_attempt"] = True
+    result["re_adjudication_wall_time_seconds"] = (
+        time.perf_counter() - re_adjudication_started
+    )
+    result["immutable_response_reuse"] = response_reuse
+    return result
+
+
 class NewQuestionBoundaryCriteria(StoppingCriteria):
     """Stop each sequence after it starts a generated Question block."""
 
@@ -1098,6 +1455,44 @@ def response_length_stats(lengths: Sequence[int]) -> dict[str, int | float]:
     }
 
 
+def repaired_attempt_is_qualified(
+    parser_evidence: dict[str, Any],
+    parser_miss_path: Path,
+) -> bool:
+    reuse = parser_evidence.get("immutable_response_reuse", {})
+    identity_checks = reuse.get("identity_checks", {})
+    required_identity_fields = {
+        "response_set",
+        "cohort",
+        "prompt",
+        "decoding",
+        "stopping",
+    }
+    return bool(
+        parser_evidence.get("attempt") == "repaired"
+        and parser_evidence.get("source_changed_from_initial") is True
+        and parser_miss_path.is_file()
+        and parser_evidence.get("initial_miss_artifact_sha256")
+        == sha256_file(parser_miss_path)
+        and reuse.get("status") == "PASS"
+        and reuse.get("generation_performed") is False
+        and reuse.get("initial_miss_artifact_sha256")
+        == sha256_file(parser_miss_path)
+        and reuse.get(
+            "all_per_example_immutable_generation_fields_byte_identical"
+        )
+        is True
+        and set(identity_checks) == required_identity_fields
+        and all(
+            identity_checks[field].get("status") == "PASS"
+            and identity_checks[field].get("byte_identical") is True
+            and identity_checks[field].get("initial_sha256")
+            == identity_checks[field].get("repaired_sha256")
+            for field in required_identity_fields
+        )
+    )
+
+
 def canonical_verdict(
     correct_count: int,
     valid_extracted_incorrect_count: int,
@@ -1118,13 +1513,7 @@ def canonical_verdict(
                 ),
                 "terminal": False,
             }
-        repaired_attempt_is_qualified = (
-            parser_evidence["attempt"] == "repaired"
-            and parser_evidence.get("source_changed_from_initial") is True
-            and bool(parser_evidence.get("initial_miss_artifact_sha256"))
-            and parser_miss_path.is_file()
-        )
-        if not repaired_attempt_is_qualified:
+        if not repaired_attempt_is_qualified(parser_evidence, parser_miss_path):
             raise RuntimeError(
                 "terminal extraction-failure VOID requires a qualified repaired attempt"
             )
@@ -1205,13 +1594,7 @@ def successor_canonical_verdict(
                 ),
                 "terminal": False,
             }
-        repaired_attempt_is_qualified = (
-            parser_evidence["attempt"] == "repaired"
-            and parser_evidence.get("source_changed_from_initial") is True
-            and bool(parser_evidence.get("initial_miss_artifact_sha256"))
-            and parser_miss_path.is_file()
-        )
-        if not repaired_attempt_is_qualified:
+        if not repaired_attempt_is_qualified(parser_evidence, parser_miss_path):
             raise RuntimeError(
                 "terminal parser-recognition VOID requires a qualified repair"
             )
@@ -1484,10 +1867,9 @@ def summarize(
     successor_base_b: bool,
     selection_evidence: dict[str, Any],
 ) -> dict[str, Any]:
-    generation_verification_field = (
-        "repeat_determinism"
-        if dataset_spec.key == "svamp"
-        else "batch_vs_unbatched_equivalence"
+    verification_field = generation_verification_field(
+        dataset_spec,
+        successor_base_b,
     )
     denominator = len(records)
     correct_count = sum(bool(record["correct"]) for record in records)
@@ -1532,15 +1914,45 @@ def summarize(
             )
         }
         if sum(successor_counts.values()) != denominator:
-            raise RuntimeError("successor outcome categories do not exhaust the cohort")
+            raise TerminalAssertionError(
+                "accounting_assertion_failure",
+                "successor_aggregate_accounting",
+                "successor outcome categories do not exhaust the cohort",
+                {
+                    "sample_count": denominator,
+                    "category_counts": successor_counts,
+                    "category_sum": sum(successor_counts.values()),
+                },
+            )
         if successor_counts["correct_numeric"] != correct_count:
-            raise RuntimeError("successor correct-category accounting diverged")
+            raise TerminalAssertionError(
+                "accounting_assertion_failure",
+                "successor_aggregate_accounting",
+                "successor correct-category accounting diverged",
+                {
+                    "correct_count": correct_count,
+                    "correct_numeric_count": successor_counts["correct_numeric"],
+                },
+            )
         if (
             successor_counts["model_empty_non_answer"]
             + successor_counts["parser_recognition_failure"]
             != failure_count
         ):
-            raise RuntimeError("successor extraction-failure accounting diverged")
+            raise TerminalAssertionError(
+                "accounting_assertion_failure",
+                "successor_aggregate_accounting",
+                "successor extraction-failure accounting diverged",
+                {
+                    "extraction_failure_count": failure_count,
+                    "model_empty_non_answer_count": successor_counts[
+                        "model_empty_non_answer"
+                    ],
+                    "parser_recognition_failure_count": successor_counts[
+                        "parser_recognition_failure"
+                    ],
+                },
+            )
         usable_incorrect_count = (
             successor_counts["valid_extracted_incorrect"]
             + successor_counts["model_empty_non_answer"]
@@ -1617,14 +2029,17 @@ def summarize(
                 "max_new_tokens": MAX_NEW_TOKENS,
                 "dtype": "bfloat16",
                 "device": "cuda",
-                "batch_size": dataset_spec.batch_size,
+                "batch_size": evaluation_batch_size(
+                    dataset_spec,
+                    successor_base_b,
+                ),
                 "padding_side": "left",
                 "per_sequence_stops": [
                     "end_of_message",
                     "new_question_boundary",
                     "max_new_tokens",
                 ],
-                generation_verification_field: batch_equivalence,
+                verification_field: batch_equivalence,
             },
             "answer_extraction": {
                 "segmentation": (
@@ -1789,6 +2204,112 @@ def leakage_void_result(
     }
 
 
+def terminal_assertion_void_result(
+    error: TerminalAssertionError,
+    dataset_spec: DatasetSpec,
+    public_model_name: str,
+    successor_base_b: bool,
+    selection_evidence: dict[str, Any] | None = None,
+    dataset_provenance: dict[str, Any] | None = None,
+    parser_evidence: dict[str, Any] | None = None,
+    records: Sequence[dict[str, Any]] = (),
+) -> dict[str, Any]:
+    evidence = {
+        "assertion_kind": error.reason,
+        "stage": error.stage,
+        "message": error.public_message,
+        "details": error.evidence,
+    }
+    return {
+        "experiment": EXPERIMENT,
+        "status": "COMPLETE",
+        "mode": "canonical",
+        "model": public_model_name,
+        "created_at_utc": datetime.now(timezone.utc).isoformat(),
+        "protocol": {
+            "dataset": dataset_spec.name,
+            "dataset_key": dataset_spec.key,
+            "dataset_id": dataset_spec.dataset_id,
+            "dataset_revision": dataset_spec.revision,
+            "dataset_config": dataset_spec.config,
+            "evaluation_split": TEST_SPLIT,
+            "dataset_provenance": dataset_provenance,
+            "selection": selection_evidence,
+            "decoding": {
+                "strategy": "greedy",
+                "do_sample": False,
+                "num_beams": 1,
+                "max_new_tokens": MAX_NEW_TOKENS,
+                "batch_size": evaluation_batch_size(
+                    dataset_spec,
+                    successor_base_b,
+                ),
+                "verification_kind": generation_verification_field(
+                    dataset_spec,
+                    successor_base_b,
+                ),
+            },
+            "answer_extraction": {
+                "parser_provenance": parser_evidence,
+            },
+        },
+        "sample_count": len(records),
+        "terminal_failure_evidence": evidence,
+        "verdict": {
+            "token": "VOID",
+            "reason": error.reason,
+            "next_action": "return to steering; no successor fallback is permitted",
+            "terminal": True,
+        },
+        "per_example": list(records),
+    }
+
+
+def write_terminal_assertion_void(
+    error: TerminalAssertionError,
+    canonical_result_path: Path,
+    parser_miss_path: Path,
+    dataset_spec: DatasetSpec,
+    public_model_name: str,
+    successor_base_b: bool,
+    selection_evidence: dict[str, Any] | None = None,
+    dataset_provenance: dict[str, Any] | None = None,
+    parser_evidence: dict[str, Any] | None = None,
+    records: Sequence[dict[str, Any]] = (),
+) -> int:
+    result = terminal_assertion_void_result(
+        error=error,
+        dataset_spec=dataset_spec,
+        public_model_name=public_model_name,
+        successor_base_b=successor_base_b,
+        selection_evidence=selection_evidence,
+        dataset_provenance=dataset_provenance,
+        parser_evidence=parser_evidence,
+        records=records,
+    )
+    write_canonical_result(result, canonical_result_path, parser_miss_path)
+    print(
+        json.dumps(
+            {
+                "status": result["status"],
+                "model": public_model_name,
+                "sample_count": result["sample_count"],
+                "verdict": result["verdict"],
+                "failure_evidence": result["terminal_failure_evidence"],
+                "result_path": str(
+                    canonical_result_path.relative_to(HERE.parent.parent)
+                ),
+            },
+            indent=2,
+        )
+    )
+    print(
+        f"ERROR: canonical task-band terminal VOID ({error.reason}).",
+        file=sys.stderr,
+    )
+    return 2
+
+
 def write_evidence_artifact(
     path: Path,
     result: dict[str, Any],
@@ -1834,9 +2355,7 @@ def write_canonical_result(
             )
             current_source_fingerprint = sha256_text(parser_source_text())
             qualified_repair = (
-                parser_evidence.get("attempt") == "repaired"
-                and parser_evidence.get("source_changed_from_initial") is True
-                and parser_miss_path.is_file()
+                repaired_attempt_is_qualified(parser_evidence, parser_miss_path)
                 and recorded_artifact_hash == sha256_file(parser_miss_path)
                 and parser_evidence.get("initial_source_sha256")
                 == initial_source_fingerprint
@@ -1865,6 +2384,19 @@ def write_canonical_result(
                 or not leakage_check.get("overlaps")
             ):
                 raise RuntimeError("terminal leakage VOID lacks leakage evidence")
+        elif reason in TERMINAL_ASSERTION_REASONS:
+            failure_evidence = result.get("terminal_failure_evidence", {})
+            if (
+                result.get("mode") != "canonical"
+                or result.get("status") != "COMPLETE"
+                or failure_evidence.get("assertion_kind") != reason
+                or not failure_evidence.get("stage")
+                or not failure_evidence.get("message")
+                or not isinstance(failure_evidence.get("details"), dict)
+            ):
+                raise RuntimeError(
+                    "terminal assertion VOID lacks embedded failure evidence"
+                )
         elif result.get("model") == BASE_B_PUBLIC_NAME and reason in {
             "model_empty_non_answer_count_above_12_of_256",
             "below_band_or_fewer_than_40_correct",
@@ -1982,9 +2514,12 @@ def smoke_console_summary(
     result: dict[str, Any],
     replay_guard: dict[str, Any],
 ) -> dict[str, Any]:
-    generation_verification_field = (
+    verification_field = (
         "repeat_determinism"
-        if result["protocol"]["dataset_key"] == "svamp"
+        if (
+            result["protocol"]["dataset_key"] == "svamp"
+            or result["model"] == BASE_B_PUBLIC_NAME
+        )
         else "batch_vs_unbatched_equivalence"
     )
     diagnostics = []
@@ -2042,8 +2577,8 @@ def smoke_console_summary(
             / result["sample_count"]
         ),
         "peak_vram": result["peak_vram"],
-        generation_verification_field: result["protocol"]["decoding"][
-            generation_verification_field
+        verification_field: result["protocol"]["decoding"][
+            verification_field
         ],
         "gsm8k_replay_guard": replay_guard,
         "verdict": result["verdict"],
@@ -2064,6 +2599,10 @@ def verify_batch_equivalence(
     public_model_name: str,
     successor_base_b: bool,
 ) -> tuple[dict[str, Any], float]:
+    repeat_determinism = uses_repeat_determinism(
+        dataset_spec,
+        successor_base_b,
+    )
     check_count = min(EQUIVALENCE_CHECK_COUNT, len(selected_indices))
     if check_count == 0:
         raise RuntimeError("batch-equivalence check received no examples")
@@ -2095,7 +2634,7 @@ def verify_batch_equivalence(
             "answers_match": answers_match,
             "responses_match": responses_match,
         }
-        if dataset_spec.key == "svamp":
+        if repeat_determinism:
             comparison.update(
                 {
                     "first_stop_reason": batched["stop_reason"],
@@ -2115,10 +2654,27 @@ def verify_batch_equivalence(
         for comparison in comparisons
     )
     if not passed:
-        if dataset_spec.key == "svamp":
-            raise RuntimeError("repeated batch-1 greedy generation diverged")
-        raise RuntimeError("batched and unbatched greedy generation diverged")
-    if dataset_spec.key == "svamp":
+        reason = (
+            "repeated batch-1 greedy generation diverged"
+            if repeat_determinism
+            else "batched and unbatched greedy generation diverged"
+        )
+        raise TerminalAssertionError(
+            "determinism_assertion_failure",
+            "generation_determinism",
+            reason,
+            {
+                "verification_kind": (
+                    "repeat_determinism"
+                    if repeat_determinism
+                    else "batch_vs_unbatched_equivalence"
+                ),
+                "checked_examples": check_count,
+                "evaluation_batch_size": evaluation_batch_size,
+                "comparisons": comparisons,
+            },
+        )
+    if repeat_determinism:
         verification = {
             "status": "PASS",
             "checked_examples": check_count,
@@ -2175,6 +2731,76 @@ def run(args: argparse.Namespace) -> int:
             "be overwritten"
         )
 
+    if mode == "canonical" and args.parser_attempt == "repaired":
+        try:
+            parser_evidence = parser_provenance(
+                mode,
+                args.parser_attempt,
+                parser_miss_path,
+            )
+            initial_artifact, _, _ = load_initial_parser_miss(parser_miss_path)
+            result = re_adjudicate_initial_responses(
+                initial_artifact=initial_artifact,
+                parser_miss_path=parser_miss_path,
+                parser_evidence=parser_evidence,
+                dataset_spec=dataset_spec,
+                public_model_name=public_model_name,
+                successor_base_b=args.successor_base_b,
+            )
+        except TerminalAssertionError as error:
+            return write_terminal_assertion_void(
+                error=error,
+                canonical_result_path=canonical_result_path,
+                parser_miss_path=parser_miss_path,
+                dataset_spec=dataset_spec,
+                public_model_name=public_model_name,
+                successor_base_b=args.successor_base_b,
+            )
+        except RuntimeError as error:
+            return write_terminal_assertion_void(
+                error=TerminalAssertionError(
+                    "provenance_assertion_failure",
+                    "repaired_parser_qualification",
+                    str(error),
+                    {"exception_type": type(error).__name__},
+                ),
+                canonical_result_path=canonical_result_path,
+                parser_miss_path=parser_miss_path,
+                dataset_spec=dataset_spec,
+                public_model_name=public_model_name,
+                successor_base_b=args.successor_base_b,
+            )
+        write_canonical_result(
+            result,
+            canonical_result_path,
+            parser_miss_path,
+        )
+        print(
+            json.dumps(
+                {
+                    "status": result["status"],
+                    "model": public_model_name,
+                    "sample_count": result["sample_count"],
+                    "verdict": result["verdict"],
+                    "generation_performed": result["generation_performed"],
+                    "immutable_response_reuse": {
+                        "status": result["immutable_response_reuse"]["status"],
+                        "checked_examples": result["immutable_response_reuse"][
+                            "checked_examples"
+                        ],
+                        "identity_checks": result["immutable_response_reuse"][
+                            "identity_checks"
+                        ],
+                    },
+                    "result_path": str(
+                        canonical_result_path.relative_to(HERE.parent.parent)
+                    ),
+                },
+                indent=2,
+            )
+        )
+        return 0
+
     print(
         f"Loading revision-pinned {dataset_spec.name} train/test splits.",
         flush=True,
@@ -2186,49 +2812,90 @@ def run(args: argparse.Namespace) -> int:
     )
     train_split = dataset[TRAIN_SPLIT]
     test_split = dataset[TEST_SPLIT]
-    if args.successor_base_b:
-        canonical_indices, selection_evidence = successor_base_b_test_indices(
-            len(test_split)
+    try:
+        if args.successor_base_b:
+            canonical_indices, selection_evidence = successor_base_b_test_indices(
+                len(test_split)
+            )
+        else:
+            canonical_indices = canonical_test_indices(len(test_split))
+            selection_evidence = {
+                "method": "python_random_sample_without_replacement",
+                "seed": SEED,
+                "canonical_sample_count": CANONICAL_SAMPLE_COUNT,
+                "canonical_indices_sha256": selection_digest(canonical_indices),
+                "smoke_uses_canonical_prefix": True,
+            }
+    except RuntimeError as error:
+        if mode != "canonical":
+            raise
+        return write_terminal_assertion_void(
+            error=TerminalAssertionError(
+                "cohort_assertion_failure",
+                "canonical_cohort_construction",
+                str(error),
+                {
+                    "test_split_size": len(test_split),
+                    "successor_base_b": args.successor_base_b,
+                },
+            ),
+            canonical_result_path=canonical_result_path,
+            parser_miss_path=parser_miss_path,
+            dataset_spec=dataset_spec,
+            public_model_name=public_model_name,
+            successor_base_b=args.successor_base_b,
         )
-    else:
-        canonical_indices = canonical_test_indices(len(test_split))
-        selection_evidence = {
-            "method": "python_random_sample_without_replacement",
-            "seed": SEED,
-            "canonical_sample_count": CANONICAL_SAMPLE_COUNT,
-            "canonical_indices_sha256": selection_digest(canonical_indices),
-            "smoke_uses_canonical_prefix": True,
-        }
     selected_indices = (
         canonical_indices[: args.smoke]
         if args.smoke is not None
         else canonical_indices
     )
-    leakage_check = leakage_preflight(
-        train_split=train_split,
-        test_split=test_split,
-        selected_indices=canonical_indices,
-        dataset_spec=dataset_spec,
-    )
-    dataset_provenance = {
-        "train_split_fingerprint": train_split._fingerprint,
-        "test_split_fingerprint": test_split._fingerprint,
-        "demonstrations_content_sha256": rows_content_digest(
-            train_split,
-            DEMONSTRATION_INDICES,
-            dataset_spec,
-        ),
-        "canonical_cohort_content_sha256": rows_content_digest(
-            test_split,
-            canonical_indices,
-            dataset_spec,
-        ),
-        "evaluated_cohort_content_sha256": rows_content_digest(
-            test_split,
-            selected_indices,
-            dataset_spec,
-        ),
-    }
+    try:
+        leakage_check = leakage_preflight(
+            train_split=train_split,
+            test_split=test_split,
+            selected_indices=canonical_indices,
+            dataset_spec=dataset_spec,
+        )
+        dataset_provenance = {
+            "train_split_fingerprint": train_split._fingerprint,
+            "test_split_fingerprint": test_split._fingerprint,
+            "demonstrations_content_sha256": rows_content_digest(
+                train_split,
+                DEMONSTRATION_INDICES,
+                dataset_spec,
+            ),
+            "canonical_cohort_content_sha256": rows_content_digest(
+                test_split,
+                canonical_indices,
+                dataset_spec,
+            ),
+            "evaluated_cohort_content_sha256": rows_content_digest(
+                test_split,
+                selected_indices,
+                dataset_spec,
+            ),
+        }
+    except (RuntimeError, KeyError, IndexError, TypeError, ValueError) as error:
+        if mode != "canonical":
+            raise
+        return write_terminal_assertion_void(
+            error=TerminalAssertionError(
+                "provenance_assertion_failure",
+                "dataset_and_prompt_provenance",
+                str(error),
+                {
+                    "canonical_index_count": len(canonical_indices),
+                    "evaluated_index_count": len(selected_indices),
+                },
+            ),
+            canonical_result_path=canonical_result_path,
+            parser_miss_path=parser_miss_path,
+            dataset_spec=dataset_spec,
+            public_model_name=public_model_name,
+            successor_base_b=args.successor_base_b,
+            selection_evidence=selection_evidence,
+        )
     selection_evidence.update(
         {
             "selected_row_content_sha256": dataset_provenance[
@@ -2257,11 +2924,30 @@ def run(args: argparse.Namespace) -> int:
         )
         return 0
 
-    parser_evidence = parser_provenance(
-        mode,
-        args.parser_attempt,
-        parser_miss_path,
-    )
+    try:
+        parser_evidence = parser_provenance(
+            mode,
+            args.parser_attempt,
+            parser_miss_path,
+        )
+    except RuntimeError as error:
+        if mode != "canonical":
+            raise
+        return write_terminal_assertion_void(
+            error=TerminalAssertionError(
+                "provenance_assertion_failure",
+                "parser_provenance",
+                str(error),
+                {"parser_attempt": args.parser_attempt},
+            ),
+            canonical_result_path=canonical_result_path,
+            parser_miss_path=parser_miss_path,
+            dataset_spec=dataset_spec,
+            public_model_name=public_model_name,
+            successor_base_b=args.successor_base_b,
+            selection_evidence=selection_evidence,
+            dataset_provenance=dataset_provenance,
+        )
     if leakage_check["status"] == "FAIL":
         result = leakage_void_result(
             trigger_mode=mode,
@@ -2299,15 +2985,38 @@ def run(args: argparse.Namespace) -> int:
         raise RuntimeError(
             f"CUDA is required for the {public_model_name} task-band evaluator"
         )
-    model_identifier, model_revision, recorded_content_digest = (
-        load_private_model_coordinates(public_model_name)
-    )
-    validate_local_checkpoint_snapshot(
-        model_identifier=model_identifier,
-        model_revision=model_revision,
-        recorded_content_digest=recorded_content_digest,
-        public_model_name=public_model_name,
-    )
+    try:
+        model_identifier, model_revision, recorded_content_digest = (
+            load_private_model_coordinates(public_model_name)
+        )
+        validate_local_checkpoint_snapshot(
+            model_identifier=model_identifier,
+            model_revision=model_revision,
+            recorded_content_digest=recorded_content_digest,
+            public_model_name=public_model_name,
+        )
+    except RuntimeError as error:
+        if mode != "canonical":
+            raise
+        return write_terminal_assertion_void(
+            error=TerminalAssertionError(
+                "provenance_assertion_failure",
+                "frozen_checkpoint_provenance",
+                str(error),
+                {
+                    "public_model_name": public_model_name,
+                    "private_coordinates_serialized": False,
+                },
+            ),
+            canonical_result_path=canonical_result_path,
+            parser_miss_path=parser_miss_path,
+            dataset_spec=dataset_spec,
+            public_model_name=public_model_name,
+            successor_base_b=args.successor_base_b,
+            selection_evidence=selection_evidence,
+            dataset_provenance=dataset_provenance,
+            parser_evidence=parser_evidence,
+        )
     print(f"Loading {public_model_name} on CUDA.", flush=True)
     device = torch.device("cuda:0")
     tokenizer, model = load_frozen_base(
@@ -2317,45 +3026,116 @@ def run(args: argparse.Namespace) -> int:
         public_model_name,
     )
 
+    batch_size = evaluation_batch_size(dataset_spec, args.successor_base_b)
     print(
         (
             f"Evaluating {len(selected_indices)} example(s) in {mode} mode "
-            f"with batch size {dataset_spec.batch_size}."
+            f"with batch size {batch_size}."
         ),
         flush=True,
     )
     torch.cuda.reset_peak_memory_stats(device)
-    records, evaluation_wall_time_seconds, generation_wall_time_seconds = (
-        evaluate_examples(
+    try:
+        records, evaluation_wall_time_seconds, generation_wall_time_seconds = (
+            evaluate_examples(
+                train_split=train_split,
+                test_split=test_split,
+                selected_indices=selected_indices,
+                dataset_spec=dataset_spec,
+                tokenizer=tokenizer,
+                model=model,
+                device=device,
+                batch_size=batch_size,
+                public_model_name=public_model_name,
+                successor_base_b=args.successor_base_b,
+            )
+        )
+    except TerminalAssertionError as error:
+        if mode != "canonical":
+            raise
+        return write_terminal_assertion_void(
+            error=error,
+            canonical_result_path=canonical_result_path,
+            parser_miss_path=parser_miss_path,
+            dataset_spec=dataset_spec,
+            public_model_name=public_model_name,
+            successor_base_b=args.successor_base_b,
+            selection_evidence=selection_evidence,
+            dataset_provenance=dataset_provenance,
+            parser_evidence=parser_evidence,
+        )
+    except (KeyError, TypeError, ValueError) as error:
+        if mode != "canonical":
+            raise
+        return write_terminal_assertion_void(
+            error=TerminalAssertionError(
+                "accounting_assertion_failure",
+                "per_example_record_construction",
+                "per-example generation records failed accounting construction",
+                {"exception_type": type(error).__name__},
+            ),
+            canonical_result_path=canonical_result_path,
+            parser_miss_path=parser_miss_path,
+            dataset_spec=dataset_spec,
+            public_model_name=public_model_name,
+            successor_base_b=args.successor_base_b,
+            selection_evidence=selection_evidence,
+            dataset_provenance=dataset_provenance,
+            parser_evidence=parser_evidence,
+        )
+    if uses_repeat_determinism(dataset_spec, args.successor_base_b):
+        print("Checking two greedy answers for repeat determinism.", flush=True)
+    else:
+        print("Checking two greedy answers batched versus unbatched.", flush=True)
+    try:
+        batch_equivalence, verification_wall_time_seconds = verify_batch_equivalence(
+            batched_records=records,
             train_split=train_split,
             test_split=test_split,
             selected_indices=selected_indices,
             dataset_spec=dataset_spec,
+            evaluation_batch_size=batch_size,
             tokenizer=tokenizer,
             model=model,
             device=device,
-            batch_size=dataset_spec.batch_size,
             public_model_name=public_model_name,
             successor_base_b=args.successor_base_b,
         )
-    )
-    if dataset_spec.key == "svamp":
-        print("Checking two greedy answers for repeat determinism.", flush=True)
-    else:
-        print("Checking two greedy answers batched versus unbatched.", flush=True)
-    batch_equivalence, verification_wall_time_seconds = verify_batch_equivalence(
-        batched_records=records,
-        train_split=train_split,
-        test_split=test_split,
-        selected_indices=selected_indices,
-        dataset_spec=dataset_spec,
-        evaluation_batch_size=dataset_spec.batch_size,
-        tokenizer=tokenizer,
-        model=model,
-        device=device,
-        public_model_name=public_model_name,
-        successor_base_b=args.successor_base_b,
-    )
+    except TerminalAssertionError as error:
+        if mode != "canonical":
+            raise
+        return write_terminal_assertion_void(
+            error=error,
+            canonical_result_path=canonical_result_path,
+            parser_miss_path=parser_miss_path,
+            dataset_spec=dataset_spec,
+            public_model_name=public_model_name,
+            successor_base_b=args.successor_base_b,
+            selection_evidence=selection_evidence,
+            dataset_provenance=dataset_provenance,
+            parser_evidence=parser_evidence,
+            records=records,
+        )
+    except (KeyError, TypeError, ValueError) as error:
+        if mode != "canonical":
+            raise
+        return write_terminal_assertion_void(
+            error=TerminalAssertionError(
+                "determinism_assertion_failure",
+                "generation_determinism",
+                "determinism comparison evidence was structurally invalid",
+                {"exception_type": type(error).__name__},
+            ),
+            canonical_result_path=canonical_result_path,
+            parser_miss_path=parser_miss_path,
+            dataset_spec=dataset_spec,
+            public_model_name=public_model_name,
+            successor_base_b=args.successor_base_b,
+            selection_evidence=selection_evidence,
+            dataset_provenance=dataset_provenance,
+            parser_evidence=parser_evidence,
+            records=records,
+        )
     device_total_bytes = torch.cuda.get_device_properties(device).total_memory
     peak_allocated_bytes = torch.cuda.max_memory_allocated(device)
     peak_reserved_bytes = torch.cuda.max_memory_reserved(device)
@@ -2371,25 +3151,61 @@ def run(args: argparse.Namespace) -> int:
         raise RuntimeError("peak reserved VRAM reached the repository safety limit")
 
     wall_time_seconds = time.perf_counter() - run_started
-    result = summarize(
-        records=records,
-        wall_time_seconds=wall_time_seconds,
-        evaluation_wall_time_seconds=evaluation_wall_time_seconds,
-        generation_wall_time_seconds=generation_wall_time_seconds,
-        verification_wall_time_seconds=verification_wall_time_seconds,
-        canonical_indices=canonical_indices,
-        mode=mode,
-        parser_evidence=parser_evidence,
-        dataset_provenance=dataset_provenance,
-        leakage_check=leakage_check,
-        batch_equivalence=batch_equivalence,
-        vram=vram,
-        dataset_spec=dataset_spec,
-        parser_miss_path=parser_miss_path,
-        public_model_name=public_model_name,
-        successor_base_b=args.successor_base_b,
-        selection_evidence=selection_evidence,
-    )
+    try:
+        result = summarize(
+            records=records,
+            wall_time_seconds=wall_time_seconds,
+            evaluation_wall_time_seconds=evaluation_wall_time_seconds,
+            generation_wall_time_seconds=generation_wall_time_seconds,
+            verification_wall_time_seconds=verification_wall_time_seconds,
+            canonical_indices=canonical_indices,
+            mode=mode,
+            parser_evidence=parser_evidence,
+            dataset_provenance=dataset_provenance,
+            leakage_check=leakage_check,
+            batch_equivalence=batch_equivalence,
+            vram=vram,
+            dataset_spec=dataset_spec,
+            parser_miss_path=parser_miss_path,
+            public_model_name=public_model_name,
+            successor_base_b=args.successor_base_b,
+            selection_evidence=selection_evidence,
+        )
+    except TerminalAssertionError as error:
+        if mode != "canonical":
+            raise
+        return write_terminal_assertion_void(
+            error=error,
+            canonical_result_path=canonical_result_path,
+            parser_miss_path=parser_miss_path,
+            dataset_spec=dataset_spec,
+            public_model_name=public_model_name,
+            successor_base_b=args.successor_base_b,
+            selection_evidence=selection_evidence,
+            dataset_provenance=dataset_provenance,
+            parser_evidence=parser_evidence,
+            records=records,
+        )
+    except (KeyError, TypeError, ValueError, ZeroDivisionError) as error:
+        if mode != "canonical":
+            raise
+        return write_terminal_assertion_void(
+            error=TerminalAssertionError(
+                "accounting_assertion_failure",
+                "canonical_summary_accounting",
+                "canonical summary accounting was structurally invalid",
+                {"exception_type": type(error).__name__},
+            ),
+            canonical_result_path=canonical_result_path,
+            parser_miss_path=parser_miss_path,
+            dataset_spec=dataset_spec,
+            public_model_name=public_model_name,
+            successor_base_b=args.successor_base_b,
+            selection_evidence=selection_evidence,
+            dataset_provenance=dataset_provenance,
+            parser_evidence=parser_evidence,
+            records=records,
+        )
 
     if mode == "canonical":
         wrote_result = result["verdict"]["token"] != "PARSER-REPAIR-REQUIRED"
