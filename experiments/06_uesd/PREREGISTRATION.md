@@ -278,6 +278,10 @@ The earlier 14–20h estimate was too optimistic. The full program should be pre
 
 ## AMENDMENTS
 
+The preregistered informational E2 optimizer's-curse analysis is maintained in
+[`E2_SECONDARY_ANALYSIS_CURSE.md`](E2_SECONDARY_ANALYSIS_CURSE.md). It is
+subordinate to this preregistration and cannot affect E2 adjudication.
+
 ### 2026-08-09 — Mechanics-pilot design-gate clarifications (pre-data)
 
 This section was appended before mechanics-pilot implementation or execution. It amends ambiguities in the committed preregistration without silently rewriting its original normative text. Where this section conflicts with earlier wording, this section controls.
