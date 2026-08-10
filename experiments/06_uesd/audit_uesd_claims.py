@@ -1,6 +1,6 @@
-"""Audit the UESD status claims against checked-in result JSONs.
+"""Audit the UESD status claims against checked-in evidence JSON.
 
-Reads JSON artifacts only; no training, no GPU. This is the canonical
+Reads result artifacts and the JSONL ledger only; no training, no GPU. This is the canonical
 validation command for the 06 line (see STATUS.md).
 
 Scope constraint: no check in this file interprets D22 k-suppression as
@@ -15,6 +15,10 @@ import sys
 from pathlib import Path
 
 RESULTS = Path(__file__).resolve().parent / "results"
+LEDGER = Path(__file__).resolve().parents[1] / "ledger.jsonl"
+SVAMP_TERMINAL_VOID_REASON = (
+    "NO_RECOVERABLE_NUMERIC_CONTENT_FOR_PERMITTED_PARSER_REPAIR"
+)
 
 checks = []
 
@@ -44,6 +48,11 @@ def main():
             RESULTS / "exp_e1_task_band_svamp_initial_parser_miss.json"
         ).read_text(encoding="utf-8")
     )
+    ledger_entries = [
+        json.loads(line)
+        for line in LEDGER.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
     runs = d40["runs"]
     grid = {
@@ -266,8 +275,8 @@ def main():
         ),
     )
 
-    # 14. The frozen mapping requires parser repair rather than PASS or terminal
-    #     VOID on an initial extraction-failure rate just above five percent.
+    # 14. Bind the immutable artifact's point-in-time initial-attempt verdict.
+    #     The later terminal adjudication is separately bound to the ledger.
     svamp_verdict = e1_svamp_initial["verdict"]
     check(
         "e1_svamp_initial_verdict_mapping",
@@ -303,6 +312,81 @@ def main():
             f"failed_records={len(svamp_failed_records)}, "
             "responses="
             f"{sorted({record['response'] for record in svamp_failed_records})}"
+        ),
+    )
+
+    # 16. The terminal taxonomy is derived without mutating the immutable
+    #     initial-miss artifact: all unextractable records are model-empty, so
+    #     there are no parser-recognition failures and all categories exhaust N.
+    svamp_correct_count = sum(
+        bool(record["correct"]) for record in e1_svamp_initial["per_example"]
+    )
+    svamp_valid_incorrect_count = sum(
+        bool(record["valid_extracted_incorrect"])
+        for record in e1_svamp_initial["per_example"]
+    )
+    svamp_model_empty_count = sum(
+        record["extracted_answer"] is None and record["response"] == "Answer:"
+        for record in e1_svamp_initial["per_example"]
+    )
+    svamp_parser_recognition_failure_count = (
+        svamp_extraction_failures["numerator"] - svamp_model_empty_count
+    )
+    check(
+        "e1_svamp_terminal_category_accounting",
+        svamp_correct_count == 66
+        and svamp_valid_incorrect_count == 177
+        and svamp_model_empty_count == 13
+        and svamp_parser_recognition_failure_count == 0
+        and e1_svamp_initial["exact_answer_failure_count"] == 190
+        and (
+            svamp_correct_count
+            + svamp_valid_incorrect_count
+            + svamp_model_empty_count
+            + svamp_parser_recognition_failure_count
+        )
+        == 256,
+        (
+            f"correct={svamp_correct_count}, "
+            f"valid_incorrect={svamp_valid_incorrect_count}, "
+            f"model_empty={svamp_model_empty_count}, "
+            f"parser_recognition_failure={svamp_parser_recognition_failure_count}, "
+            f"exact_answer_failures={e1_svamp_initial['exact_answer_failure_count']}"
+        ),
+    )
+
+    # 17. Bind the terminal adjudication to the immutable artifact hash, exact
+    #     category counts, denominators, ceiling, and frozen reason code.
+    terminal_entries = [
+        entry
+        for entry in ledger_entries
+        if entry.get("id") == "uesd-e1-task-band-base-a-svamp-terminal-void"
+    ]
+    terminal_entry = terminal_entries[0] if len(terminal_entries) == 1 else {}
+    terminal_metrics = terminal_entry.get("metrics", {})
+    check(
+        "e1_svamp_terminal_void_binding",
+        len(terminal_entries) == 1
+        and terminal_entry.get("status") == "void"
+        and terminal_metrics.get("artifact_sha256") == svamp_initial_sha
+        and terminal_metrics.get("correct")
+        == {"numerator": 66, "denominator": 256, "rate": 0.2578125}
+        and terminal_metrics.get("valid_extracted_incorrect")
+        == {"numerator": 177, "denominator": 256, "rate": 0.69140625}
+        and terminal_metrics.get("model_empty_non_answers")
+        == {"numerator": 13, "denominator": 256, "rate": 0.05078125}
+        and terminal_metrics.get("extraction_failures")
+        == {"numerator": 13, "denominator": 256, "rate": 0.05078125}
+        and terminal_metrics.get("exact_answer_failures")
+        == {"numerator": 190, "denominator": 256, "rate": 0.7421875}
+        and terminal_metrics.get("maximum_extraction_failure_count") == 12
+        and terminal_metrics.get("verdict") == "VOID"
+        and terminal_metrics.get("verdict_reason") == SVAMP_TERMINAL_VOID_REASON,
+        (
+            f"entry_count={len(terminal_entries)}, "
+            f"artifact_sha={terminal_metrics.get('artifact_sha256')}, "
+            f"verdict={terminal_metrics.get('verdict')}, "
+            f"reason={terminal_metrics.get('verdict_reason')}"
         ),
     )
 

@@ -463,3 +463,287 @@ This pure regression-only VOID is not evidence against the latch. It does not ro
 If any independently measurable selector criterion above fails, record FAIL and route to Direction 2; absence of measurable regression does not erase that valid negative. Any other VOID reason—including leakage, shortcut control failure, insufficient competence, insufficient denominator, missing seed, accounting failure, or unresolved review finding—continues to block the 0.5B launch.
 
 The sub-hour task-band gate remains controlling: a pending task-band result permits implementation and review but not launch, and a task-band VOID blocks both the mechanics-pilot launch and the full 0.5B experiment.
+
+### 2026-08-09 — Task-band parser-repair scope
+(post-SVAMP-initial-data; conservative adjudication)
+
+This amendment is recorded after the immutable SVAMP initial-parser
+attempt. It narrows the permissible parser-repair branch and may not
+convert any previously recorded extraction failure into a valid extracted
+answer or valid extracted incorrect response.
+
+A parser repair is eligible only when the frozen scored response segment
+contains explicit numeric answer content, but a deterministic defect in
+recognition, segmentation, or numeric normalization prevents that content
+from being extracted. A repair may recover only numeric content already
+present in the scored response segment.
+
+A parser repair may not:
+
+- infer or impute missing numeric content;
+- recompute an answer from the question;
+- consult the gold answer;
+- change the prompt, decoding, stopping, cohort, or generated response;
+- classify a response containing no numeric answer as a valid extracted
+  incorrect response.
+
+A response whose scored segment contains an answer marker but no complete
+numeric candidate is a model-empty non-answer. It is recorded as:
+
+- `correct = false`;
+- `extraction_failed = true`;
+- `valid_extracted_incorrect = false`;
+- `model_empty_non_answer = true`.
+
+Model attribution and extraction status are separate properties: identifying
+the model as the cause does not turn an unextractable response into an
+extracted answer.
+
+The one-parser-repair allowance is applicable only if independent review
+identifies at least one extraction failure containing recoverable explicit
+numeric answer content. If no such record exists, no qualified parser repair
+can be performed; the repair branch is exhausted as inapplicable and the
+fallback task-band gate receives terminal `VOID` with reason
+`NO_RECOVERABLE_NUMERIC_CONTENT_FOR_PERMITTED_PARSER_REPAIR`. No ceremonial
+source change or repeated deterministic generation is required or permitted
+to manufacture a repaired attempt.
+
+Applied to the immutable SVAMP initial attempt, all 13 extraction failures
+are the literal response `Answer:` and contain zero numeric content.
+The controlling accounting therefore remains:
+
+- 66/256 correct;
+- 177/256 valid extracted incorrect;
+- 13/256 model-empty non-answers and extraction failures;
+- 190/256 total exact-answer failures;
+- 13/256 = 5.078125% extraction failures.
+
+Because 5.078125% exceeds the preregistered 5.000% ceiling and no eligible
+parser defect exists, the task-band verdict is terminal `VOID`. The immutable
+initial-miss artifact remains unchanged.
+
+### 2026-08-09 — Successor base-B task-band gate and mechanics independence
+(post-base-A evidence; pre-base-B data)
+
+This amendment is recorded after the terminal base-A task-band VOID and
+before any base-B generation, smoke evaluation, or canonical evaluation.
+It establishes a new independent prerequisite; it does not reinterpret,
+pool, or rescue either base-A result.
+
+#### Decision and checkpoint freeze
+
+The successor task-band gate uses one frozen checkpoint identified publicly
+as `base-B`. `base-B` must be in the same nominal small-model class as
+`base-A`, compatible with the frozen-controller design and the RTX 5090
+resource envelope, and must not be selected by comparing newly generated
+GSM8K, SVAMP, or other task-band results across candidate checkpoints.
+
+Before any base-B generation:
+
+- record the exact checkpoint identifier, revision, and local content digest
+  in the gitignored local manifest;
+- freeze the prompt messages, demonstrations, decoding settings, parser,
+  cohort-selection implementation, and result path;
+- obtain independent pre-launch review of the runner;
+- record that no base-B task-band response existed before this amendment.
+
+Only one base-B checkpoint is permitted under this amendment. A miss does
+not authorize base-C, another cohort, another task, or another fallback
+without returning to steering.
+
+#### Task and frozen protocol
+
+Evaluate exactly 256 held-out examples from the revision-pinned GSM8K
+official test split:
+
+- dataset: `openai/gsm8k`;
+- config: `main`;
+- revision: `740312add88f781978c0658806c59bc2815b9866`;
+- fixed five-shot prompt content and demonstrations;
+- serialization through base-B's frozen native chat template;
+- greedy decoding;
+- maximum 256 generated tokens;
+- the already-qualified exact-rational numeric parser;
+- no task-specific adaptation before the gate.
+
+No SVAMP fallback exists in this successor gate.
+
+#### Disjoint cohort construction
+
+The pinned GSM8K test split contains 1,319 examples.
+
+Let `E` be the sorted set of the 256 dataset indices recorded in
+`experiments/06_uesd/results/exp_e1_task_band.json`. Require:
+
+- `|E| = 256`;
+- comma-joined, ASCII-encoded sorted-index SHA-256:
+  `0cc16e5a27c42ed8cab155006c25883a2695cac4131150b7e1d61334e912192b`.
+
+Let `P = {0, ..., 1318} \ E`, giving `|P| = 1063`.
+
+Use the fixed selection string:
+
+`semantic-ratchet-base-b-gsm8k-v1-2026-08-09`
+
+For each `i` in `P`, compute:
+
+`SHA256(dataset_revision + "\n" + selection_string + "\n" + decimal(i))`
+
+Sort by the raw 32-byte digest ascending, breaking any tie by integer index,
+and select the first 256 indices in that order. The comma-joined,
+ASCII-encoded ordered-index SHA-256 must be:
+
+`670705ea2936f75f0e90a4048d3f5b5ec3a63b42577c0d7a9df87253b77444ff`
+
+Before generation, assert and record:
+
+- selected count = 256;
+- selected unique count = 256;
+- overlap with `E` = 0;
+- remaining unconsumed official-test count = 807;
+- selected-row content digest;
+- dataset split fingerprint.
+
+Neither the 256 base-A gate examples nor the 256 base-B gate examples may
+be used for controller training, critic harvesting, calibration, checkpoint
+selection, threshold selection, or final in-domain evaluation. The remaining
+807 official-test examples are reserved for final evaluation.
+
+#### Frozen outcome taxonomy
+
+Every response belongs to exactly one category:
+
+1. `correct_numeric`;
+2. `valid_extracted_incorrect`;
+3. `model_empty_non_answer`;
+4. `parser_recognition_failure`.
+
+A model-empty non-answer contains no complete numeric candidate in the
+frozen scored segment, including an empty response, whitespace-only
+response, or bare answer marker. Record it as:
+
+- `correct = false`;
+- `extracted_answer = null`;
+- `extraction_failed = true`;
+- `valid_extracted_incorrect = false`;
+- `model_empty_non_answer = true`;
+- `parser_recognition_failure = false`;
+- `exact_answer_failure = true`.
+
+The parser-recognition-failure ceiling measures harness recognition defects
+only. Model-empty non-answers do not enter its numerator. They instead have
+their own independently frozen suitability ceiling.
+
+Define:
+
+- `usable_incorrect_count =
+  valid_extracted_incorrect_count + model_empty_non_answer_count`;
+- `parser_recognition_failure_rate =
+  parser_recognition_failure_count / 256`;
+- `model_empty_non_answer_rate =
+  model_empty_non_answer_count / 256`.
+
+The four category counts must sum to 256. Report every numerator and
+denominator.
+
+#### PASS
+
+The successor task-band gate passes only if all are true:
+
+- correct count is 26–217 inclusive;
+- correct count is at least 40;
+- usable incorrect count is at least 40;
+- model-empty non-answers are at most 12/256, i.e. no more than 5%;
+- parser-recognition failures are at most 12/256 after at most one eligible
+  parser repair governed by the preceding parser-repair-scope amendment;
+- leakage, provenance, determinism, and accounting checks pass.
+
+#### VOID
+
+Any valid miss is terminal `VOID`, including:
+
+- below or above the task band;
+- fewer than 40 correct or usable incorrect examples;
+- more than 12 model-empty non-answers;
+- parser-recognition failures above 5% after the permitted repair branch;
+- contamination, cohort overlap, provenance failure, or accounting failure.
+
+There is no fallback, repeat cohort, checkpoint substitution, or
+post-result threshold change under this amendment.
+
+#### Model-empty semantics in the full program
+
+If the base-B gate passes, the same model-empty definition applies to every
+decoded candidate at every controller horizon, during state harvesting,
+critic training, calibration, ablation, and final evaluation.
+
+- Model-empty candidates receive an incorrect outcome label and may be used
+  as negative critic examples.
+- A correct earlier response followed by a model-empty response counts as a
+  correct-to-wrong regression.
+- A latch-selected model-empty state counts as an incorrect final answer.
+- Report model-empty counts and rates at every horizon and for every arm.
+- Report correct-to-empty and empty-to-correct transitions separately.
+- No empty response may be imputed, regenerated, or removed from an accuracy
+  denominator.
+
+To prevent trivial format detection from satisfying the semantic-critic
+claim, report the critic provenance metrics both:
+
+1. over all candidates; and
+2. after excluding every model-empty candidate.
+
+The preregistered critic AUROC, advantage-over-confidence, on-policy, and
+confidence-plus-schedule-matched thresholds must pass on the nonempty
+candidate population. The existing matched-pair minimum must also be met
+using nonempty pairs alone. Failure to supply that population is VOID;
+failure of a properly powered nonempty critic comparison is KILL.
+
+#### Transfer-set consequence
+
+SVAMP is no longer an untouched confirmatory transfer set: 256/300 official
+test examples were consumed by the base-A gate. SVAMP may be reported only
+as a disclosed secondary diagnostic and may not satisfy the preregistered
+cross-family CONFIRM condition.
+
+Before full 0.5B training, a separate pre-data amendment must freeze a new
+untouched cross-family transfer set and its evaluation cohort. The full
+program remains blocked until that replacement is registered.
+
+#### Mechanics-pilot independence
+
+This section supersedes earlier language that made mechanics-pilot launch
+conditional on the task-band result.
+
+The 30M shortcut-resistant synthetic-deduction mechanics pilot is independent
+of base-A, base-B, GSM8K, SVAMP, and the real-task task-band gate. It may
+proceed after its own independent pre-training code review, regardless of
+the base-B gate's state or verdict.
+
+A mechanics PROCEED result does not authorize the 0.5B program by itself.
+The full program requires both:
+
+- an admissible mechanics-pilot outcome under its frozen rules; and
+- a PASS from the base-B task-band gate.
+
+A mechanics FAIL or blocking VOID still prevents the 0.5B launch even if
+the base-B task-band gate passes.
+
+### 2026-08-09 — Base-B selection compute-budget revision (pre-data)
+
+This note is recorded after selecting the single frozen `base-B` checkpoint
+and before any base-B generation, smoke evaluation, canonical evaluation, or
+full-program training. It revises time estimates only. The token budgets and
+the 5% trainable-overhead ceiling remain unchanged. A conservative 4.3×
+multiplier is applied to frozen-base-dominated rows.
+
+| Component | Revised estimate |
+|---|---:|
+| Task-band gate | 1.3–3.5h |
+| Mechanics pilot | unchanged, 1.5–2.5h |
+| Semantic-ratchet controller | 34–52h |
+| Matched fixed-depth controller | 26–39h |
+| Critic harvesting | 9–17h |
+| Learned reranker | 4–9h |
+| Final inference/ablations | 13–22h |
+| **Full program** | **approximately 90–150 GPU-hours** |

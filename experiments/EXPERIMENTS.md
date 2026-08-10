@@ -23,6 +23,17 @@ Suite aggregate: `results/pilot_suite_summary.json`.
 
 Framework where AI generation happens in continuous embedding space via iterative dynamics, with no softmax collapse. Tests whether self-consistency energy E(s) = ||F_theta(s,c)||^2 produces correct, stable attractors.
 
+### E1 Base-A/SVAMP Fallback Adjudication (TERMINAL VOID)
+- **Event:** Post-evidence parser-repair-scope adjudication; no generation, parser change, or repeated canonical attempt occurred.
+- **Immutable source artifact:** `experiments/06_uesd/results/exp_e1_task_band_svamp_initial_parser_miss.json` (checkout-stable canonical-LF SHA-256 `d092eb628a5279085e6c2de2974463937efe95f4c1c7d769ff7a83e21d0b242d`; original runtime-byte SHA-256 `84a78ac257b8f1b22a1a4d02da9c5cab9ea414c2f4fea1d2cbdf0c31e4c69386`). The artifact is unchanged and retains its point-in-time initial-attempt status.
+- **Exact accounting:** 66/256 correct (25.78125% of all 256 examples); 177/256 valid extracted incorrect (69.140625% of all 256); 13/256 model-empty non-answers and extraction failures (5.078125% of all 256); 190/256 total exact-answer failures (74.21875% of all 256). The mutually exclusive correct, valid-extracted-incorrect, and model-empty counts sum to 256/256.
+- **Parser-repair finding:** All 13/256 extraction failures are the literal response `Answer:` and contain no recoverable numeric content. Under the appended parser-repair-scope amendment, no eligible parser repair exists, so neither a ceremonial source edit nor repeated deterministic generation is permitted.
+- **Verdict:** **TERMINAL `VOID`** with reason `NO_RECOVERABLE_NUMERIC_CONTENT_FOR_PERMITTED_PARSER_REPAIR`. The 13/256 extraction-failure rate is 5.078125%, which exceeds the preregistered 5.000% ceiling (at most 12/256). This closes the base-A/SVAMP fallback gate without altering the immutable initial-miss artifact.
+- **Successor consequence:** A fresh `base-B` gate is preregistered on a deterministic disjoint GSM8K cohort and has not been run. No fallback, repeat cohort, checkpoint substitution, or post-result threshold change is authorized. The mechanics pilot is a formally independent workstream under its own pre-training review gate; the full program still requires both an admissible mechanics outcome and a base-B task-band `PASS`.
+- **Adversarial-reviewer defense:**
+
+  > Before the canonical run, independent review had already shown that the observed bare `Answer:` class contained no numeric content and was caused by model non-response rather than parser syntax or normalization. When the canonical rate exceeded the ceiling by one example, we preserved the frozen operational classification and accepted `VOID`. We did not infer answers, regenerate outputs, redefine the metric, or reclassify failures to obtain `PASS`. The pre-canonical diagnosis establishes why no parser repair was possible; it does not authorize a post-outcome rescue.
+
 ### E1 SVAMP Fallback, Initial Parser Attempt (PARSER-REPAIR-REQUIRED — GATE INCOMPLETE)
 - **Config:** `experiments/06_uesd/exp_e1_task_band.py` (executed from commit `b035793`)
 - **Artifact:** `experiments/06_uesd/results/exp_e1_task_band_svamp_initial_parser_miss.json` (checkout-stable canonical-LF SHA-256 `d092eb628a5279085e6c2de2974463937efe95f4c1c7d769ff7a83e21d0b242d`; original runtime-byte SHA-256 `84a78ac257b8f1b22a1a4d02da9c5cab9ea414c2f4fea1d2cbdf0c31e4c69386`)
