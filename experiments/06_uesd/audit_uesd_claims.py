@@ -48,6 +48,9 @@ def main():
             RESULTS / "exp_e1_task_band_svamp_initial_parser_miss.json"
         ).read_text(encoding="utf-8")
     )
+    e1_base_b = json.loads(
+        (RESULTS / "exp_e1_task_band_base_b.json").read_text(encoding="utf-8")
+    )
     ledger_entries = [
         json.loads(line)
         for line in LEDGER.read_text(encoding="utf-8").splitlines()
@@ -387,6 +390,136 @@ def main():
             f"artifact_sha={terminal_metrics.get('artifact_sha256')}, "
             f"verdict={terminal_metrics.get('verdict')}, "
             f"reason={terminal_metrics.get('verdict_reason')}"
+        ),
+    )
+
+    # 18. The successor artifact is the single complete canonical base-B run
+    #     and is bound to the preregistered disjoint cohort and frozen protocol.
+    base_b_path = RESULTS / "exp_e1_task_band_base_b.json"
+    base_b_sha = canonical_lf_sha256(base_b_path)
+    base_b_proto = e1_base_b["protocol"]
+    base_b_selection = base_b_proto["selection"]
+    check(
+        "e1_base_b_artifact_and_protocol_binding",
+        base_b_sha
+        == "9c57a10f3aa64c43fa34819255f4cf4e004cc5ab74afaa838c02c4a06a271de2"
+        and e1_base_b["status"] == "COMPLETE"
+        and e1_base_b["mode"] == "canonical"
+        and e1_base_b["model"] == "base-B"
+        and e1_base_b["sample_count"] == 256
+        and len(e1_base_b["per_example"]) == 256
+        and base_b_proto["dataset"] == "GSM8K"
+        and base_b_proto["dataset_revision"]
+        == "740312add88f781978c0658806c59bc2815b9866"
+        and base_b_proto["decoding"]["strategy"] == "greedy"
+        and base_b_proto["decoding"]["batch_size"] == 1
+        and base_b_proto["decoding"]["repeat_determinism"]["status"] == "PASS"
+        and base_b_proto["leakage_preflight"]["status"] == "PASS"
+        and base_b_proto["leakage_preflight"]["overlap_count"] == 0
+        and base_b_proto["answer_extraction"]["parser_attempt"] == "initial"
+        and base_b_selection["canonical_indices_sha256"]
+        == "670705ea2936f75f0e90a4048d3f5b5ec3a63b42577c0d7a9df87253b77444ff"
+        and base_b_selection["canonical_unique_count"] == 256
+        and base_b_selection["overlap_with_base_a_count"] == 0
+        and base_b_selection["remaining_unconsumed_official_test_count"] == 807,
+        (
+            f"sha={base_b_sha[:12]}..., status={e1_base_b['status']}, "
+            f"records={len(e1_base_b['per_example'])}, "
+            f"cohort_sha={base_b_selection['canonical_indices_sha256'][:12]}..."
+        ),
+    )
+
+    # 19. Re-derive all four mutually exclusive successor categories from the
+    #     per-example records and bind every numerator and denominator.
+    base_b_category_names = (
+        "correct_numeric",
+        "valid_extracted_incorrect",
+        "model_empty_non_answer",
+        "parser_recognition_failure",
+    )
+    base_b_derived_counts = {
+        name: sum(bool(record[name]) for record in e1_base_b["per_example"])
+        for name in base_b_category_names
+    }
+    base_b_expected_counts = {
+        "correct_numeric": 143,
+        "valid_extracted_incorrect": 104,
+        "model_empty_non_answer": 0,
+        "parser_recognition_failure": 9,
+    }
+    base_b_record_one_hot = all(
+        sum(bool(record[name]) for name in base_b_category_names) == 1
+        for record in e1_base_b["per_example"]
+    )
+    check(
+        "e1_base_b_four_category_accounting",
+        base_b_derived_counts == base_b_expected_counts
+        and base_b_record_one_hot
+        and sum(base_b_derived_counts.values()) == 256
+        and all(
+            e1_base_b["outcome_categories"][name]["numerator"] == count
+            and e1_base_b["outcome_categories"][name]["denominator"] == 256
+            for name, count in base_b_expected_counts.items()
+        )
+        and e1_base_b["usable_incorrect"]
+        == {"numerator": 104, "denominator": 256, "rate": 0.40625},
+        f"derived={base_b_derived_counts}, one_hot={base_b_record_one_hot}",
+    )
+
+    # 20. Bind the preregistered PASS mapping, including both population floors
+    #     and the independent model-empty/parser-recognition ceilings.
+    base_b_verdict = e1_base_b["verdict"]
+    check(
+        "e1_base_b_pass_mapping",
+        26 <= e1_base_b["correct_numeric_count"] <= 217
+        and e1_base_b["correct_numeric_count"] >= 40
+        and e1_base_b["usable_incorrect_count"] >= 40
+        and e1_base_b["model_empty_non_answer_count"] <= 12
+        and e1_base_b["parser_recognition_failure_count"] <= 12
+        and base_b_verdict["token"] == "PASS"
+        and base_b_verdict["reason"]
+        == "all_successor_task_band_thresholds_satisfied"
+        and not base_b_verdict["terminal"],
+        (
+            f"correct={e1_base_b['correct_numeric_count']}, "
+            f"usable_incorrect={e1_base_b['usable_incorrect_count']}, "
+            f"model_empty={e1_base_b['model_empty_non_answer_count']}, "
+            "parser_recognition_failure="
+            f"{e1_base_b['parser_recognition_failure_count']}, "
+            f"verdict={base_b_verdict['token']}"
+        ),
+    )
+
+    # 21. Bind the landed ledger entry to the immutable artifact, exact category
+    #     denominators, measured compute, and narrow band-placement verdict.
+    base_b_entries = [
+        entry
+        for entry in ledger_entries
+        if entry.get("id") == "uesd-e1-task-band-base-b-gsm8k"
+    ]
+    base_b_entry = base_b_entries[0] if len(base_b_entries) == 1 else {}
+    base_b_metrics = base_b_entry.get("metrics", {})
+    check(
+        "e1_base_b_ledger_binding",
+        len(base_b_entries) == 1
+        and base_b_entry.get("status") == "complete"
+        and base_b_metrics.get("artifact_sha256") == base_b_sha
+        and base_b_metrics.get("correct_numeric")
+        == {"numerator": 143, "denominator": 256, "rate": 0.55859375}
+        and base_b_metrics.get("valid_extracted_incorrect")
+        == {"numerator": 104, "denominator": 256, "rate": 0.40625}
+        and base_b_metrics.get("model_empty_non_answers")
+        == {"numerator": 0, "denominator": 256, "rate": 0.0}
+        and base_b_metrics.get("parser_recognition_failures")
+        == {"numerator": 9, "denominator": 256, "rate": 0.03515625}
+        and base_b_metrics.get("wall_time_seconds") == 21412.4622991
+        and base_b_metrics.get("throughput_generated_tokens_per_second")
+        == 1.8718598219711238
+        and base_b_metrics.get("verdict") == "PASS",
+        (
+            f"entry_count={len(base_b_entries)}, "
+            f"artifact_sha={base_b_metrics.get('artifact_sha256')}, "
+            f"verdict={base_b_metrics.get('verdict')}"
         ),
     )
 
