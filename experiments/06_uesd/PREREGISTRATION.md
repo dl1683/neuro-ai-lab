@@ -275,3 +275,191 @@ The earlier 14–20h estimate was too optimistic. The full program should be pre
 - critic/controller train–inference distribution mismatch;
 - unresolved review finding;
 - hardware failure preventing the preregistered grid.
+
+## AMENDMENTS
+
+### 2026-08-09 — Mechanics-pilot design-gate clarifications (pre-data)
+
+This section was appended before mechanics-pilot implementation or execution. It amends ambiguities in the committed preregistration without silently rewriting its original normative text. Where this section conflicts with earlier wording, this section controls.
+
+#### Shared controller checkpoint
+
+For each model seed, train exactly one common recurrent controller checkpoint on 500,000 processed non-padding input-plus-answer tokens. Reuse that exact checkpoint for the final-horizon/no-latch, confidence-latch, and latent-critic-latch conditions. These are selector interventions, not independently trained controller arms.
+
+Record both:
+
+- `shared_controller_tokens = 500000`;
+- `logical_arm_exposure = 500000`.
+
+Do not report 1.5M unique controller-training tokens per seed. Selector fitting and critic fitting are recorded separately from controller-training tokens.
+
+#### Meaning of semantic latch
+
+Every occurrence of “semantic latch” in the mechanics-pilot PROCEED criteria means the latent progress critic plus latch. It does not mean the confidence latch.
+
+#### Encoder-only control
+
+Use a strong parameter-matched non-recurrent control with:
+
+- 9 bidirectional pre-LN transformer encoder layers;
+- width 512;
+- 8 attention heads;
+- FFN width 2048 with GELU;
+- the same tokenizer, rendered examples, split, 500,000-token training budget, optimizer family, model seeds, and four-way answer interface as the recurrent model;
+- total trainable parameters within 5% of the common recurrent model.
+
+Select its checkpoint once using the fixed validation rule and evaluate it once on the fixed test set. Report exact parameter counts and per-seed results.
+
+The pilot is VOID if either encoder-control seed exceeds 80.0% test accuracy.
+
+#### Calibration-frozen earlier horizon and regression denominator
+
+Using only the calibration split, define one shared earlier horizon
+
+\[
+t^\* =
+\arg\max_{t\in\{1,\ldots,15\}}
+\frac{1}{2}\sum_s A_{\mathrm{no},s}^{\mathrm{cal}}(t),
+\]
+
+where \(s\) indexes the two model seeds. Break ties toward the smaller horizon. Freeze \(t^\*\) before inspecting any test result. The same \(t^\*\) is used for both the \(H=16\) primary adjudication and any permitted \(H=32\) adjudication.
+
+For each seed \(s\), define
+
+\[
+S_s=\{i:\hat y^{\mathrm{no}}_{i,s,t^\*}=y_i\}.
+\]
+
+For endpoint \(H\in\{16,32\}\), define
+
+\[
+R_{\mathrm{no},s}(H)=
+\frac{
+\#\{i\in S_s:\hat y^{\mathrm{no}}_{i,s,H}\ne y_i\}
+}{
+|S_s|
+},
+\]
+
+and
+
+\[
+R_{\mathrm{critic},s}(H)=
+\frac{
+\#\{i\in S_s:\hat y^{\mathrm{critic}}_{i,s,H}\ne y_i\}
+}{
+|S_s|
+}.
+\]
+
+The critic prediction at endpoint \(H\) is the critic-selected state among horizons \(1,\ldots,H\). Pooled rates concatenate the corresponding per-example records across both seeds; rates are never averaged without their numerators and denominators.
+
+When \(R_{\mathrm{no}}(H)\ge10\%\), define regression reduction as
+
+\[
+1-\frac{R_{\mathrm{critic}}(H)}{R_{\mathrm{no}}(H)}.
+\]
+
+#### Competence and sample-size validity floors
+
+Before any PROCEED/FAIL adjudication, require:
+
+- no-latch test accuracy at the calibration-frozen \(t^\*\) of at least 60% in each seed;
+- no-latch gain
+  \[
+  G_s=A_{\mathrm{no},s}(t^\*)-A_{\mathrm{no},s}(1)
+  \]
+  of at least 5 absolute points in each seed;
+- \(|S_s|\ge500\) test examples in each seed;
+- at least 20,000 correctness-labeled selector-training states per seed;
+- at least 10,000 correctness-labeled selector-calibration states per seed;
+- at least 200 qualifying confidence-plus-schedule-matched, opposite-correctness evaluation pairs per seed.
+
+A miss on one of these floors is VOID. Random answer flicker, a weak controller, or an underpowered matched-pair set cannot satisfy the scientific mechanics gate.
+
+At endpoint \(H\), gain retention is
+
+\[
+\frac{A_{\mathrm{critic}}(H)-A_{\mathrm{no}}(1)}
+     {A_{\mathrm{no}}(t^\*)-A_{\mathrm{no}}(1)}.
+\]
+
+#### Step-index fairness
+
+The confidence calibrator receives the same normalized step coordinate \(t/16\) available to the latent critic.
+
+The pilot confidence calibrator therefore receives:
+
+- maximum answer probability;
+- top-two probability margin;
+- entropy;
+- \(t/16\).
+
+The latent critic retains its allowed latent-content and trajectory-geometry features and also receives \(t/16\). It remains prohibited from seeing logits, answer probabilities, margins, entropy, or answer identity.
+
+Both selectors are fitted and frozen before test evaluation. At horizons 17–32, \(t/16\) is allowed to exceed 1; neither selector may be refitted, recalibrated, or retuned using those horizons or any test result.
+
+For the later 0.5B design, the latent critic, confidence latch, and confidence-based early-exit calibrator must receive the same normalized horizon coordinate, using the preregistered maximum selector-calibration horizon as the denominator. Any comparison previously described as “critic versus confidence-only” is interpreted as “critic versus confidence plus the same schedule coordinate.” The critic’s additional information is limited to problem-conditioned latent content and trajectory geometry.
+
+#### Confidence-matched concordance
+
+Confidence matching uses the frozen confidence-plus-schedule calibrator’s predicted-correctness score, including \(t/16\). A qualifying pair must:
+
+- come from the same problem;
+- contain one correct and one incorrect state;
+- fall in the same calibrated-score decile;
+- have an absolute calibrated-score difference no greater than 0.02.
+
+For \(N\) preregistered qualifying pairs, define confidence-matched critic AUROC as
+
+\[
+\frac{1}{N}\sum_{j=1}^{N}
+\left[
+\mathbf{1}(c_j^+>c_j^-)
++\frac{1}{2}\mathbf{1}(c_j^+=c_j^-)
+\right],
+\]
+
+where \(c_j^+\) and \(c_j^-\) are the critic scores for the correct and incorrect members of pair \(j\). Thus the metric is the critic’s concordance probability after matching on both output confidence and schedule. Pair construction and any fixed subsampling seed must be independent of critic scores.
+
+#### Evaluation through T=32 and formal endpoint selection
+
+Evaluate and record every integer recurrent horizon
+
+\[
+T=1,2,\ldots,32.
+\]
+
+Horizons 17–32 are inference-only. They do not add controller-training tokens and may not trigger selector refitting, new calibration, generator modification, example selection, or checkpoint selection.
+
+The formal decision endpoint is selected as follows:
+
+1. Apply all integrity, leakage, accounting, encoder-control, competence, denominator, and pair-count validity checks.
+2. If \(R_{\mathrm{no}}(16)\ge10\%\) pooled and separately in both seeds, set \(H=16\). Apply every numeric PROCEED condition at \(H=16\). A valid miss is FAIL and may not be rescued using \(H=32\).
+3. Only if the regression floor misses at \(H=16\), inspect the already-generated \(H=32\) result.
+4. If \(R_{\mathrm{no}}(32)\ge10\%\) pooled and separately in both seeds, set \(H=32\) and apply every numeric PROCEED condition at \(H=32\), using the same frozen \(t^\*\), denominator definition, thresholds, and per-seed-plus-pooled requirements.
+5. If the regression floor misses at both endpoints, correct-to-wrong regression is unmeasurable at pilot scale. No intermediate horizon, alternative denominator, selected subset, generator retuning, or changed threshold may be used for adjudication.
+
+At the selected endpoint \(H\), all of the following remain required pooled and separately in both seeds:
+
+- \(R_{\mathrm{no}}(H)\ge10\%\);
+- regression reduction at least 80%;
+- gain retention at least 90%;
+- critic-latch accuracy minus confidence-plus-schedule-latch accuracy at least 3 absolute points;
+- confidence-plus-schedule-matched critic AUROC at least 0.70.
+
+#### Consequence of regression-only VOID
+
+If regression remains below 10% at both \(H=16\) and \(H=32\), assign final token `VOID` with reason code `UNMEASURABLE_REGRESSION` only when:
+
+- every integrity and competence validity gate passes;
+- the regression denominator and matched-pair floors pass;
+- gain retention is at least 90% at \(H=32\);
+- critic-latch accuracy exceeds confidence-plus-schedule-latch accuracy by at least 3 absolute points at \(H=32\);
+- confidence-plus-schedule-matched critic AUROC is at least 0.70.
+
+This pure regression-only VOID is not evidence against the latch. It does not route to Direction 2 or to an adaptively redesigned mechanics pilot. Conditional on a PASS from the sub-hour task-band gate and satisfaction of the full design and independent pre-training review gates, it permits the 0.5B real-task experiment to proceed, with regression measured there under the full preregistered criteria.
+
+If any independently measurable selector criterion above fails, record FAIL and route to Direction 2; absence of measurable regression does not erase that valid negative. Any other VOID reason—including leakage, shortcut control failure, insufficient competence, insufficient denominator, missing seed, accounting failure, or unresolved review finding—continues to block the 0.5B launch.
+
+The sub-hour task-band gate remains controlling: a pending task-band result permits implementation and review but not launch, and a task-band VOID blocks both the mechanics-pilot launch and the full 0.5B experiment.
