@@ -116,6 +116,8 @@ python experiments\06_uesd\audit_uesd_claims.py
 
 ### Frozen vs Open
 
+Current runner states (2026-08-10): E2 mechanics pilot IMPLEMENTED (four arms, self-tested) — independent pre-training review pending, launch blocked until clean. Base-B successor gate runner PREPARED and four-times reviewed — single canonical attempt awaits the final LAUNCH ruling. No E2 or base-B run has occurred.
+
 The fixed-point convergence arc is closed. D40 stands at 15/16; rerunning the crashed run (seed 512, λ_sc=3.0) is publication-completeness work, not a blocker to the negative conclusion. The separately preregistered semantic-ratchet mechanism and full-program experiment have not been run and are not evidence. The base-A GSM8K task-band gate completed as ABORT-AND-SWAP, and its SVAMP fallback is terminal VOID under the parser-repair-scope amendment. The disjoint base-B successor gate is preregistered and not yet run. The mechanics pilot is independent but still launch-gated by its own review; the full program requires both mechanics admissibility and a base-B PASS. `exp_d14_scaling_laws.py` and `exp_d26_criticality_recovery.py` are reviewed-but-unexecuted designs with no result JSON; do not cite them as empirical evidence.
 
 ## Canonical Document Map

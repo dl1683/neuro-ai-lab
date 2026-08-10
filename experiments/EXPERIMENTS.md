@@ -23,6 +23,10 @@ Suite aggregate: `results/pilot_suite_summary.json`.
 
 Framework where AI generation happens in continuous embedding space via iterative dynamics, with no softmax collapse. Tests whether self-consistency energy E(s) = ||F_theta(s,c)||^2 produces correct, stable attractors.
 
+### Implementation events (2026-08-10, no runs)
+- **E2 latch-mechanics pilot IMPLEMENTED** (`a72d241`, `a8a0db2`): 29.5M common recurrent model, four selector arms (no-latch / confidence+schedule latch / critic-argmax latch / informational hysteretic arm 4 per amendment), full trajectory diagnostics (O/F/H, hazards) with integrity assertions, schema 1.1.0. All CPU self-tests pass. Launch hard-blocked on independent pre-training review.
+- **Base-B successor gate runner PREPARED** (`3077598` → `b42bc82`): disjoint-cohort construction (hash `670705ea…444ff` verified), four-category outcome taxonomy, batch-1 repeat-determinism, repaired-attempt immutability with five identity hashes and TOCTOU-atomic publication, complete terminal-VOID coverage. Hardened through four independent review rounds. Single canonical attempt pending final ruling.
+
 ### E1 Base-A/SVAMP Fallback Adjudication (TERMINAL VOID)
 - **Event:** Post-evidence parser-repair-scope adjudication; no generation, parser change, or repeated canonical attempt occurred.
 - **Immutable source artifact:** `experiments/06_uesd/results/exp_e1_task_band_svamp_initial_parser_miss.json` (checkout-stable canonical-LF SHA-256 `d092eb628a5279085e6c2de2974463937efe95f4c1c7d769ff7a83e21d0b242d`; original runtime-byte SHA-256 `84a78ac257b8f1b22a1a4d02da9c5cab9ea414c2f4fea1d2cbdf0c31e4c69386`). The artifact is unchanged and retains its point-in-time initial-attempt status.
