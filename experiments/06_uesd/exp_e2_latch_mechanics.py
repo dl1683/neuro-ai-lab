@@ -1419,6 +1419,7 @@ def checkpoint_payload(
     seed: int,
     history: Sequence[Mapping[str, Any]],
 ) -> dict[str, Any]:
+    model_uses_cuda = any(parameter.is_cuda for parameter in model.parameters())
     return {
         "schema_version": 1,
         "processed_nonpadding_tokens": processed_tokens,
@@ -1429,11 +1430,26 @@ def checkpoint_payload(
         "optimizer_state": None if optimizer is None else optimizer.state_dict(),
         "python_rng_state": random.getstate(),
         "torch_rng_state": torch.random.get_rng_state(),
-        "cuda_rng_state_all": torch.cuda.get_rng_state_all()
-        if torch.cuda.is_available()
-        else [],
+        "cuda_rng_state_all": torch.cuda.get_rng_state_all() if model_uses_cuda else [],
         "history": list(history),
     }
+
+
+def restore_checkpoint_rng_states(
+    payload: Mapping[str, Any], *, model_uses_cuda: bool
+) -> None:
+    try:
+        python_rng_state = payload["python_rng_state"]
+        torch_rng_state = payload["torch_rng_state"]
+        cuda_rng_state_all = payload["cuda_rng_state_all"]
+    except KeyError as error:
+        raise RuntimeError("checkpoint is missing a required RNG state") from error
+    random.setstate(python_rng_state)
+    torch.random.set_rng_state(torch_rng_state.cpu())
+    if model_uses_cuda:
+        if not cuda_rng_state_all:
+            raise RuntimeError("CUDA training checkpoint is missing CUDA RNG states")
+        torch.cuda.set_rng_state_all([state.cpu() for state in cuda_rng_state_all])
 
 
 def load_checked_checkpoint(
@@ -1442,18 +1458,29 @@ def load_checked_checkpoint(
     *,
     config_hash: str,
     code_hash: str,
+    expected_seed: int,
+    expected_processed_tokens: int,
     optimizer: torch.optim.Optimizer | None = None,
     map_location: str | torch.device = "cpu",
+    restore_rng: bool = False,
 ) -> dict[str, Any]:
     payload = torch.load(path, map_location=map_location, weights_only=False)
     if (
-        payload.get("config_hash") != config_hash
+        payload.get("schema_version") != 1
+        or payload.get("config_hash") != config_hash
         or payload.get("code_hash") != code_hash
+        or payload.get("seed") != expected_seed
+        or payload.get("processed_nonpadding_tokens") != expected_processed_tokens
     ):
         raise RuntimeError(f"checkpoint provenance mismatch: {path}")
     model.load_state_dict(payload["model_state"])
     if optimizer is not None and payload.get("optimizer_state") is not None:
         optimizer.load_state_dict(payload["optimizer_state"])
+    if restore_rng:
+        restore_checkpoint_rng_states(
+            payload,
+            model_uses_cuda=any(parameter.is_cuda for parameter in model.parameters()),
+        )
     return payload
 
 
@@ -1690,7 +1717,10 @@ def train_common_model(
             optimizer=optimizer,
             config_hash=config_hash,
             code_hash=code_hash,
+            expected_seed=seed,
+            expected_processed_tokens=0,
             map_location=device,
+            restore_rng=True,
         )
     checkpoint_records.append(
         {
@@ -1713,7 +1743,10 @@ def train_common_model(
                 optimizer=optimizer,
                 config_hash=config_hash,
                 code_hash=code_hash,
+                expected_seed=seed,
+                expected_processed_tokens=target_tokens,
                 map_location=device,
+                restore_rng=True,
             )
             processed = int(payload["processed_nonpadding_tokens"])
             history = list(payload.get("history", []))
@@ -1838,7 +1871,10 @@ def train_encoder_control(
                 optimizer=optimizer,
                 config_hash=config_hash,
                 code_hash=code_hash,
+                expected_seed=seed,
+                expected_processed_tokens=target_tokens,
                 map_location=device,
+                restore_rng=True,
             )
             processed = int(payload["processed_nonpadding_tokens"])
             history = list(payload.get("history", []))
@@ -1926,6 +1962,8 @@ def train_encoder_control(
         model,
         config_hash=config_hash,
         code_hash=code_hash,
+        expected_seed=seed,
+        expected_processed_tokens=int(selected["processed_tokens"]),
         map_location=device,
     )
     return {
@@ -2101,6 +2139,8 @@ def harvest_selector_training_corpus(
             model,
             config_hash=config_hash,
             code_hash=code_hash,
+            expected_seed=seed,
+            expected_processed_tokens=tokens,
             map_location=device,
         )
         block = _harvest_assignment_source(
@@ -3960,6 +4000,8 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
             common,
             config_hash=config_hash,
             code_hash=code_hash,
+            expected_seed=seed,
+            expected_processed_tokens=int(final_common["processed_tokens"]),
             map_location=device,
         )
         calibration_corpus = harvest_fixed_selector_corpus(
@@ -4154,6 +4196,8 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
             common,
             config_hash=config_hash,
             code_hash=code_hash,
+            expected_seed=seed,
+            expected_processed_tokens=int(final_record["processed_tokens"]),
             map_location=device,
         )
         critic = LatentProgressCritic(config).to(device)
@@ -4187,6 +4231,8 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
             encoder,
             config_hash=config_hash,
             code_hash=code_hash,
+            expected_seed=seed,
+            expected_processed_tokens=int(selected_encoder["processed_tokens"]),
             map_location=device,
         )
         encoder_results[seed] = evaluate_encoder_control(
@@ -4505,6 +4551,129 @@ def _synthetic_metrics(
     }
 
 
+def _resume_determinism_self_test() -> dict[str, Any]:
+    seed = 20260813
+    config_hash = "self-test-config"
+    code_hash = "self-test-code"
+
+    def initialize() -> tuple[nn.Module, torch.optim.Optimizer]:
+        random.seed(seed)
+        torch.manual_seed(seed)
+        model = nn.Sequential(
+            nn.Linear(4, 8),
+            nn.GELU(),
+            nn.Dropout(p=0.25),
+            nn.Linear(8, 2),
+        )
+        return model, torch.optim.AdamW(model.parameters(), lr=1e-3)
+
+    def train_updates(
+        model: nn.Module,
+        optimizer: torch.optim.Optimizer,
+        history: list[dict[str, Any]],
+        start: int,
+        stop: int,
+    ) -> None:
+        model.train()
+        for update in range(start, stop):
+            python_scale = random.random()
+            features = torch.randn(6, 4)
+            targets = torch.randn(6, 2)
+            optimizer.zero_grad(set_to_none=True)
+            predictions = model(features) * python_scale
+            loss = F.mse_loss(predictions, targets)
+            loss.backward()
+            optimizer.step()
+            history.append(
+                {
+                    "update": update,
+                    "python_scale": python_scale,
+                    "loss": float(loss.detach()),
+                }
+            )
+
+    uninterrupted, uninterrupted_optimizer = initialize()
+    uninterrupted_history: list[dict[str, Any]] = []
+    train_updates(
+        uninterrupted, uninterrupted_optimizer, uninterrupted_history, 0, 6
+    )
+
+    interrupted, interrupted_optimizer = initialize()
+    interrupted_history: list[dict[str, Any]] = []
+    train_updates(interrupted, interrupted_optimizer, interrupted_history, 0, 3)
+    with tempfile.TemporaryDirectory(prefix="e2-resume-self-test-") as directory:
+        checkpoint = Path(directory) / "interrupted.pt"
+        atomic_torch_save(
+            checkpoint_payload(
+                interrupted,
+                interrupted_optimizer,
+                processed_tokens=3,
+                config_hash=config_hash,
+                code_hash=code_hash,
+                seed=seed,
+                history=interrupted_history,
+            ),
+            checkpoint,
+        )
+        provenance_mismatches_rejected = 0
+        for wrong_seed, wrong_tokens in ((seed + 1, 3), (seed, 4)):
+            probe, _ = initialize()
+            try:
+                load_checked_checkpoint(
+                    checkpoint,
+                    probe,
+                    config_hash=config_hash,
+                    code_hash=code_hash,
+                    expected_seed=wrong_seed,
+                    expected_processed_tokens=wrong_tokens,
+                )
+            except RuntimeError:
+                provenance_mismatches_rejected += 1
+            else:
+                raise AssertionError("checkpoint provenance mismatch was accepted")
+
+        random.seed(seed + 99)
+        torch.manual_seed(seed + 99)
+        resumed = nn.Sequential(
+            nn.Linear(4, 8),
+            nn.GELU(),
+            nn.Dropout(p=0.25),
+            nn.Linear(8, 2),
+        )
+        resumed_optimizer = torch.optim.AdamW(resumed.parameters(), lr=1e-3)
+        payload = load_checked_checkpoint(
+            checkpoint,
+            resumed,
+            optimizer=resumed_optimizer,
+            config_hash=config_hash,
+            code_hash=code_hash,
+            expected_seed=seed,
+            expected_processed_tokens=3,
+            restore_rng=True,
+        )
+        resumed_history = list(payload["history"])
+        train_updates(resumed, resumed_optimizer, resumed_history, 3, 6)
+
+    histories_identical = resumed_history == uninterrupted_history
+    weights_identical = all(
+        torch.equal(resumed.state_dict()[name], value)
+        for name, value in uninterrupted.state_dict().items()
+    )
+    assert histories_identical
+    assert weights_identical
+    assert provenance_mismatches_rejected == 2
+    return {
+        "updates": 6,
+        "interruption_after_update": 3,
+        "python_cpu_torch_rng_restored": True,
+        "cuda_rng_not_initialized_by_cpu_test": True,
+        "provenance_mismatches_rejected": provenance_mismatches_rejected,
+        "histories_identical": histories_identical,
+        "weights_identical": weights_identical,
+        "pass": True,
+    }
+
+
 def _hysteresis_rule_self_test() -> dict[str, Any]:
     tie = hysteretic_incumbent_indices(torch.tensor([[0.5, 0.5]]), 0.0)
     assert tie.tolist() == [[0, 0]]
@@ -4799,6 +4968,7 @@ def run_self_tests(config_path: Path) -> int:
             "pass": True,
         },
         "feature_boundary": feature_audit,
+        "resume_determinism": _resume_determinism_self_test(),
         "hysteresis_rule": _hysteresis_rule_self_test(),
         "hysteresis_delta_selection": _delta_selection_self_test(config),
         "trajectory_diagnostics": _diagnostics_self_test(),
