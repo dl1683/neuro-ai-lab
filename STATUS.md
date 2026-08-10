@@ -1,6 +1,6 @@
 # Repository Status
 
-Audited snapshot: commits `b1a3e5f` through `76c6a84`, plus the 2026-08-09 E1 task-band evidence landing described below.
+Audited snapshot: commits `b1a3e5f` through `0ad75b5`, plus the SVAMP fallback implementation and smoke diagnostics described below.
 
 **This file is the sole authority for current state.** Experiment writeups, proofs, and reviews are point-in-time evidence; earlier reviews and evidence gates may contain predictions that later experiments falsified.
 
@@ -19,7 +19,7 @@ Audited snapshot: commits `b1a3e5f` through `76c6a84`, plus the 2026-08-09 E1 ta
 |---|---|---|---|
 | 04 Circuit-viability pruning | FROZEN / AUDITED | Claim audit `234/234`; SynFlow pathology audit passes; mechanism supported within recorded scope. | `docs/CIRCUIT_VIABILITY_PRUNING_REPORT.md`, `docs/CLAIM_EVIDENCE_LEDGER.md`, `docs/CLAIM_AUDIT.md`, `results/04_criticality_pruning/` |
 | 06 UESD — fixed-point arc | CONVERGENCE ARC CLOSED NEGATIVE | D40 falsifies the tested self-consistency fixed-point thesis; the system behaves as a finite-time transient solver. Surviving core: D22 variable-T k-suppression. | D40 ledger entry, `experiments/06_uesd/results/exp_d40_extended_convergence.json`, `docs/UNIFIED_ERROR_SPACE.md` |
-| 06 UESD — semantic ratchet | TASK-BAND FALLBACK REQUIRED / TRAINING BLOCKED | The primary GSM8K gate is validly below band: 18/256 correct, 238/256 valid extracted incorrect, 0/256 extraction failures. Verdict: **ABORT-AND-SWAP** to the single preregistered SVAMP fallback; it is documented only and has not been run. No mechanism training is authorized by this result. | `experiments/06_uesd/results/exp_e1_task_band.json`, `experiments/06_uesd/PREREGISTRATION.md` |
+| 06 UESD — semantic ratchet | SVAMP FALLBACK IMPLEMENTED / CANONICAL GATE BLOCKED | The primary GSM8K gate remains validly **ABORT-AND-SWAP** at 18/256 correct. The pinned SVAMP path is implemented and passed an 8-example smoke only; the canonical fallback has not run, and no mechanism training is authorized. | `experiments/06_uesd/results/exp_e1_task_band.json`, `experiments/06_uesd/exp_e1_task_band.py`, `experiments/06_uesd/PREREGISTRATION.md` |
 | 01/02/03/05 pilots | FROZEN HISTORICAL | Single-run pilots; no active roadmap or runner. 01 failed; 02/03 modest wins on toy tasks; 05 efficiency win with failed DDM fit. | `results/01..05/pilot_result.json`, `results/pilot_suite_summary.json`, frozen-pilots table in `experiments/EXPERIMENTS.md` |
 
 ## 04 — Circuit-Viability Pruning
@@ -94,7 +94,9 @@ D22 variable-T training (compute-window robustness: T=32 accuracy 88.5% -> 99.9%
 
 The semantic-ratchet transient-solver hypothesis is preregistered in `experiments/06_uesd/PREREGISTRATION.md`; it does not reopen the D38-D40 fixed-point convergence arc. The primary E1 task-band gate is now **COMPLETE / ABORT-AND-SWAP**: frozen `base-A` scored 18/256 correct (7.03125%), with 238/256 valid extracted incorrect and 0/256 extraction failures. Fifteen of 256 responses (5.859375%) reached the token cap. Leakage preflight and batched-versus-unbatched equivalence passed. Total wall time was 168.23s; peak allocated/reserved VRAM was 1.17/1.45 GiB.
 
-This result is below the preregistered 26-correct band edge and the 40-correct minimum critic population. The frozen mapping is SVAMP below band or GSM-Hard above band, so this result selects the one-time SVAMP fallback. It has not been implemented or launched. The result supplies no evidence for the semantic-ratchet mechanism, and no mechanics or full-program training is authorized yet.
+This result is below the preregistered 26-correct band edge and the 40-correct minimum critic population. The frozen mapping is SVAMP below band or GSM-Hard above band, so this result selects the one-time SVAMP fallback. The existing E1 runner now supports a revision-pinned SVAMP train/test snapshot, a seeded 256-of-300 test cohort, five fixed train demonstrations, the frozen parser and thresholds, and the separate immutable target `experiments/06_uesd/results/exp_e1_task_band_svamp.json`. The canonical fallback has not been launched or written. The GSM8K result supplies no evidence for the semantic-ratchet mechanism, and no mechanics or full-program training is authorized yet.
+
+An independently reviewed 8-example SVAMP smoke passed after one diagnostic repair. The first smoke completed generation but failed the existing two-example batched-versus-unbatched equality check: one greedy response changed with padding/co-batch shape. SVAMP evaluation was therefore made per-example (`batch_size=1`) while GSM8K remains frozen at batch size 8; the review found no runner blocker for the smoke rerun. The passing smoke produced 3/8 correct, 4/8 valid extracted incorrect, and 1/8 extraction failures; all 8 stopped at end-of-message, none reached the cap, and both repeated responses and extracted answers matched. It projected 192.23 seconds for 256 examples. These are diagnostics, not task-band evidence. No smoke artifact was written, and the canonical SVAMP gate remains blocked pending its own independent pre-launch review and explicit launch decision.
 
 Operationally, two earlier canonical invocations were killed before GPU use while sandboxed dataset loading stalled on user-profile Hugging Face cache lock files; neither wrote an evidence artifact. The successful canonical attempt kept the frozen runner and parser unchanged, copied the existing base-A and GSM8K cache subtrees into ignored workspace-local `.hf_cache/`, and ran fully offline with `HF_HOME` pointed there.
 

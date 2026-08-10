@@ -422,7 +422,7 @@ Do not continue the old fixed-point arc by inertia; see the update protocol in `
 
 ### Semantic-ratchet successor gate
 
-The separately preregistered semantic-ratchet direction remains distinct from the closed fixed-point arc. Its first task-band gate is complete on the primary GSM8K task: frozen `base-A` produced 18 correct, 238 valid extracted incorrect, and 0 extraction failures across the canonical 256-example cohort (7.03125% exact-answer accuracy). This is a valid **ABORT-AND-SWAP** because the correct count is below both the 26-example lower band edge and the 40-example minimum critic population. It is not a parser `VOID` and supplies no evidence for the semantic-ratchet mechanism itself. The frozen mapping is SVAMP below band or GSM-Hard above band; this result selects the one allowed SVAMP fallback, which has not been implemented or run.
+The separately preregistered semantic-ratchet direction remains distinct from the closed fixed-point arc. Its first task-band gate is complete on the primary GSM8K task: frozen `base-A` produced 18 correct, 238 valid extracted incorrect, and 0 extraction failures across the canonical 256-example cohort (7.03125% exact-answer accuracy). This is a valid **ABORT-AND-SWAP** because the correct count is below both the 26-example lower band edge and the 40-example minimum critic population. It is not a parser `VOID` and supplies no evidence for the semantic-ratchet mechanism itself. The frozen mapping is SVAMP below band or GSM-Hard above band; this result selects the one allowed SVAMP fallback. That pinned path is now implemented in the existing runner and has passed an 8-example smoke, but the canonical fallback remains unlaunched and the smoke is not task-band evidence.
 
 ## 11. Key References
 

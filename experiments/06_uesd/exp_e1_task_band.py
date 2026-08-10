@@ -1,12 +1,14 @@
 """E1 task-band evaluator for the preregistered semantic-ratchet direction.
 
-Canonical protocol (no arguments):
+Canonical protocol (``--dataset gsm8k`` by default):
   - deterministically select 256 examples without replacement from the
-    official GSM8K test split using seed 20260809;
-  - use the first five official training examples as a fixed five-shot prompt;
+    selected dataset's test split using seed 20260809;
+  - use the first five training examples from that dataset as a fixed
+    five-shot prompt;
   - decode greedily from frozen base-A with at most 256 new tokens;
   - apply a fixed exact-numeric extractor and compute the preregistered gate;
-  - create results/exp_e1_task_band.json, refusing to overwrite evidence.
+  - create the dataset-specific result artifact, refusing to overwrite
+    evidence.
 
 Smoke protocol (``--smoke N``):
   - evaluate the first N examples of the canonical selected cohort through the
@@ -35,6 +37,7 @@ import statistics
 import sys
 import time
 from collections import Counter
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -57,17 +60,55 @@ from transformers.utils import logging as transformers_logging
 
 EXPERIMENT = "E1 task-band gate"
 PUBLIC_MODEL_NAME = "base-A"
-DATASET_ID = "openai/gsm8k"
-DATASET_REVISION = "740312add88f781978c0658806c59bc2815b9866"
-DATASET_CONFIG = "main"
 TEST_SPLIT = "test"
 TRAIN_SPLIT = "train"
+
+
+@dataclass(frozen=True)
+class DatasetSpec:
+    key: str
+    name: str
+    dataset_id: str
+    revision: str
+    config: str
+    result_filename: str
+    initial_parser_miss_filename: str
+    fallback: bool
+    batch_size: int
+
+
+DATASET_SPECS = {
+    "gsm8k": DatasetSpec(
+        key="gsm8k",
+        name="GSM8K",
+        dataset_id="openai/gsm8k",
+        revision="740312add88f781978c0658806c59bc2815b9866",
+        config="main",
+        result_filename="exp_e1_task_band.json",
+        initial_parser_miss_filename="exp_e1_task_band_initial_parser_miss.json",
+        fallback=False,
+        batch_size=8,
+    ),
+    "svamp": DatasetSpec(
+        key="svamp",
+        name="SVAMP",
+        dataset_id="ChilleD/SVAMP",
+        revision="5e0bf1e5e7c0e9c4bc39180d224f41f3f801b7ef",
+        config="default",
+        result_filename="exp_e1_task_band_svamp.json",
+        initial_parser_miss_filename=(
+            "exp_e1_task_band_svamp_initial_parser_miss.json"
+        ),
+        fallback=True,
+        # Do not let padding shape or co-batched prompts change greedy answers.
+        batch_size=1,
+    ),
+}
 
 SEED = 20260809
 CANONICAL_SAMPLE_COUNT = 256
 DEMONSTRATION_INDICES = (0, 1, 2, 3, 4)
 MAX_NEW_TOKENS = 256
-BATCH_SIZE = 8
 EQUIVALENCE_CHECK_COUNT = 2
 MAX_SMOKE_RESPONSE_CHARS = 1_200
 MAX_VRAM_FRACTION = 0.80
@@ -80,10 +121,6 @@ MAX_EXTRACTION_FAILURE_RATE = 0.05
 
 HERE = Path(__file__).resolve().parent
 LOCAL_MANIFEST_PATH = HERE / "_local_manifest.md"
-RESULT_PATH = HERE / "results" / "exp_e1_task_band.json"
-INITIAL_PARSER_MISS_PATH = (
-    HERE / "results" / "exp_e1_task_band_initial_parser_miss.json"
-)
 
 NUMBER_PATTERN = r"[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?"
 HASH_ANSWER_RE = re.compile(rf"####\s*({NUMBER_PATTERN})")
@@ -106,6 +143,12 @@ PROMPT_PREAMBLE = (
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--dataset",
+        choices=tuple(DATASET_SPECS),
+        default="gsm8k",
+        help="task-band dataset; defaults to the immutable GSM8K primary path",
+    )
     parser.add_argument(
         "--smoke",
         type=int,
@@ -167,6 +210,49 @@ def load_private_model_coordinates() -> tuple[str, str]:
     return model_matches[0], revision_matches[0]
 
 
+def result_path(dataset_spec: DatasetSpec) -> Path:
+    return HERE / "results" / dataset_spec.result_filename
+
+
+def initial_parser_miss_path(dataset_spec: DatasetSpec) -> Path:
+    return HERE / "results" / dataset_spec.initial_parser_miss_filename
+
+
+def row_question(row: dict[str, Any], dataset_spec: DatasetSpec) -> str:
+    if dataset_spec.key == "gsm8k":
+        return str(row["question"]).strip()
+    if dataset_spec.key == "svamp":
+        return " ".join(
+            part for part in (str(row["Body"]).strip(), str(row["Question"]).strip())
+            if part
+        )
+    raise RuntimeError("unsupported task-band dataset")
+
+
+def row_gold_answer(row: dict[str, Any], dataset_spec: DatasetSpec) -> str:
+    if dataset_spec.key == "gsm8k":
+        return extract_gold_answer(str(row["answer"]))
+    if dataset_spec.key == "svamp":
+        normalized = normalize_number(str(row["Answer"]))
+        if normalized is None:
+            raise RuntimeError("an official SVAMP numeric answer is invalid")
+        return normalized
+    raise RuntimeError("unsupported task-band dataset")
+
+
+def row_demonstration_answer(
+    row: dict[str, Any],
+    dataset_spec: DatasetSpec,
+) -> str:
+    if dataset_spec.key == "gsm8k":
+        return str(row["answer"]).strip()
+    if dataset_spec.key == "svamp":
+        gold = row_gold_answer(row, dataset_spec)
+        equation = str(row["Equation"]).strip()
+        return f"{equation} = {gold}\n#### {gold}"
+    raise RuntimeError("unsupported task-band dataset")
+
+
 def canonical_test_indices(split_size: int) -> list[int]:
     if split_size < CANONICAL_SAMPLE_COUNT:
         raise RuntimeError("the official test split is smaller than the canonical cohort")
@@ -182,6 +268,7 @@ def selection_digest(indices: Sequence[int]) -> str:
 def build_five_shot_messages(
     train_split: Dataset,
     question: str,
+    dataset_spec: DatasetSpec,
 ) -> list[dict[str, str]]:
     if len(train_split) <= max(DEMONSTRATION_INDICES):
         raise RuntimeError("the official training split lacks fixed demonstrations")
@@ -193,11 +280,13 @@ def build_five_shot_messages(
             [
                 {
                     "role": "user",
-                    "content": f"Question: {row['question'].strip()}",
+                    "content": f"Question: {row_question(row, dataset_spec)}",
                 },
                 {
                     "role": "assistant",
-                    "content": f"Answer:\n{row['answer'].strip()}",
+                    "content": (
+                        f"Answer:\n{row_demonstration_answer(row, dataset_spec)}"
+                    ),
                 },
             ]
         )
@@ -214,12 +303,37 @@ def normalized_question(question: str) -> str:
     return " ".join(question.casefold().split())
 
 
-def rows_content_digest(split: Dataset, indices: Sequence[int]) -> str:
+def row_provenance(row: dict[str, Any], dataset_spec: DatasetSpec) -> dict[str, Any]:
+    if dataset_spec.key == "gsm8k":
+        return {
+            "question": row["question"],
+            "answer": row["answer"],
+        }
+    if dataset_spec.key == "svamp":
+        return {
+            field: row[field]
+            for field in (
+                "ID",
+                "Body",
+                "Question",
+                "Equation",
+                "Answer",
+                "Type",
+                "question_concat",
+            )
+        }
+    raise RuntimeError("unsupported task-band dataset")
+
+
+def rows_content_digest(
+    split: Dataset,
+    indices: Sequence[int],
+    dataset_spec: DatasetSpec,
+) -> str:
     rows = [
         {
             "index": int(index),
-            "question": split[index]["question"],
-            "answer": split[index]["answer"],
+            **row_provenance(split[index], dataset_spec),
         }
         for index in indices
     ]
@@ -236,15 +350,18 @@ def leakage_preflight(
     train_split: Dataset,
     test_split: Dataset,
     selected_indices: Sequence[int],
+    dataset_spec: DatasetSpec,
 ) -> dict[str, Any]:
     demonstration_questions: dict[str, list[int]] = {}
     for index in DEMONSTRATION_INDICES:
-        normalized = normalized_question(train_split[index]["question"])
+        normalized = normalized_question(row_question(train_split[index], dataset_spec))
         demonstration_questions.setdefault(normalized, []).append(index)
 
     cohort_questions: dict[str, list[dict[str, int]]] = {}
     for cohort_position, dataset_index in enumerate(selected_indices):
-        normalized = normalized_question(test_split[dataset_index]["question"])
+        normalized = normalized_question(
+            row_question(test_split[dataset_index], dataset_spec)
+        )
         cohort_questions.setdefault(normalized, []).append(
             {
                 "cohort_position": cohort_position,
@@ -351,9 +468,11 @@ def sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def load_initial_parser_miss() -> tuple[dict[str, Any], str, str]:
+def load_initial_parser_miss(
+    parser_miss_path: Path,
+) -> tuple[dict[str, Any], str, str]:
     try:
-        artifact = json.loads(INITIAL_PARSER_MISS_PATH.read_text(encoding="utf-8"))
+        artifact = json.loads(parser_miss_path.read_text(encoding="utf-8"))
         parser_provenance = artifact["protocol"]["answer_extraction"][
             "parser_provenance"
         ]
@@ -381,7 +500,11 @@ def load_initial_parser_miss() -> tuple[dict[str, Any], str, str]:
     return artifact, initial_source, initial_fingerprint
 
 
-def parser_provenance(mode: str, attempt: str) -> dict[str, Any]:
+def parser_provenance(
+    mode: str,
+    attempt: str,
+    parser_miss_path: Path,
+) -> dict[str, Any]:
     current_source = parser_source_text()
     current_fingerprint = sha256_text(current_source)
     provenance: dict[str, Any] = {
@@ -397,9 +520,9 @@ def parser_provenance(mode: str, attempt: str) -> dict[str, Any]:
     if mode != "canonical":
         return provenance
 
-    relative_attempt_path = str(INITIAL_PARSER_MISS_PATH.relative_to(HERE.parent.parent))
+    relative_attempt_path = str(parser_miss_path.relative_to(HERE.parent.parent))
     if attempt == "initial":
-        if INITIAL_PARSER_MISS_PATH.exists():
+        if parser_miss_path.exists():
             raise RuntimeError(
                 "the initial parser attempt is already recorded; use the repaired attempt"
             )
@@ -407,9 +530,9 @@ def parser_provenance(mode: str, attempt: str) -> dict[str, Any]:
         provenance["change_from_initial"] = None
         return provenance
 
-    if not INITIAL_PARSER_MISS_PATH.is_file():
+    if not parser_miss_path.is_file():
         raise RuntimeError("a repaired parser attempt requires the initial-miss artifact")
-    _, initial_source, initial_fingerprint = load_initial_parser_miss()
+    _, initial_source, initial_fingerprint = load_initial_parser_miss(parser_miss_path)
     if current_fingerprint == initial_fingerprint:
         raise RuntimeError("the repaired parser source is identical to the initial parser")
 
@@ -426,7 +549,7 @@ def parser_provenance(mode: str, attempt: str) -> dict[str, Any]:
     provenance.update(
         {
             "initial_miss_artifact_path": relative_attempt_path,
-            "initial_miss_artifact_sha256": sha256_file(INITIAL_PARSER_MISS_PATH),
+            "initial_miss_artifact_sha256": sha256_file(parser_miss_path),
             "initial_source_sha256": initial_fingerprint,
             "source_changed_from_initial": True,
             "change_from_initial": source_diff,
@@ -501,6 +624,8 @@ def canonical_verdict(
     valid_extracted_incorrect_count: int,
     extraction_failure_rate: float,
     parser_evidence: dict[str, Any],
+    dataset_spec: DatasetSpec,
+    parser_miss_path: Path,
 ) -> dict[str, Any]:
     if extraction_failure_rate > MAX_EXTRACTION_FAILURE_RATE:
         if parser_evidence["attempt"] == "initial":
@@ -518,7 +643,7 @@ def canonical_verdict(
             parser_evidence["attempt"] == "repaired"
             and parser_evidence.get("source_changed_from_initial") is True
             and bool(parser_evidence.get("initial_miss_artifact_sha256"))
-            and INITIAL_PARSER_MISS_PATH.is_file()
+            and parser_miss_path.is_file()
         )
         if not repaired_attempt_is_qualified:
             raise RuntimeError(
@@ -537,6 +662,13 @@ def canonical_verdict(
         or valid_extracted_incorrect_count < MIN_INCORRECT_POPULATION
     )
     if low_band:
+        if dataset_spec.fallback:
+            return {
+                "token": "VOID",
+                "reason": "fallback_below_band_or_fewer_than_40_correct",
+                "next_action": "stop the task-band program after the fallback miss",
+                "terminal": True,
+            }
         return {
             "token": "ABORT-AND-SWAP",
             "reason": "below_band_or_fewer_than_40_correct",
@@ -544,6 +676,15 @@ def canonical_verdict(
             "terminal": False,
         }
     if high_band:
+        if dataset_spec.fallback:
+            return {
+                "token": "VOID",
+                "reason": (
+                    "fallback_above_band_or_fewer_than_40_valid_extracted_incorrect"
+                ),
+                "next_action": "stop the task-band program after the fallback miss",
+                "terminal": True,
+            }
         return {
             "token": "ABORT-AND-SWAP",
             "reason": "above_band_or_fewer_than_40_valid_extracted_incorrect",
@@ -597,6 +738,7 @@ def evaluate_examples(
     train_split: Dataset,
     test_split: Dataset,
     selected_indices: Sequence[int],
+    dataset_spec: DatasetSpec,
     tokenizer,
     model,
     device: torch.device,
@@ -616,7 +758,11 @@ def evaluate_examples(
         batch_indices = selected_indices[batch_start : batch_start + batch_size]
         rows = [test_split[index] for index in batch_indices]
         conversations = [
-            build_five_shot_messages(train_split, row["question"])
+            build_five_shot_messages(
+                train_split,
+                row_question(row, dataset_spec),
+                dataset_spec,
+            )
             for row in rows
         ]
         encoded = tokenizer.apply_chat_template(
@@ -717,7 +863,7 @@ def evaluate_examples(
         for row_index, (dataset_index, row, metadata) in enumerate(
             zip(batch_indices, rows, batch_metadata, strict=True)
         ):
-            gold = extract_gold_answer(row["answer"])
+            gold = row_gold_answer(row, dataset_spec)
             predicted = metadata["extracted_answer"]
             token_share = (
                 int(metadata["generated_tokens"]) / batch_token_total
@@ -728,7 +874,7 @@ def evaluate_examples(
                 {
                     "cohort_position": batch_start + row_index,
                     "dataset_index": int(dataset_index),
-                    "question": row["question"],
+                    "question": row_question(row, dataset_spec),
                     "gold_answer": gold,
                     **metadata,
                     "extraction_failed": predicted is None,
@@ -761,6 +907,8 @@ def summarize(
     leakage_check: dict[str, Any],
     batch_equivalence: dict[str, Any],
     vram: dict[str, Any],
+    dataset_spec: DatasetSpec,
+    parser_miss_path: Path,
 ) -> dict[str, Any]:
     denominator = len(records)
     correct_count = sum(bool(record["correct"]) for record in records)
@@ -799,6 +947,8 @@ def summarize(
             valid_extracted_incorrect_count=valid_extracted_incorrect_count,
             extraction_failure_rate=extraction_failure_rate,
             parser_evidence=parser_evidence,
+            dataset_spec=dataset_spec,
+            parser_miss_path=parser_miss_path,
         )
     else:
         verdict = {
@@ -819,10 +969,11 @@ def summarize(
         "model": PUBLIC_MODEL_NAME,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "protocol": {
-            "dataset": "GSM8K",
-            "dataset_id": DATASET_ID,
-            "dataset_revision": DATASET_REVISION,
-            "dataset_config": DATASET_CONFIG,
+            "dataset": dataset_spec.name,
+            "dataset_key": dataset_spec.key,
+            "dataset_id": dataset_spec.dataset_id,
+            "dataset_revision": dataset_spec.revision,
+            "dataset_config": dataset_spec.config,
             "evaluation_split": TEST_SPLIT,
             "dataset_provenance": dataset_provenance,
             "leakage_preflight": leakage_check,
@@ -852,7 +1003,7 @@ def summarize(
                 "max_new_tokens": MAX_NEW_TOKENS,
                 "dtype": "bfloat16",
                 "device": "cuda",
-                "batch_size": BATCH_SIZE,
+                "batch_size": dataset_spec.batch_size,
                 "padding_side": "left",
                 "per_sequence_stops": [
                     "end_of_message",
@@ -926,6 +1077,7 @@ def leakage_void_result(
     dataset_provenance: dict[str, Any],
     leakage_check: dict[str, Any],
     parser_evidence: dict[str, Any],
+    dataset_spec: DatasetSpec,
 ) -> dict[str, Any]:
     if leakage_check["status"] != "FAIL" or leakage_check["overlap_count"] < 1:
         raise RuntimeError("leakage VOID requires positive leakage evidence")
@@ -937,10 +1089,11 @@ def leakage_void_result(
         "model": PUBLIC_MODEL_NAME,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "protocol": {
-            "dataset": "GSM8K",
-            "dataset_id": DATASET_ID,
-            "dataset_revision": DATASET_REVISION,
-            "dataset_config": DATASET_CONFIG,
+            "dataset": dataset_spec.name,
+            "dataset_key": dataset_spec.key,
+            "dataset_id": dataset_spec.dataset_id,
+            "dataset_revision": dataset_spec.revision,
+            "dataset_config": dataset_spec.config,
             "evaluation_split": TEST_SPLIT,
             "dataset_provenance": dataset_provenance,
             "leakage_preflight": leakage_check,
@@ -994,7 +1147,11 @@ def write_evidence_artifact(
             temporary_path.unlink()
 
 
-def write_canonical_result(result: dict[str, Any]) -> None:
+def write_canonical_result(
+    result: dict[str, Any],
+    canonical_result_path: Path,
+    parser_miss_path: Path,
+) -> None:
     verdict = result.get("verdict", {})
     if verdict.get("token") == "VOID":
         reason = verdict.get("reason")
@@ -1005,13 +1162,15 @@ def write_canonical_result(result: dict[str, Any]) -> None:
             recorded_artifact_hash = parser_evidence.get(
                 "initial_miss_artifact_sha256"
             )
-            _, _, initial_source_fingerprint = load_initial_parser_miss()
+            _, _, initial_source_fingerprint = load_initial_parser_miss(
+                parser_miss_path
+            )
             current_source_fingerprint = sha256_text(parser_source_text())
             qualified_repair = (
                 parser_evidence.get("attempt") == "repaired"
                 and parser_evidence.get("source_changed_from_initial") is True
-                and INITIAL_PARSER_MISS_PATH.is_file()
-                and recorded_artifact_hash == sha256_file(INITIAL_PARSER_MISS_PATH)
+                and parser_miss_path.is_file()
+                and recorded_artifact_hash == sha256_file(parser_miss_path)
                 and parser_evidence.get("initial_source_sha256")
                 == initial_source_fingerprint
                 and parser_evidence.get("source_sha256")
@@ -1030,12 +1189,52 @@ def write_canonical_result(result: dict[str, Any]) -> None:
                 or not leakage_check.get("overlaps")
             ):
                 raise RuntimeError("terminal leakage VOID lacks leakage evidence")
+        elif reason in {
+            "fallback_below_band_or_fewer_than_40_correct",
+            "fallback_above_band_or_fewer_than_40_valid_extracted_incorrect",
+        }:
+            protocol = result.get("protocol", {})
+            correct_count = result.get("correct_count")
+            incorrect_count = result.get("valid_extracted_incorrect_count")
+            extraction_failure_rate = result.get("extraction_failures", {}).get(
+                "rate"
+            )
+            below_band = (
+                isinstance(correct_count, int)
+                and (
+                    correct_count < PASS_MIN_CORRECT
+                    or correct_count < MIN_CORRECT_POPULATION
+                )
+            )
+            above_band = (
+                isinstance(correct_count, int)
+                and isinstance(incorrect_count, int)
+                and (
+                    correct_count > PASS_MAX_CORRECT
+                    or incorrect_count < MIN_INCORRECT_POPULATION
+                )
+            )
+            valid_fallback_void = (
+                protocol.get("dataset_key") == "svamp"
+                and result.get("sample_count") == CANONICAL_SAMPLE_COUNT
+                and isinstance(extraction_failure_rate, (int, float))
+                and extraction_failure_rate <= MAX_EXTRACTION_FAILURE_RATE
+                and (
+                    (reason.startswith("fallback_below") and below_band)
+                    or (reason.startswith("fallback_above") and above_band)
+                )
+            )
+            if not valid_fallback_void:
+                raise RuntimeError("terminal fallback VOID lacks qualifying evidence")
         else:
             raise RuntimeError("unrecognized terminal VOID cannot be written")
-    write_evidence_artifact(RESULT_PATH, result, "canonical E1 evidence")
+    write_evidence_artifact(canonical_result_path, result, "canonical E1 evidence")
 
 
-def write_initial_parser_miss(result: dict[str, Any]) -> None:
+def write_initial_parser_miss(
+    result: dict[str, Any],
+    parser_miss_path: Path,
+) -> None:
     parser_evidence = result.get("protocol", {}).get("answer_extraction", {}).get(
         "parser_provenance", {}
     )
@@ -1052,7 +1251,7 @@ def write_initial_parser_miss(result: dict[str, Any]) -> None:
     ):
         raise RuntimeError("initial parser-miss evidence is incomplete")
     write_evidence_artifact(
-        INITIAL_PARSER_MISS_PATH,
+        parser_miss_path,
         result,
         "initial parser-miss evidence",
     )
@@ -1086,6 +1285,8 @@ def smoke_console_summary(result: dict[str, Any]) -> dict[str, Any]:
         "experiment": result["experiment"],
         "status": result["status"],
         "model": result["model"],
+        "dataset": result["protocol"]["dataset"],
+        "dataset_revision": result["protocol"]["dataset_revision"],
         "sample_count": result["sample_count"],
         "correct_count": result["correct_count"],
         "exact_answer_failure_count": result["exact_answer_failure_count"],
@@ -1125,6 +1326,8 @@ def verify_batch_equivalence(
     train_split: Dataset,
     test_split: Dataset,
     selected_indices: Sequence[int],
+    dataset_spec: DatasetSpec,
+    evaluation_batch_size: int,
     tokenizer,
     model,
     device: torch.device,
@@ -1137,6 +1340,7 @@ def verify_batch_equivalence(
         train_split=train_split,
         test_split=test_split,
         selected_indices=check_indices,
+        dataset_spec=dataset_spec,
         tokenizer=tokenizer,
         model=model,
         device=device,
@@ -1171,7 +1375,7 @@ def verify_batch_equivalence(
         {
             "status": "PASS",
             "checked_examples": check_count,
-            "batched_size": BATCH_SIZE,
+            "batched_size": evaluation_batch_size,
             "unbatched_size": 1,
             "requires_identical_response_and_extracted_answer": True,
             "comparisons": comparisons,
@@ -1184,16 +1388,29 @@ def run(args: argparse.Namespace) -> int:
     run_started = time.perf_counter()
     configure_runtime()
 
+    dataset_spec = DATASET_SPECS[args.dataset]
+    canonical_result_path = result_path(dataset_spec)
+    parser_miss_path = initial_parser_miss_path(dataset_spec)
     mode = "smoke" if args.smoke is not None else "canonical"
-    if mode == "canonical" and RESULT_PATH.exists():
-        raise RuntimeError("canonical E1 evidence already exists and will not be overwritten")
-    parser_evidence = parser_provenance(mode, args.parser_attempt)
+    if mode == "canonical" and canonical_result_path.exists():
+        raise RuntimeError(
+            f"canonical {dataset_spec.name} E1 evidence already exists and will not "
+            "be overwritten"
+        )
+    parser_evidence = parser_provenance(
+        mode,
+        args.parser_attempt,
+        parser_miss_path,
+    )
 
-    print("Loading revision-pinned official GSM8K splits.", flush=True)
+    print(
+        f"Loading revision-pinned {dataset_spec.name} train/test splits.",
+        flush=True,
+    )
     dataset = load_dataset(
-        DATASET_ID,
-        DATASET_CONFIG,
-        revision=DATASET_REVISION,
+        dataset_spec.dataset_id,
+        dataset_spec.config,
+        revision=dataset_spec.revision,
     )
     train_split = dataset[TRAIN_SPLIT]
     test_split = dataset[TEST_SPLIT]
@@ -1207,6 +1424,7 @@ def run(args: argparse.Namespace) -> int:
         train_split=train_split,
         test_split=test_split,
         selected_indices=canonical_indices,
+        dataset_spec=dataset_spec,
     )
     dataset_provenance = {
         "train_split_fingerprint": train_split._fingerprint,
@@ -1214,14 +1432,17 @@ def run(args: argparse.Namespace) -> int:
         "demonstrations_content_sha256": rows_content_digest(
             train_split,
             DEMONSTRATION_INDICES,
+            dataset_spec,
         ),
         "canonical_cohort_content_sha256": rows_content_digest(
             test_split,
             canonical_indices,
+            dataset_spec,
         ),
         "evaluated_cohort_content_sha256": rows_content_digest(
             test_split,
             selected_indices,
+            dataset_spec,
         ),
     }
     if leakage_check["status"] == "FAIL":
@@ -1231,8 +1452,13 @@ def run(args: argparse.Namespace) -> int:
             dataset_provenance=dataset_provenance,
             leakage_check=leakage_check,
             parser_evidence=parser_evidence,
+            dataset_spec=dataset_spec,
         )
-        write_canonical_result(result)
+        write_canonical_result(
+            result,
+            canonical_result_path,
+            parser_miss_path,
+        )
         print(
             json.dumps(
                 {
@@ -1241,7 +1467,9 @@ def run(args: argparse.Namespace) -> int:
                     "sample_count": result["sample_count"],
                     "verdict": result["verdict"],
                     "leakage_evidence": leakage_check,
-                    "result_path": str(RESULT_PATH.relative_to(HERE.parent.parent)),
+                    "result_path": str(
+                        canonical_result_path.relative_to(HERE.parent.parent)
+                    ),
                 },
                 indent=2,
             )
@@ -1258,7 +1486,7 @@ def run(args: argparse.Namespace) -> int:
     print(
         (
             f"Evaluating {len(selected_indices)} example(s) in {mode} mode "
-            f"with batch size {BATCH_SIZE}."
+            f"with batch size {dataset_spec.batch_size}."
         ),
         flush=True,
     )
@@ -1268,10 +1496,11 @@ def run(args: argparse.Namespace) -> int:
             train_split=train_split,
             test_split=test_split,
             selected_indices=selected_indices,
+            dataset_spec=dataset_spec,
             tokenizer=tokenizer,
             model=model,
             device=device,
-            batch_size=BATCH_SIZE,
+            batch_size=dataset_spec.batch_size,
         )
     )
     print("Checking two greedy answers batched versus unbatched.", flush=True)
@@ -1280,6 +1509,8 @@ def run(args: argparse.Namespace) -> int:
         train_split=train_split,
         test_split=test_split,
         selected_indices=selected_indices,
+        dataset_spec=dataset_spec,
+        evaluation_batch_size=dataset_spec.batch_size,
         tokenizer=tokenizer,
         model=model,
         device=device,
@@ -1312,16 +1543,22 @@ def run(args: argparse.Namespace) -> int:
         leakage_check=leakage_check,
         batch_equivalence=batch_equivalence,
         vram=vram,
+        dataset_spec=dataset_spec,
+        parser_miss_path=parser_miss_path,
     )
 
     if mode == "canonical":
         wrote_result = result["verdict"]["token"] != "PARSER-REPAIR-REQUIRED"
         if wrote_result:
-            write_canonical_result(result)
-            result_path = RESULT_PATH
+            write_canonical_result(
+                result,
+                canonical_result_path,
+                parser_miss_path,
+            )
+            written_result_path = canonical_result_path
         else:
-            write_initial_parser_miss(result)
-            result_path = INITIAL_PARSER_MISS_PATH
+            write_initial_parser_miss(result, parser_miss_path)
+            written_result_path = parser_miss_path
         print(
             json.dumps(
                 {
@@ -1329,7 +1566,9 @@ def run(args: argparse.Namespace) -> int:
                     "model": PUBLIC_MODEL_NAME,
                     "sample_count": result["sample_count"],
                     "verdict": result["verdict"],
-                    "result_path": str(result_path.relative_to(HERE.parent.parent)),
+                    "result_path": str(
+                        written_result_path.relative_to(HERE.parent.parent)
+                    ),
                     "canonical_result_written": wrote_result,
                 },
                 indent=2,
