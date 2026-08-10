@@ -51,6 +51,9 @@ def main():
     e1_base_b = json.loads(
         (RESULTS / "exp_e1_task_band_base_b.json").read_text(encoding="utf-8")
     )
+    e2 = json.loads(
+        (RESULTS / "exp_e2_latch_mechanics.json").read_text(encoding="utf-8")
+    )
     ledger_entries = [
         json.loads(line)
         for line in LEDGER.read_text(encoding="utf-8").splitlines()
@@ -520,6 +523,391 @@ def main():
             f"entry_count={len(base_b_entries)}, "
             f"artifact_sha={base_b_metrics.get('artifact_sha256')}, "
             f"verdict={base_b_metrics.get('verdict')}"
+        ),
+    )
+
+    # 22. Bind the immutable E2 artifact and the runner-emitted pretest decision.
+    #     The controlling post-evidence adjudication is checked separately below.
+    e2_path = RESULTS / "exp_e2_latch_mechanics.json"
+    e2_sha = canonical_lf_sha256(e2_path)
+    e2_decision = e2["decision"]
+    check(
+        "e2_immutable_artifact_raw_decision_binding",
+        e2_sha
+        == "7842ca6f69ba3885fe7b03142b694e9c95950f195d31acd73f601d1e3f5a4075"
+        and e2["schema_version"] == "1.1.0"
+        and e2["experiment_id"] == "exp_e2_latch_mechanics"
+        and e2["review_attestation"] == "INDEPENDENT_PRETRAINING_REVIEW_CLEAN"
+        and e2["final_token"] == "FAIL"
+        and e2_decision["final_token"] == "FAIL"
+        and e2_decision["reason"] == "PRETEST_SELECTOR_PROVENANCE_GATE_MISSED"
+        and e2_decision["failed_seed_numerators"] == [42, 31415]
+        and e2_decision["invalid_selector_fit_seed_numerators"] == []
+        and e2_decision["model_seed_denominator"] == 2
+        and not e2_decision["official_test_inspected"],
+        (
+            f"sha={e2_sha[:12]}..., token={e2['final_token']}, "
+            f"decision={e2_decision}"
+        ),
+    )
+
+    # 23. Both frozen training/selector populations and integrity boundaries
+    #     were present before the scientific provenance miss.
+    e2_validity = e2["validity_gates"]
+    e2_seed_setup_ok = True
+    for seed in (42, 31415):
+        seed_key = str(seed)
+        training = e2["training"][seed_key]
+        e2_seed_setup_ok &= (
+            training["common_training"]["processed_nonpadding_tokens"] == 500000
+            and training["common_training"]["logical_arm_exposure"] == 500000
+            and training["encoder_training"]["processed_nonpadding_tokens"] == 500000
+            and training["selector_training_corpus"]["states"] == 491520
+            and training["selector_calibration_corpus"]["states"] == 16384
+            and training["selector_calibration_corpus"]["correct_states"] == 4096
+            and training["selector_calibration_corpus"]["incorrect_states"] == 12288
+            and training["selector_calibration_corpus"]["unique_problems"] == 1024
+            and training["latent_critic_fit"]["fit_performed"]
+            and e2_validity[f"seed_{seed}_selector_fit_performed"]["pass"]
+            and not e2_validity[f"seed_{seed}_selector_provenance"]["pass"]
+            and e2_validity[f"seed_{seed}_confidence_split_contract"]["pass"]
+        )
+    check(
+        "e2_pretest_integrity_and_population_floors",
+        e2_seed_setup_ok
+        and e2["generator_audit"]["skeleton_hash_disjoint"]
+        and e2["generator_audit"]["name_combination_disjoint"]
+        and e2["feature_boundary_audit"]["pass"]
+        and e2_validity["generator_and_split_integrity"]["pass"]
+        and e2_validity["feature_boundary"]["pass"]
+        and e2_validity["both_model_seeds_prepared"]
+        == {"observed_numerator": 2, "required_denominator": 2, "pass": True},
+        f"seed_setup_ok={e2_seed_setup_ok}, validity={e2_validity}",
+    )
+
+    # 24. Rebind every seedwise selector-provenance numerator, denominator,
+    #     point estimate, and failed threshold. Undefined matched concordance
+    #     has denominator zero and must not be represented as an observed zero.
+    expected_e2_provenance = {
+        "42": {
+            "critic_concordant": 25183159.0,
+            "confidence_concordant": 25163785.0,
+            "critic_auroc": 0.5003444155057272,
+            "confidence_auroc": 0.49995948870976764,
+            "auroc_delta": 0.00038492679595952817,
+        },
+        "31415": {
+            "critic_concordant": 25275202.5,
+            "confidence_concordant": 25150211.0,
+            "critic_auroc": 0.5021731555461884,
+            "confidence_auroc": 0.49968979756037396,
+            "auroc_delta": 0.002483357985814394,
+        },
+    }
+    e2_provenance_ok = True
+    for seed_key, expected in expected_e2_provenance.items():
+        provenance = e2["training"][seed_key]["selector_provenance"]
+        gates = provenance["gates"]
+        e2_provenance_ok &= (
+            provenance["critic_auroc"]
+            == {
+                "concordant_pair_units": expected["critic_concordant"],
+                "positive_negative_pairs": 50331648,
+                "positive_states": 4096,
+                "negative_states": 12288,
+                "value": expected["critic_auroc"],
+            }
+            and provenance["confidence_auroc"]
+            == {
+                "concordant_pair_units": expected["confidence_concordant"],
+                "positive_negative_pairs": 50331648,
+                "positive_states": 4096,
+                "negative_states": 12288,
+                "value": expected["confidence_auroc"],
+            }
+            and provenance["critic_minus_confidence_auroc"]
+            == expected["auroc_delta"]
+            and provenance["critic_selection_accuracy"]
+            == {"correct": 256, "total": 1024, "value": 0.25}
+            and provenance["confidence_selection_accuracy"]
+            == {"correct": 256, "total": 1024, "value": 0.25}
+            and provenance["critic_minus_confidence_selection_accuracy"] == 0.0
+            and provenance["confidence_matched_concordance"]
+            == {"concordant_pair_units": 0.0, "qualifying_pairs": 0, "value": None}
+            and gates["overall_critic_auroc"]
+            == {"threshold": 0.75, "observed": expected["critic_auroc"], "pass": False}
+            and gates["confidence_matched_concordance"]["denominator"] == 0
+            and gates["confidence_matched_concordance"]["observed"] is None
+            and not gates["confidence_matched_concordance"]["pass"]
+            and gates["critic_auroc_advantage_over_confidence"]["observed"]
+            == expected["auroc_delta"]
+            and not gates["critic_auroc_advantage_over_confidence"]["pass"]
+            and gates["critic_selection_accuracy_advantage"]["critic_numerator"]
+            == 256
+            and gates["critic_selection_accuracy_advantage"]["confidence_numerator"]
+            == 256
+            and gates["critic_selection_accuracy_advantage"]["denominator"] == 1024
+            and not gates["critic_selection_accuracy_advantage"]["pass"]
+            and gates["on_policy_critic_auroc"]["observed"]
+            == expected["critic_auroc"]
+            and not gates["on_policy_critic_auroc"]["pass"]
+            and not provenance["all_gates_pass"]
+        )
+    check(
+        "e2_seedwise_selector_provenance_failure",
+        e2_provenance_ok,
+        f"expected={expected_e2_provenance}",
+    )
+
+    # 25. Calibration froze at chance with zero gain, arm 4 had no feasible
+    #     delta, and every endpoint/test field remained explicitly uninspected.
+    e2_t_star = e2["calibration_frozen_t_star"]
+    e2_calibration_ok = (
+        set(e2_t_star["candidate_metrics"]) == {str(h) for h in range(1, 16)}
+        and all(
+            metrics["per_seed"]["42"]
+            == {"correct": 256, "total": 1024, "value": 0.25}
+            and metrics["per_seed"]["31415"]
+            == {"correct": 256, "total": 1024, "value": 0.25}
+            and metrics["mean_seed_accuracy"] == 0.25
+            for metrics in e2_t_star["candidate_metrics"].values()
+        )
+        and e2_t_star["selected_horizon"] == 1
+        and e2_t_star["selected_mean_seed_accuracy"] == 0.25
+        and e2_t_star["tie_break"] == "smaller_horizon"
+        and not e2_t_star["test_inspected_before_freeze"]
+    )
+    e2_hysteresis_ok = True
+    for seed_key in ("42", "31415"):
+        hysteresis = e2["calibration_frozen_hysteresis_by_seed"][seed_key]
+        e2_hysteresis_ok &= (
+            hysteresis["selected_delta"] == 0.0
+            and hysteresis["calibration_constraint_miss"]
+            and not hysteresis["test_grid_evaluated"]
+            and hysteresis["informational_only"]
+            and all(
+                candidate["b16_accuracy"]
+                == {"numerator": 256, "denominator": 1024, "value": 0.25}
+                and candidate["calibration_gain_retention"]
+                == {
+                    "arm4_minus_t1_correct_numerator": 0,
+                    "t_star_minus_t1_correct_denominator": 0,
+                    "accuracy_denominator": 1024,
+                    "value": None,
+                }
+                and not candidate["feasible"]
+                for candidate in hysteresis["candidate_calibration_metrics"].values()
+            )
+        )
+    e2_evaluation = e2["evaluation"]
+    e2_not_applicable_sections = (
+        "encoder_control",
+        "compute_by_seed",
+        "accuracy_grid",
+        "stratified_accuracy_grid",
+        "trajectory_diagnostics",
+        "trajectory_accounting_assertions",
+        "endpoint_metrics",
+        "paired_counterfactual_group_bootstrap",
+    )
+    check(
+        "e2_calibration_and_uninspected_endpoint_binding",
+        e2_calibration_ok
+        and e2_hysteresis_ok
+        and e2_evaluation["status"] == "not_applicable"
+        and e2_evaluation["not_applicable_reason"]
+        == "PRETEST_SELECTOR_PROVENANCE_GATE_MISSED"
+        and not e2_evaluation["official_test_inspected"]
+        and all(
+            e2_evaluation[section]["status"] == "not_applicable"
+            and e2_evaluation[section]["not_applicable_reason"]
+            == "PRETEST_SELECTOR_PROVENANCE_GATE_MISSED"
+            for section in e2_not_applicable_sections
+        )
+        and e2["per_example_records"]["records_by_seed"] == {},
+        (
+            f"calibration_ok={e2_calibration_ok}, "
+            f"hysteresis_ok={e2_hysteresis_ok}, "
+            f"evaluation_status={e2_evaluation['status']}"
+        ),
+    )
+
+    # 26. Bind the raw-run chronology to the immutable artifact, live runner and
+    #     config hashes, complete seedwise provenance, and N/A endpoint boundary.
+    e2_entries = [
+        entry for entry in ledger_entries if entry.get("id") == "uesd-e2-latch-mechanics"
+    ]
+    e2_entry = e2_entries[0] if len(e2_entries) == 1 else {}
+    e2_metrics = e2_entry.get("metrics", {})
+    e2_ledger_provenance_ok = True
+    for seed_key, expected in expected_e2_provenance.items():
+        ledger_provenance = e2_metrics.get("selector_provenance", {}).get(seed_key, {})
+        artifact_provenance = e2["training"][seed_key]["selector_provenance"]
+        e2_ledger_provenance_ok &= (
+            ledger_provenance.get("critic_auroc")
+            == {
+                "concordant_pair_units": expected["critic_concordant"],
+                "positive_negative_pairs": 50331648,
+                "positive_states": 4096,
+                "negative_states": 12288,
+                "value": expected["critic_auroc"],
+            }
+            and ledger_provenance.get("confidence_auroc")
+            == artifact_provenance["confidence_auroc"]["value"]
+            and ledger_provenance.get("on_policy_critic_auroc")
+            == artifact_provenance["gates"]["on_policy_critic_auroc"]["observed"]
+            and ledger_provenance.get("critic_minus_confidence_auroc")
+            == artifact_provenance["critic_minus_confidence_auroc"]
+            and ledger_provenance.get("critic_selection_accuracy")
+            == {"numerator": 256, "denominator": 1024, "rate": 0.25}
+            and ledger_provenance.get("confidence_selection_accuracy")
+            == {"numerator": 256, "denominator": 1024, "rate": 0.25}
+            and ledger_provenance.get("selection_accuracy_delta") == 0.0
+            and ledger_provenance.get("confidence_matched_concordance")
+            == {"numerator": 0.0, "denominator": 0, "rate": None}
+        )
+    e2_runner_path = Path(__file__).resolve().parent / "exp_e2_latch_mechanics.py"
+    e2_config_path = Path(__file__).resolve().parent / "exp_e2_latch_mechanics_config.json"
+    live_code_sha = hashlib.sha256(e2_runner_path.read_bytes()).hexdigest()
+    live_config_sha = hashlib.sha256(e2_config_path.read_bytes()).hexdigest()
+    check(
+        "e2_raw_run_ledger_and_live_hash_binding",
+        len(e2_entries) == 1
+        and e2_entry.get("status") == "fail"
+        and e2_entry.get("artifacts")
+        == ["experiments/06_uesd/results/exp_e2_latch_mechanics.json"]
+        and e2_metrics.get("artifact_sha256") == e2_sha
+        and e2_metrics.get("final_token") == "FAIL"
+        and e2_metrics.get("verdict_reason")
+        == "PRETEST_SELECTOR_PROVENANCE_GATE_MISSED"
+        and not e2_metrics.get("official_test_inspected")
+        and e2_metrics.get("failed_model_seeds")
+        == {"numerator": 2, "denominator": 2, "seeds": [42, 31415]}
+        and e2_metrics.get("invalid_selector_fits")
+        == {"numerator": 0, "denominator": 2}
+        and e2_metrics.get("calibration_accuracy", {}).get("pooled")
+        == {"numerator": 512, "denominator": 2048, "rate": 0.25}
+        and e2_metrics.get("endpoint_metrics", {}).get("status")
+        == "not_applicable"
+        and e2_metrics.get("endpoint_metrics", {}).get("reason")
+        == "PRETEST_SELECTOR_PROVENANCE_GATE_MISSED"
+        and e2_ledger_provenance_ok
+        and e2_metrics.get("code_sha256") == e2["hashes"]["code_sha256"]
+        and e2_metrics.get("config_sha256") == e2["hashes"]["config_sha256"]
+        and live_code_sha == e2["hashes"]["code_sha256"]
+        and live_config_sha == e2["hashes"]["config_sha256"]
+        and e2_metrics.get("wall_time_seconds") == 1181.121862999993
+        and e2_metrics.get("peak_vram_allocated_bytes") == 1076839936
+        and e2_metrics.get("peak_vram_reserved_bytes") == 1256194048,
+        (
+            f"entry_count={len(e2_entries)}, "
+            f"artifact_sha={e2_metrics.get('artifact_sha256')}, "
+            f"token={e2_metrics.get('final_token')}, "
+            f"provenance_ok={e2_ledger_provenance_ok}, "
+            f"live_hashes={(live_code_sha, live_config_sha)}"
+        ),
+    )
+
+    # 27. The preregistered 200-pair floor precedes FAIL. Both seeds supplied
+    #     zero qualifying pairs, so the append-only post-evidence VOID controls
+    #     while the raw immutable artifact remains unchanged.
+    e2_adjudication_entries = [
+        entry
+        for entry in ledger_entries
+        if entry.get("id") == "uesd-e2-latch-mechanics-post-evidence-adjudication"
+    ]
+    e2_adjudication = (
+        e2_adjudication_entries[0] if len(e2_adjudication_entries) == 1 else {}
+    )
+    adjudication_metrics = e2_adjudication.get("metrics", {})
+    adjudication_provenance = adjudication_metrics.get(
+        "selector_provenance_denominator_complete", {}
+    )
+    adjudication_provenance_ok = True
+    for seed_key, expected in expected_e2_provenance.items():
+        corrected = adjudication_provenance.get(seed_key, {})
+        adjudication_provenance_ok &= (
+            corrected.get("critic_auroc")
+            == {
+                "concordant_pair_units": expected["critic_concordant"],
+                "positive_negative_pair_denominator": 50331648,
+                "positive_states": 4096,
+                "negative_states": 12288,
+                "value": expected["critic_auroc"],
+            }
+            and corrected.get("confidence_auroc")
+            == {
+                "concordant_pair_units": expected["confidence_concordant"],
+                "positive_negative_pair_denominator": 50331648,
+                "positive_states": 4096,
+                "negative_states": 12288,
+                "value": expected["confidence_auroc"],
+            }
+            and corrected.get("on_policy_critic_auroc")
+            == corrected.get("critic_auroc")
+            and corrected.get("critic_minus_confidence_auroc")
+            == expected["auroc_delta"]
+            and corrected.get("critic_selection_accuracy")
+            == {"numerator": 256, "denominator": 1024, "rate": 0.25}
+            and corrected.get("confidence_selection_accuracy")
+            == {"numerator": 256, "denominator": 1024, "rate": 0.25}
+            and corrected.get("confidence_matched_concordance")
+            == {
+                "concordant_pair_units": 0.0,
+                "qualifying_pair_denominator": 0,
+                "rate": None,
+            }
+        )
+    expected_floor = {
+        "42": {
+            "observed_numerator": 0,
+            "required_denominator": 200,
+            "qualifying_pair_denominator": 0,
+            "pass": False,
+        },
+        "31415": {
+            "observed_numerator": 0,
+            "required_denominator": 200,
+            "qualifying_pair_denominator": 0,
+            "pass": False,
+        },
+        "failed_seed_count": {"numerator": 2, "denominator": 2},
+    }
+    check(
+        "e2_controlling_post_evidence_void_binding",
+        len(e2_adjudication_entries) == 1
+        and e2_adjudication.get("status") == "void"
+        and e2_adjudication.get("artifacts")
+        == ["experiments/06_uesd/results/exp_e2_latch_mechanics.json"]
+        and adjudication_metrics.get("controlling_final_token") == "VOID"
+        and adjudication_metrics.get("controlling_reason")
+        == "INSUFFICIENT_CONFIDENCE_MATCHED_PAIRS_PER_SEED"
+        and adjudication_metrics.get("artifact_emitted_token") == "FAIL"
+        and adjudication_metrics.get("artifact_emitted_reason")
+        == "PRETEST_SELECTOR_PROVENANCE_GATE_MISSED"
+        and not adjudication_metrics.get("artifact_emitted_token_admissible")
+        and adjudication_metrics.get("decision_precedence")
+        == ["VOID", "FAIL", "PROCEED"]
+        and adjudication_metrics.get("matched_pair_floor") == expected_floor
+        and not adjudication_metrics.get("official_test_inspected")
+        and adjudication_metrics.get("endpoint_metrics")
+        == {
+            "status": "not_applicable",
+            "reason": "PRETEST_TERMINATION_BEFORE_OFFICIAL_TEST",
+        }
+        and adjudication_metrics.get("artifact_path")
+        == "experiments/06_uesd/results/exp_e2_latch_mechanics.json"
+        and adjudication_metrics.get("artifact_sha256") == e2_sha
+        and adjudication_metrics.get("runner_path")
+        == "experiments/06_uesd/exp_e2_latch_mechanics.py"
+        and adjudication_metrics.get("code_sha256") == live_code_sha
+        and adjudication_metrics.get("config_sha256") == live_config_sha
+        and adjudication_provenance_ok,
+        (
+            f"entry_count={len(e2_adjudication_entries)}, "
+            f"token={adjudication_metrics.get('controlling_final_token')}, "
+            f"floor={adjudication_metrics.get('matched_pair_floor')}, "
+            f"provenance_ok={adjudication_provenance_ok}"
         ),
     )
 

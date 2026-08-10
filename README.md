@@ -10,7 +10,7 @@ A research lab testing neuroscience-inspired claims about artificial networks, r
 |---|---|---|
 | 04 Circuit-viability pruning | Useful sparse networks are viable circuits, not collections of important synapses. Severe pruning fails when it destroys circuit viability. | FROZEN / AUDITED (claim audit `234/234`) |
 | 06 UESD — fixed-point arc | Generation as continuous embedding-space dynamics with no softmax in the loop, driven by a self-consistency energy. | CONVERGENCE ARC CLOSED NEGATIVE (D40); surviving core is the D22 variable-T mechanism |
-| 06 UESD — semantic ratchet | Outcome-trained best-state memory for a transient solver, gated against compute-matched sampling plus learned reranking. | BASE-A TASK-BAND TERMINAL VOID / BASE-B TASK-BAND PASS; MECHANISM NOT YET RUN |
+| 06 UESD — semantic ratchet | Outcome-trained best-state memory for a transient solver, gated against compute-matched sampling plus learned reranking. | E2 COMPLETE / CONTROLLING VOID AFTER RUNNER ADJUDICATION DEFECT; 0.5B LAUNCH BLOCKED |
 | 01/02/03/05 pilots | Grokking prediction, sleep-cycle training, reconsolidation, DDM-as-depth. | FROZEN HISTORICAL (single-run pilots) |
 
 ## Headline finding (04)
