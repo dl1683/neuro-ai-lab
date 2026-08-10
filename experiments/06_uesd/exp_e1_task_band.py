@@ -40,6 +40,7 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
+from fractions import Fraction
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -122,7 +123,11 @@ MAX_EXTRACTION_FAILURE_RATE = 0.05
 HERE = Path(__file__).resolve().parent
 LOCAL_MANIFEST_PATH = HERE / "_local_manifest.md"
 
-NUMBER_PATTERN = r"[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?"
+UNSIGNED_DECIMAL_PATTERN = r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?"
+NUMBER_PATTERN = (
+    rf"[-+]?{UNSIGNED_DECIMAL_PATTERN}"
+    rf"(?:\s*/\s*[-+]?{UNSIGNED_DECIMAL_PATTERN})?"
+)
 HASH_ANSWER_RE = re.compile(rf"####\s*({NUMBER_PATTERN})")
 HASH_ANSWER_LINE_RE = re.compile(
     rf"(?m)^[ \t]*####[ \t]*({NUMBER_PATTERN})[ \t]*(?:\r?$)"
@@ -389,18 +394,46 @@ def leakage_preflight(
 
 
 def normalize_number(raw: str) -> str | None:
-    candidate = raw.replace(",", "").strip()
+    candidate = re.sub(r"\s+", "", raw.replace(",", ""))
+    parts = candidate.split("/")
+    if len(parts) not in (1, 2) or any(not part for part in parts):
+        return None
     try:
-        value = Decimal(candidate)
+        decimal_parts = [Decimal(part) for part in parts]
     except InvalidOperation:
         return None
-    if not value.is_finite():
+    if any(not part.is_finite() for part in decimal_parts):
         return None
+    value = Fraction(decimal_parts[0])
+    if len(decimal_parts) == 2:
+        denominator_value = Fraction(decimal_parts[1])
+        if denominator_value == 0:
+            return None
+        value /= denominator_value
     if value == 0:
         return "0"
-    if value == value.to_integral_value():
-        return str(int(value))
-    return format(value.normalize(), "f")
+    if value.denominator == 1:
+        return str(value.numerator)
+
+    remaining_denominator = value.denominator
+    power_of_two = 0
+    power_of_five = 0
+    while remaining_denominator % 2 == 0:
+        remaining_denominator //= 2
+        power_of_two += 1
+    while remaining_denominator % 5 == 0:
+        remaining_denominator //= 5
+        power_of_five += 1
+    if remaining_denominator != 1:
+        return f"{value.numerator}/{value.denominator}"
+
+    decimal_places = max(power_of_two, power_of_five)
+    scaled_numerator = value.numerator * (10**decimal_places // value.denominator)
+    sign = "-" if scaled_numerator < 0 else ""
+    digits = str(abs(scaled_numerator)).zfill(decimal_places + 1)
+    integer_part = digits[:-decimal_places]
+    fractional_part = digits[-decimal_places:].rstrip("0")
+    return f"{sign}{integer_part}.{fractional_part}"
 
 
 def extract_gold_answer(answer: str) -> str:
@@ -449,6 +482,30 @@ def extract_predicted_answer(
         if normalized is not None:
             return normalized, "last_numeric_token_in_first_segment", segment, segment_stop_reason
     return None, None, segment, segment_stop_reason
+
+
+def validate_numeric_extraction() -> None:
+    exact_cases = (
+        ("32.0", "32"),
+        ("0.5", "0.5"),
+        ("1/2", "0.5"),
+        ("392/196", "2"),
+    )
+    for raw, expected in exact_cases:
+        if normalize_number(raw) != expected:
+            raise RuntimeError("numeric normalizer self-check failed")
+        if extract_gold_answer(f"#### {raw}") != expected:
+            raise RuntimeError("gold-answer parser self-check failed")
+        primary, _, _, _ = extract_predicted_answer(
+            f"#### {raw}",
+            "end_of_message",
+        )
+        fallback, _, _, _ = extract_predicted_answer(
+            f"Answer: {raw}",
+            "end_of_message",
+        )
+        if primary != expected or fallback != expected:
+            raise RuntimeError("prediction parser self-check failed")
 
 
 def parser_source_text() -> str:
@@ -910,6 +967,11 @@ def summarize(
     dataset_spec: DatasetSpec,
     parser_miss_path: Path,
 ) -> dict[str, Any]:
+    generation_verification_field = (
+        "repeat_determinism"
+        if dataset_spec.key == "svamp"
+        else "batch_vs_unbatched_equivalence"
+    )
     denominator = len(records)
     correct_count = sum(bool(record["correct"]) for record in records)
     exact_answer_failure_count = denominator - correct_count
@@ -1010,7 +1072,7 @@ def summarize(
                     "new_question_boundary",
                     "max_new_tokens",
                 ],
-                "batch_vs_unbatched_equivalence": batch_equivalence,
+                generation_verification_field: batch_equivalence,
             },
             "answer_extraction": {
                 "segmentation": (
@@ -1019,7 +1081,10 @@ def summarize(
                 ),
                 "primary": "first valid final-line #### answer in the first segment",
                 "fallback": "last numeric token inside that same first segment",
-                "normalization": "remove thousands separators and compare finite decimals exactly",
+                "normalization": (
+                    "remove thousands separators and compare finite decimals "
+                    "and fractions as exact rational values"
+                ),
                 "parser_attempt": parser_evidence["attempt"],
                 "parser_source_sha256": parser_evidence["source_sha256"],
                 "parser_provenance": parser_evidence,
@@ -1258,6 +1323,11 @@ def write_initial_parser_miss(
 
 
 def smoke_console_summary(result: dict[str, Any]) -> dict[str, Any]:
+    generation_verification_field = (
+        "repeat_determinism"
+        if result["protocol"]["dataset_key"] == "svamp"
+        else "batch_vs_unbatched_equivalence"
+    )
     diagnostics = []
     for record in result["per_example"]:
         response = str(record["response"])
@@ -1313,8 +1383,8 @@ def smoke_console_summary(result: dict[str, Any]) -> dict[str, Any]:
             / result["sample_count"]
         ),
         "peak_vram": result["peak_vram"],
-        "batch_vs_unbatched_equivalence": result["protocol"]["decoding"][
-            "batch_vs_unbatched_equivalence"
+        generation_verification_field: result["protocol"]["decoding"][
+            generation_verification_field
         ],
         "verdict": result["verdict"],
         "per_example_diagnostics": diagnostics,
@@ -1356,30 +1426,53 @@ def verify_batch_equivalence(
             batched["extracted_answer"] == unbatched["extracted_answer"]
         )
         responses_match = batched["response"] == unbatched["response"]
-        comparisons.append(
-            {
-                "cohort_position": batched["cohort_position"],
-                "answers_match": answers_match,
-                "responses_match": responses_match,
-                "batched_stop_reason": batched["stop_reason"],
-                "unbatched_stop_reason": unbatched["stop_reason"],
-            }
-        )
+        comparison = {
+            "cohort_position": batched["cohort_position"],
+            "answers_match": answers_match,
+            "responses_match": responses_match,
+        }
+        if dataset_spec.key == "svamp":
+            comparison.update(
+                {
+                    "first_stop_reason": batched["stop_reason"],
+                    "repeat_stop_reason": unbatched["stop_reason"],
+                }
+            )
+        else:
+            comparison.update(
+                {
+                    "batched_stop_reason": batched["stop_reason"],
+                    "unbatched_stop_reason": unbatched["stop_reason"],
+                }
+            )
+        comparisons.append(comparison)
     passed = all(
         comparison["answers_match"] and comparison["responses_match"]
         for comparison in comparisons
     )
     if not passed:
+        if dataset_spec.key == "svamp":
+            raise RuntimeError("repeated batch-1 greedy generation diverged")
         raise RuntimeError("batched and unbatched greedy generation diverged")
-    return (
-        {
+    if dataset_spec.key == "svamp":
+        verification = {
+            "status": "PASS",
+            "checked_examples": check_count,
+            "repeat_batch_size": 1,
+            "requires_identical_response_and_extracted_answer": True,
+            "comparisons": comparisons,
+        }
+    else:
+        verification = {
             "status": "PASS",
             "checked_examples": check_count,
             "batched_size": evaluation_batch_size,
             "unbatched_size": 1,
             "requires_identical_response_and_extracted_answer": True,
             "comparisons": comparisons,
-        },
+        }
+    return (
+        verification,
         verification_seconds,
     )
 
@@ -1387,6 +1480,7 @@ def verify_batch_equivalence(
 def run(args: argparse.Namespace) -> int:
     run_started = time.perf_counter()
     configure_runtime()
+    validate_numeric_extraction()
 
     dataset_spec = DATASET_SPECS[args.dataset]
     canonical_result_path = result_path(dataset_spec)
@@ -1503,7 +1597,10 @@ def run(args: argparse.Namespace) -> int:
             batch_size=dataset_spec.batch_size,
         )
     )
-    print("Checking two greedy answers batched versus unbatched.", flush=True)
+    if dataset_spec.key == "svamp":
+        print("Checking two greedy answers for repeat determinism.", flush=True)
+    else:
+        print("Checking two greedy answers batched versus unbatched.", flush=True)
     batch_equivalence, verification_wall_time_seconds = verify_batch_equivalence(
         batched_records=records,
         train_split=train_split,

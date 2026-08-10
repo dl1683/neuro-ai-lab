@@ -139,7 +139,7 @@ python experiments\04_criticality_pruning\audit_circuit_viability_claims.py
 python experiments\06_uesd\audit_uesd_claims.py
 ```
 
-These five commands are the default agent workflow: they read checked-in artifacts only and complete in seconds. The UESD audit currently expects 11/11 checks. There is deliberately no `run_all_pilots.py` and no default full-GPU rerun. D40's runner is an expensive provenance script (~8.4h), not a landing command.
+These five commands are the default agent workflow: they read checked-in artifacts only and complete in seconds. The UESD audit currently reports that all checks pass, with the count sourced from the audit output. There is deliberately no `run_all_pilots.py` and no default full-GPU rerun. D40's runner is an expensive provenance script (~8.4h), not a landing command.
 
 ## Update Protocol
 
