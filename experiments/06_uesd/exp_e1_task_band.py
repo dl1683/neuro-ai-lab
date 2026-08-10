@@ -128,12 +128,8 @@ NUMBER_PATTERN = (
     rf"[-+]?{UNSIGNED_DECIMAL_PATTERN}"
     rf"(?:\s*/\s*[-+]?{UNSIGNED_DECIMAL_PATTERN})?"
 )
-HASH_ANSWER_RE = re.compile(rf"####\s*({NUMBER_PATTERN})")
-HASH_ANSWER_LINE_RE = re.compile(
-    rf"(?m)^[ \t]*####[ \t]*({NUMBER_PATTERN})[ \t]*(?:\r?$)"
-)
 ANSWER_BOUNDARY_LINE_RE = re.compile(r"(?m)^[ \t]*####[^\r\n]*(?:\r?$)")
-ANY_NUMBER_RE = re.compile(NUMBER_PATTERN)
+ANY_NUMBER_RE = re.compile(rf"(?<!/)({NUMBER_PATTERN})(?!/)")
 NEW_QUESTION_RE = re.compile(r"(?m)^\s*Question\s*:")
 MANIFEST_MODEL_ENTRY_RE = re.compile(r"^-\s*`base-A`:\s*`([^`]+)`\s*$")
 MANIFEST_REVISION_ENTRY_RE = re.compile(
@@ -437,10 +433,11 @@ def normalize_number(raw: str) -> str | None:
 
 
 def extract_gold_answer(answer: str) -> str:
-    matches = HASH_ANSWER_RE.findall(answer)
+    matches = list(ANSWER_BOUNDARY_LINE_RE.finditer(answer))
     if not matches:
         raise RuntimeError("an official GSM8K answer lacks its numeric marker")
-    normalized = normalize_number(matches[-1])
+    raw_answer = matches[-1].group(0).split("####", maxsplit=1)[1].strip()
+    normalized = normalize_number(raw_answer)
     if normalized is None:
         raise RuntimeError("an official GSM8K numeric answer is invalid")
     return normalized
@@ -471,10 +468,13 @@ def extract_predicted_answer(
         response=response,
         generation_stop_reason=generation_stop_reason,
     )
-    for match in HASH_ANSWER_LINE_RE.finditer(segment):
-        normalized = normalize_number(match.group(1))
-        if normalized is not None:
-            return normalized, "first_final_hash_answer", segment, segment_stop_reason
+    answer_match = ANSWER_BOUNDARY_LINE_RE.search(segment)
+    if answer_match:
+        raw_answer = answer_match.group(0).split("####", maxsplit=1)[1].strip()
+        normalized = normalize_number(raw_answer)
+        if normalized is None:
+            return None, None, segment, segment_stop_reason
+        return normalized, "first_final_hash_answer", segment, segment_stop_reason
 
     numbers = ANY_NUMBER_RE.findall(segment)
     for raw in reversed(numbers):
@@ -506,6 +506,27 @@ def validate_numeric_extraction() -> None:
         )
         if primary != expected or fallback != expected:
             raise RuntimeError("prediction parser self-check failed")
+
+    negative_cases = ("3/", "3//2", "3/x", "/2", "3/0")
+    for raw in negative_cases:
+        if normalize_number(raw) is not None:
+            raise RuntimeError("numeric normalizer negative self-check failed")
+        try:
+            extract_gold_answer(f"#### {raw}")
+        except RuntimeError:
+            pass
+        else:
+            raise RuntimeError("gold-answer parser negative self-check failed")
+        primary, _, _, _ = extract_predicted_answer(
+            f"#### {raw}",
+            "end_of_message",
+        )
+        fallback, _, _, _ = extract_predicted_answer(
+            f"Answer: {raw}",
+            "end_of_message",
+        )
+        if primary is not None or fallback is not None:
+            raise RuntimeError("prediction parser negative self-check failed")
 
 
 def parser_source_text() -> str:
