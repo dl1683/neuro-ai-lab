@@ -23,12 +23,17 @@ Suite aggregate: `results/pilot_suite_summary.json`.
 
 Framework where AI generation happens in continuous embedding space via iterative dynamics, with no softmax collapse. Tests whether self-consistency energy E(s) = ||F_theta(s,c)||^2 produces correct, stable attractors.
 
-### E1 Task-Band Gate (DESIGNED / NOT YET RUN — PRE-RUN REVIEW PENDING)
-- **Config:** `experiments/06_uesd/exp_e1_task_band.py` (commit `3afec90`)
+### E1 Task-Band Gate (COMPLETE — ABORT-AND-SWAP)
+- **Config:** `experiments/06_uesd/exp_e1_task_band.py` (canonical runner at commit `fa82203`; executed from commit `76c6a84`)
+- **Artifact:** `experiments/06_uesd/results/exp_e1_task_band.json` (SHA-256 `c8cf27cd55230724d0d3fdf662e9b0096fed52e429c529340b241133b23b1e45`)
 - **Purpose:** Evaluate the frozen `base-A` checkpoint on exactly 256 held-out GSM8K examples before training and determine whether the preregistered task band is usable.
-- **Protocol:** Fixed five-shot prompt, greedy decoding, 256-token generation cap, exact-numeric extraction, and the frozen PASS / ABORT-AND-SWAP / VOID rules in `experiments/06_uesd/PREREGISTRATION.md`.
-- **Launch state:** Not launched. Independent pre-run review is pending; no metrics or result artifact exist.
-- **Evidence status:** Design/provenance only. This entry records an upcoming gate and makes no empirical claim.
+- **Protocol:** Initial frozen exact-numeric parser; fixed five-shot prompt; greedy decoding; 256-token generation cap; canonical seeded cohort. Leakage preflight passed with 0/256 overlaps. The two-example batched-versus-unbatched equivalence check passed.
+- **Outcome accounting:** 18/256 correct, 238/256 valid extracted incorrect, and 0/256 extraction failures. Exact-answer accuracy was 7.03125%. The counts exhaust all 256 examples.
+- **Generation diagnostics:** 15/256 responses (5.859375%) reached the 256-token cap. Mean response length was 93.18 tokens (median 75; nearest-rank p95 256). The artifact retains the complete stop-reason and answer-frequency distributions.
+- **Compute:** 168.23s total wall time (156.20s generation; 156.57s evaluation; 6.55s batch verification). Peak CUDA memory was 1,254,730,752 bytes allocated and 1,558,183,936 bytes reserved (6.07% of device memory).
+- **Verdict:** **ABORT-AND-SWAP.** Correct count was below both the preregistered lower band edge (26) and the minimum correct critic population (40). Extraction remained valid, so this is a below-band result rather than a parser `VOID`.
+- **Direction only:** The frozen fallback mapping is SVAMP below band or GSM-Hard above band. This result selects the SVAMP branch; it has not been implemented or launched.
+- **Operational deviation:** Two earlier canonical invocations were terminated while sandboxed dataset loading stalled on unwritable user-profile Hugging Face cache lock files. Both stopped before GPU use and wrote zero evidence artifacts. For this intact canonical attempt, the existing base-A and GSM8K cache subtrees were copied into ignored repo-local `.hf_cache/`, and the unchanged runner was launched with `HF_HOME=<repo>/.hf_cache`, `HF_HUB_OFFLINE=1`, and `HF_DATASETS_OFFLINE=1`.
 
 ### Semantic-Ratchet Direction (PREREGISTERED / NOT YET RUN)
 - **Event:** Fresh transient-solver hypothesis preregistered in commit `698832b`.

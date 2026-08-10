@@ -29,9 +29,16 @@ def main():
     d22 = json.loads(
         (RESULTS / "exp_d22_robust_dynamics.json").read_text(encoding="utf-8")
     )
+    e1 = json.loads(
+        (RESULTS / "exp_e1_task_band.json").read_text(encoding="utf-8")
+    )
 
     runs = d40["runs"]
-    grid = {(s, l) for s in (42, 137, 256, 512) for l in (0.0, 0.5, 1.0, 3.0)}
+    grid = {
+        (seed, lambda_sc)
+        for seed in (42, 137, 256, 512)
+        for lambda_sc in (0.0, 0.5, 1.0, 3.0)
+    }
     done = {(r["seed"], r["lambda_sc"]) for r in runs}
 
     # 1. D40 completed 15 of the intended 16-run grid (seed 512 / lambda 3.0 crashed).
@@ -53,7 +60,9 @@ def main():
     #    collapses to <=1% sequence accuracy by T=200.
     max_conv = max(m["200"]["converged_frac"] for m in multi.values())
     sc_t200 = max(
-        m["200"]["h_seq_acc"] for (s, l), m in multi.items() if l >= 0.5
+        metrics["200"]["h_seq_acc"]
+        for (_seed, lambda_sc), metrics in multi.items()
+        if lambda_sc >= 0.5
     )
     check("d40_extended_T_convergence_fails", max_conv < 0.95, f"max conv@200={max_conv}")
     check("d40_extended_T_accuracy_collapses", sc_t200 <= 0.01, f"max sc acc@200={sc_t200}")
@@ -83,6 +92,74 @@ def main():
     comb10 = d22["combined"]["summary"]["mean_T10_seq"]
     check("d22_denoising_negative", den10 <= 0.01 and comb10 <= 0.01,
           f"denoising T10={den10}, combined T10={comb10}")
+
+    # 7. E1 is a complete canonical 256-example gate, not a smoke result.
+    check(
+        "e1_complete_canonical_cohort",
+        e1["status"] == "COMPLETE"
+        and e1["mode"] == "canonical"
+        and e1["sample_count"] == 256
+        and len(e1["per_example"]) == 256,
+        (
+            f"status={e1['status']}, mode={e1['mode']}, "
+            f"sample_count={e1['sample_count']}, records={len(e1['per_example'])}"
+        ),
+    )
+
+    # 8. Every example is accounted for with explicit denominators.
+    extraction_failures = e1["extraction_failures"]
+    accounted = (
+        e1["correct_count"]
+        + e1["valid_extracted_incorrect_count"]
+        + extraction_failures["numerator"]
+    )
+    check(
+        "e1_outcome_accounting",
+        e1["correct_count"] == 18
+        and e1["valid_extracted_incorrect_count"] == 238
+        and extraction_failures == {"numerator": 0, "denominator": 256, "rate": 0.0}
+        and accounted == 256
+        and e1["exact_answer_accuracy"]
+        == {"numerator": 18, "denominator": 256, "rate": 0.0703125},
+        (
+            f"correct={e1['correct_count']}, "
+            f"valid_incorrect={e1['valid_extracted_incorrect_count']}, "
+            f"extraction_failures={extraction_failures}, accounted={accounted}"
+        ),
+    )
+
+    # 9. The initial parser and protocol integrity controls survived.
+    answer_extraction = e1["protocol"]["answer_extraction"]
+    leakage = e1["protocol"]["leakage_preflight"]
+    batch_equivalence = e1["protocol"]["decoding"][
+        "batch_vs_unbatched_equivalence"
+    ]
+    check(
+        "e1_protocol_integrity",
+        answer_extraction["parser_attempt"] == "initial"
+        and leakage["status"] == "PASS"
+        and leakage["overlap_count"] == 0
+        and batch_equivalence["status"] == "PASS"
+        and extraction_failures["rate"] <= 0.05
+        and e1["cap_reached"]["denominator"] == 256,
+        (
+            f"parser={answer_extraction['parser_attempt']}, "
+            f"leakage={leakage['status']}, batch={batch_equivalence['status']}, "
+            f"extraction_rate={extraction_failures['rate']}"
+        ),
+    )
+
+    # 10. The frozen gate maps this valid below-band result to ABORT-AND-SWAP.
+    verdict = e1["verdict"]
+    check(
+        "e1_below_band_abort_and_swap",
+        e1["correct_count"] < 26
+        and e1["correct_count"] < 40
+        and verdict["token"] == "ABORT-AND-SWAP"
+        and verdict["reason"] == "below_band_or_fewer_than_40_correct"
+        and not verdict["terminal"],
+        f"correct={e1['correct_count']}, verdict={verdict}",
+    )
 
     failed = [c for c in checks if not c["ok"]]
     print(json.dumps({
