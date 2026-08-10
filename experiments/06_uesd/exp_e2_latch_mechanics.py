@@ -168,10 +168,30 @@ def load_config(path: Path = DEFAULT_CONFIG) -> dict[str, Any]:
     )
     if not math.isclose(selector_mix, 1.0):
         raise ValueError("on-policy and replay fractions do not sum to one")
+    hysteresis = config["selectors"]["hysteretic_latch"]
+    if tuple(float(value) for value in hysteresis["delta_grid"]) != (
+        0.0,
+        0.02,
+        0.05,
+        0.1,
+    ):
+        raise ValueError("hysteresis delta grid changed")
+    if int(hysteresis["selection_horizon"]) != 16:
+        raise ValueError("hysteresis selection horizon must be 16")
+    if int(hysteresis["freeze_through_horizon"]) != 32:
+        raise ValueError("hysteresis delta must remain frozen through horizon 32")
+    if not math.isclose(float(hysteresis["minimum_calibration_gain_retention"]), 0.9):
+        raise ValueError("hysteresis calibration gain-retention floor changed")
+    if not bool(hysteresis["informational_only"]) or not bool(
+        hysteresis["excluded_from_adjudication"]
+    ):
+        raise ValueError("arm 4 must remain informational and non-adjudicating")
     configured_result = Path(config["result_artifact"]["path"])
     expected_result = Path("experiments/06_uesd/results/exp_e2_latch_mechanics.json")
     if configured_result != expected_result:
         raise ValueError("immutable result path changed")
+    if config["result_artifact"].get("schema_version") != "1.1.0":
+        raise ValueError("immutable result schema version changed")
     return config
 
 
@@ -2595,8 +2615,10 @@ class TrajectoryEvaluation:
     no_latch_predictions: Tensor
     confidence_latch_predictions: Tensor
     critic_latch_predictions: Tensor
+    hysteretic_critic_latch_predictions: Tensor
     confidence_selected_horizons: Tensor
     critic_selected_horizons: Tensor
+    hysteretic_selected_horizons: Tensor
     maximum_answer_probabilities: Tensor
     confidence_scores: Tensor
     critic_scores: Tensor
@@ -2626,6 +2648,25 @@ def cumulative_first_argmax(scores: Tensor) -> Tensor:
     return torch.stack(outputs, dim=1)
 
 
+def hysteretic_incumbent_indices(scores: Tensor, delta: float) -> Tensor:
+    """Sequential incumbent replacement with strict delta-threshold crossing."""
+
+    if scores.ndim != 2 or scores.shape[1] < 1:
+        raise ValueError("hysteretic scores must have shape [examples, horizons>=1]")
+    if delta < 0.0:
+        raise ValueError("hysteresis delta must be nonnegative")
+    incumbent = torch.zeros(scores.shape[0], dtype=torch.long, device=scores.device)
+    outputs = [incumbent.clone()]
+    for challenger in range(1, scores.shape[1]):
+        incumbent_scores = scores.gather(1, incumbent.unsqueeze(1)).squeeze(1)
+        replace = scores[:, challenger] - incumbent_scores > delta
+        incumbent = torch.where(
+            replace, torch.full_like(incumbent, challenger), incumbent
+        )
+        outputs.append(incumbent.clone())
+    return torch.stack(outputs, dim=1)
+
+
 @torch.no_grad()
 def evaluate_trajectories(
     model: CommonRecurrentModel,
@@ -2636,6 +2677,7 @@ def evaluate_trajectories(
     device: torch.device,
     *,
     max_horizon: int,
+    hysteresis_delta: float = 0.0,
     batch_size: int = 16,
 ) -> TrajectoryEvaluation:
     model.eval()
@@ -2645,8 +2687,10 @@ def evaluate_trajectories(
     prediction_rows: list[Tensor] = []
     confidence_prediction_rows: list[Tensor] = []
     critic_prediction_rows: list[Tensor] = []
+    hysteretic_prediction_rows: list[Tensor] = []
     confidence_horizon_rows: list[Tensor] = []
     critic_horizon_rows: list[Tensor] = []
+    hysteretic_horizon_rows: list[Tensor] = []
     maximum_probability_rows: list[Tensor] = []
     confidence_score_rows: list[Tensor] = []
     critic_score_rows: list[Tensor] = []
@@ -2673,14 +2717,20 @@ def evaluate_trajectories(
         critic_score_grid = torch.sigmoid(critic(critic_feature_grid))
         confidence_selected = cumulative_first_argmax(confidence_score_grid)
         critic_selected = cumulative_first_argmax(critic_score_grid)
+        hysteretic_selected = hysteretic_incumbent_indices(
+            critic_score_grid, hysteresis_delta
+        )
         confidence_predictions = torch.gather(predictions, 1, confidence_selected)
         critic_predictions = torch.gather(predictions, 1, critic_selected)
+        hysteretic_predictions = torch.gather(predictions, 1, hysteretic_selected)
         gold_rows.append(labels.cpu())
         prediction_rows.append(predictions.cpu())
         confidence_prediction_rows.append(confidence_predictions.cpu())
         critic_prediction_rows.append(critic_predictions.cpu())
+        hysteretic_prediction_rows.append(hysteretic_predictions.cpu())
         confidence_horizon_rows.append((confidence_selected + 1).cpu())
         critic_horizon_rows.append((critic_selected + 1).cpu())
+        hysteretic_horizon_rows.append((hysteretic_selected + 1).cpu())
         maximum_probability_rows.append(maximum_probability.cpu())
         confidence_score_rows.append(confidence_score_grid.cpu())
         critic_score_rows.append(critic_score_grid.cpu())
@@ -2690,8 +2740,10 @@ def evaluate_trajectories(
         no_latch_predictions=torch.cat(prediction_rows),
         confidence_latch_predictions=torch.cat(confidence_prediction_rows),
         critic_latch_predictions=torch.cat(critic_prediction_rows),
+        hysteretic_critic_latch_predictions=torch.cat(hysteretic_prediction_rows),
         confidence_selected_horizons=torch.cat(confidence_horizon_rows),
         critic_selected_horizons=torch.cat(critic_horizon_rows),
+        hysteretic_selected_horizons=torch.cat(hysteretic_horizon_rows),
         maximum_answer_probabilities=torch.cat(maximum_probability_rows),
         confidence_scores=torch.cat(confidence_score_rows),
         critic_scores=torch.cat(critic_score_rows),
@@ -2732,6 +2784,9 @@ def accuracy_grid(evaluation: TrajectoryEvaluation) -> dict[str, Any]:
         "no_latch": evaluation.no_latch_predictions,
         "confidence_plus_schedule_latch": evaluation.confidence_latch_predictions,
         "latent_critic_latch": evaluation.critic_latch_predictions,
+        "hysteretic_critic_latch_informational": (
+            evaluation.hysteretic_critic_latch_predictions
+        ),
     }
     for arm, predictions in arms.items():
         output[arm] = {
@@ -2768,10 +2823,16 @@ def stratified_accuracy_grid(evaluation: TrajectoryEvaluation) -> dict[str, Any]
                     indices
                 ],
                 critic_latch_predictions=evaluation.critic_latch_predictions[indices],
+                hysteretic_critic_latch_predictions=(
+                    evaluation.hysteretic_critic_latch_predictions[indices]
+                ),
                 confidence_selected_horizons=evaluation.confidence_selected_horizons[
                     indices
                 ],
                 critic_selected_horizons=evaluation.critic_selected_horizons[indices],
+                hysteretic_selected_horizons=(
+                    evaluation.hysteretic_selected_horizons[indices]
+                ),
                 maximum_answer_probabilities=evaluation.maximum_answer_probabilities[
                     indices
                 ],
@@ -2814,6 +2875,297 @@ def select_t_star(
     }
 
 
+def _rate(numerator: int | float, denominator: int) -> dict[str, Any]:
+    return {
+        "numerator": numerator,
+        "denominator": denominator,
+        "value": None if denominator == 0 else numerator / denominator,
+    }
+
+
+def selector_switch_hazards(
+    state_predictions: Tensor, gold: Tensor, selected_horizons: Tensor
+) -> dict[str, Any]:
+    """Count offered-challenge outcomes for a sequential state-bank selector."""
+
+    if state_predictions.shape != selected_horizons.shape:
+        raise ValueError("predictions and selected horizons must have equal shape")
+    examples, horizons = state_predictions.shape
+    harmful_examples = torch.zeros(examples, dtype=torch.bool)
+    totals = Counter()
+    per_transition: dict[str, Any] = {}
+    rows = torch.arange(examples)
+    for challenger_index in range(1, horizons):
+        previous = selected_horizons[:, challenger_index - 1] - 1
+        current = selected_horizons[:, challenger_index] - 1
+        if bool(((previous < 0) | (previous >= challenger_index)).any()):
+            raise AssertionError("selector incumbent horizon is not causal")
+        accepted = current == challenger_index
+        if not torch.equal(current != previous, accepted):
+            raise AssertionError("selector replacement accounting mismatch")
+        incumbent_correct = state_predictions[rows, previous] == gold
+        challenger_correct = state_predictions[:, challenger_index] == gold
+        selected_correct = state_predictions[rows, current] == gold
+        harmful_offer = incumbent_correct & ~challenger_correct
+        beneficial_offer = ~incumbent_correct & challenger_correct
+        accepted_harmful = accepted & harmful_offer
+        rejected_beneficial = ~accepted & beneficial_offer
+        correct_survival = incumbent_correct & selected_correct
+        harmful_examples |= accepted_harmful
+        counts = {
+            "accepted_harmful": (
+                int(accepted_harmful.sum().item()),
+                int(harmful_offer.sum().item()),
+            ),
+            "rejected_beneficial": (
+                int(rejected_beneficial.sum().item()),
+                int(beneficial_offer.sum().item()),
+            ),
+            "correct_incumbent_survival": (
+                int(correct_survival.sum().item()),
+                int(incumbent_correct.sum().item()),
+            ),
+            "total_replacements": (int(accepted.sum().item()), examples),
+        }
+        per_transition[f"{challenger_index}_to_{challenger_index + 1}"] = {
+            name: _rate(numerator, denominator)
+            for name, (numerator, denominator) in counts.items()
+        }
+        for name, (numerator, denominator) in counts.items():
+            totals[f"{name}_numerator"] += numerator
+            totals[f"{name}_denominator"] += denominator
+    aggregate = {
+        name: _rate(totals[f"{name}_numerator"], totals[f"{name}_denominator"])
+        for name in (
+            "accepted_harmful",
+            "rejected_beneficial",
+            "correct_incumbent_survival",
+            "total_replacements",
+        )
+    }
+    aggregate["harmful_switch_examples"] = _rate(
+        int(harmful_examples.sum().item()), examples
+    )
+    return {
+        "challenge_definition": "each state at t>=2 offered against incumbent",
+        "per_transition": per_transition,
+        "aggregate": aggregate,
+    }
+
+
+def select_hysteresis_delta(
+    state_predictions: Tensor,
+    gold: Tensor,
+    critic_score_grid: Tensor,
+    t_star: int,
+    config: Mapping[str, Any],
+) -> tuple[float, dict[str, Any]]:
+    """Freeze one seed-local delta using calibration trajectories only."""
+
+    hcfg = config["selectors"]["hysteretic_latch"]
+    selection_horizon = int(hcfg["selection_horizon"])
+    if state_predictions.shape[1] < selection_horizon:
+        raise ValueError("calibration trajectory is shorter than horizon 16")
+    predictions = state_predictions[:, :selection_horizon]
+    scores = critic_score_grid[:, :selection_horizon]
+    no_t1_correct = int((predictions[:, 0] == gold).sum().item())
+    no_t_star_correct = int((predictions[:, t_star - 1] == gold).sum().item())
+    gain_denominator = no_t_star_correct - no_t1_correct
+    candidate_metrics: dict[str, Any] = {}
+    feasible: list[tuple[float, float, float]] = []
+    for candidate in (float(value) for value in hcfg["delta_grid"]):
+        selected = hysteretic_incumbent_indices(scores, candidate) + 1
+        selected_predictions = torch.gather(predictions, 1, selected - 1)
+        final_correct = int(
+            (selected_predictions[:, selection_horizon - 1] == gold).sum().item()
+        )
+        gain_numerator = final_correct - no_t1_correct
+        gain_retention = (
+            None if gain_denominator == 0 else gain_numerator / gain_denominator
+        )
+        switch_hazards = selector_switch_hazards(predictions, gold, selected)
+        harmful_rate = switch_hazards["aggregate"]["harmful_switch_examples"]["value"]
+        accuracy = final_correct / int(gold.numel())
+        is_feasible = gain_retention is not None and gain_retention >= float(
+            hcfg["minimum_calibration_gain_retention"]
+        )
+        candidate_metrics[f"{candidate:.2f}"] = {
+            "delta": candidate,
+            "b16_accuracy": _rate(final_correct, int(gold.numel())),
+            "calibration_gain_retention": {
+                "arm4_minus_t1_correct_numerator": gain_numerator,
+                "t_star_minus_t1_correct_denominator": gain_denominator,
+                "accuracy_denominator": int(gold.numel()),
+                "value": gain_retention,
+            },
+            "switch_hazards": switch_hazards,
+            "feasible": is_feasible,
+        }
+        if is_feasible:
+            if harmful_rate is None:
+                raise AssertionError("harmful-switch-example rate lacks denominator")
+            feasible.append((float(harmful_rate), -accuracy, -candidate))
+    constraint_miss = not feasible
+    selected_delta = (
+        float(hcfg["no_feasible_fallback_delta"])
+        if constraint_miss
+        else -min(feasible)[2]
+    )
+    return selected_delta, {
+        "selected_delta": selected_delta,
+        "calibration_constraint_miss": constraint_miss,
+        "delta_grid": [float(value) for value in hcfg["delta_grid"]],
+        "selection_horizon": selection_horizon,
+        "minimum_gain_retention": hcfg["minimum_calibration_gain_retention"],
+        "selection_lexicographic": hcfg["selection_lexicographic"],
+        "candidate_calibration_metrics": candidate_metrics,
+        "test_grid_evaluated": False,
+        "frozen_through_horizon": hcfg["freeze_through_horizon"],
+        "informational_only": True,
+    }
+
+
+def trajectory_diagnostics(
+    evaluations: Sequence[TrajectoryEvaluation],
+) -> dict[str, Any]:
+    """Compute pooled-or-single-seed headroom and transition diagnostics."""
+
+    if not evaluations:
+        raise ValueError("trajectory diagnostics require at least one evaluation")
+    horizon_count = evaluations[0].horizon_count
+    if any(evaluation.horizon_count != horizon_count for evaluation in evaluations):
+        raise ValueError("trajectory horizon grids differ across seeds")
+    gold = torch.cat([evaluation.gold for evaluation in evaluations])
+    raw = torch.cat(
+        [evaluation.no_latch_predictions for evaluation in evaluations], dim=0
+    )
+    selected_predictions = {
+        "no_latch": raw,
+        "confidence_plus_schedule_latch": torch.cat(
+            [evaluation.confidence_latch_predictions for evaluation in evaluations]
+        ),
+        "latent_critic_latch": torch.cat(
+            [evaluation.critic_latch_predictions for evaluation in evaluations]
+        ),
+        "hysteretic_critic_latch_informational": torch.cat(
+            [
+                evaluation.hysteretic_critic_latch_predictions
+                for evaluation in evaluations
+            ]
+        ),
+    }
+    no_latch_horizons = torch.arange(1, horizon_count + 1).repeat(len(gold), 1)
+    selected_horizons = {
+        "no_latch": no_latch_horizons,
+        "confidence_plus_schedule_latch": torch.cat(
+            [evaluation.confidence_selected_horizons for evaluation in evaluations]
+        ),
+        "latent_critic_latch": torch.cat(
+            [evaluation.critic_selected_horizons for evaluation in evaluations]
+        ),
+        "hysteretic_critic_latch_informational": torch.cat(
+            [evaluation.hysteretic_selected_horizons for evaluation in evaluations]
+        ),
+    }
+    ever_correct = (raw == gold.unsqueeze(1)).cummax(dim=1).values
+    budgets: dict[str, Any] = {}
+    for index in range(horizon_count):
+        oracle_numerator = int(ever_correct[:, index].sum().item())
+        arms: dict[str, Any] = {}
+        for arm, predictions in selected_predictions.items():
+            final_numerator = int((predictions[:, index] == gold).sum().item())
+            arms[arm] = {
+                "selected_correct": _rate(final_numerator, len(gold)),
+                "oracle_headroom": _rate(oracle_numerator - final_numerator, len(gold)),
+            }
+        budgets[str(index + 1)] = {
+            "oracle_reachable_correct": _rate(oracle_numerator, len(gold)),
+            "arms": arms,
+        }
+    raw_transitions: dict[str, Any] = {}
+    for index in range(horizon_count - 1):
+        current_correct = raw[:, index] == gold
+        next_correct = raw[:, index + 1] == gold
+        raw_transitions[f"{index + 1}_to_{index + 2}"] = {
+            "correct_to_wrong": _rate(
+                int((current_correct & ~next_correct).sum().item()),
+                int(current_correct.sum().item()),
+            ),
+            "wrong_to_correct": _rate(
+                int((~current_correct & next_correct).sum().item()),
+                int((~current_correct).sum().item()),
+            ),
+        }
+    return {
+        "examples": len(gold),
+        "budgets_b1_b32": budgets,
+        "raw_transition_hazards": raw_transitions,
+        "selector_switch_hazards": {
+            arm: selector_switch_hazards(raw, gold, horizons)
+            for arm, horizons in selected_horizons.items()
+        },
+        "model_empty_transition_hazards": {
+            "applicable": False,
+            "reason": "four_way_typed_choice_interface_has_no_empty_output",
+        },
+    }
+
+
+def trajectory_accounting_assertions(
+    diagnostics_by_scope: Mapping[str, Mapping[str, Any]],
+    evaluations: Mapping[int, TrajectoryEvaluation],
+    t_star: int,
+    endpoints: Sequence[int],
+) -> dict[str, Any]:
+    violations: list[str] = []
+    budget_checks = 0
+    for scope, diagnostics in diagnostics_by_scope.items():
+        for budget, row in diagnostics["budgets_b1_b32"].items():
+            oracle = int(row["oracle_reachable_correct"]["numerator"])
+            for arm, arm_row in row["arms"].items():
+                selected = int(arm_row["selected_correct"]["numerator"])
+                headroom = int(arm_row["oracle_headroom"]["numerator"])
+                budget_checks += 1
+                if selected > oracle or headroom < 0 or headroom != oracle - selected:
+                    violations.append(f"{scope}:B{budget}:{arm}:F/O/H")
+    endpoint_checks: dict[str, Any] = {}
+    scope_evaluations = {
+        **{str(seed): [evaluation] for seed, evaluation in evaluations.items()},
+        "pooled": list(evaluations.values()),
+    }
+    for scope, scope_rows in scope_evaluations.items():
+        gold = torch.cat([row.gold for row in scope_rows])
+        raw = torch.cat([row.no_latch_predictions for row in scope_rows])
+        endpoint_checks[scope] = {}
+        for endpoint in endpoints:
+            oracle = int(
+                ((raw[:, :endpoint] == gold.unsqueeze(1)).any(dim=1)).sum().item()
+            )
+            final = int((raw[:, endpoint - 1] == gold).sum().item())
+            earlier = raw[:, t_star - 1] == gold
+            regression = int((earlier & (raw[:, endpoint - 1] != gold)).sum().item())
+            headroom = oracle - final
+            passed = headroom >= regression
+            endpoint_checks[scope][str(endpoint)] = {
+                "no_latch_headroom_numerator": headroom,
+                "a_t_star_times_regression_numerator": regression,
+                "common_accuracy_denominator": len(gold),
+                "comparison": ">=",
+                "pass": passed,
+            }
+            if not passed:
+                violations.append(f"{scope}:H{endpoint}:headroom_regression_identity")
+    return {
+        "f_le_oracle_and_nonnegative_headroom_checks": budget_checks,
+        "no_latch_headroom_regression_checks": endpoint_checks,
+        "violation_count": len(violations),
+        "violations": violations,
+        "all_pass": not violations,
+        "failure_semantics": "evaluator_bug_VOID_integrity_not_scientific_floor",
+        "minimum_headroom_validity_floor": None,
+    }
+
+
 def evaluation_matched_concordance(
     evaluation: TrajectoryEvaluation,
     config: Mapping[str, Any],
@@ -2851,15 +3203,22 @@ def endpoint_counts(
     no_endpoint = evaluation.no_latch_predictions[:, endpoint - 1]
     confidence_endpoint = evaluation.confidence_latch_predictions[:, endpoint - 1]
     critic_endpoint = evaluation.critic_latch_predictions[:, endpoint - 1]
+    hysteretic_endpoint = evaluation.hysteretic_critic_latch_predictions[
+        :, endpoint - 1
+    ]
     earlier_correct = no_t_star == gold
     denominator = int(earlier_correct.sum().item())
     no_regressions = int((earlier_correct & (no_endpoint != gold)).sum().item())
     critic_regressions = int((earlier_correct & (critic_endpoint != gold)).sum().item())
+    hysteretic_regressions = int(
+        (earlier_correct & (hysteretic_endpoint != gold)).sum().item()
+    )
     no_one_correct = int((no_one == gold).sum().item())
     no_t_star_correct = int((no_t_star == gold).sum().item())
     no_endpoint_correct = int((no_endpoint == gold).sum().item())
     confidence_correct = int((confidence_endpoint == gold).sum().item())
     critic_correct = int((critic_endpoint == gold).sum().item())
+    hysteretic_correct = int((hysteretic_endpoint == gold).sum().item())
     total = evaluation.example_count
     gain_denominator = no_t_star_correct - no_one_correct
     gain_numerator = critic_correct - no_one_correct
@@ -2880,6 +3239,11 @@ def endpoint_counts(
             "numerator": critic_regressions,
             "denominator": denominator,
             "value": None if denominator == 0 else critic_regressions / denominator,
+        },
+        "hysteretic_critic_latch_regression_informational": {
+            "numerator": hysteretic_regressions,
+            "denominator": denominator,
+            "value": None if denominator == 0 else hysteretic_regressions / denominator,
         },
         "regression_reduction": {
             "critic_regression_numerator": critic_regressions,
@@ -2914,6 +3278,11 @@ def endpoint_counts(
             "denominator": total,
             "value": critic_correct / total,
         },
+        "hysteretic_critic_latch_endpoint_accuracy_informational": {
+            "numerator": hysteretic_correct,
+            "denominator": total,
+            "value": hysteretic_correct / total,
+        },
         "gain_retention": {
             "critic_minus_t1_correct_numerator": gain_numerator,
             "t_star_minus_t1_correct_denominator": gain_denominator,
@@ -2921,6 +3290,14 @@ def endpoint_counts(
             "value": None
             if gain_denominator == 0
             else gain_numerator / gain_denominator,
+        },
+        "hysteretic_gain_retention_informational": {
+            "arm4_minus_t1_correct_numerator": hysteretic_correct - no_one_correct,
+            "t_star_minus_t1_correct_denominator": gain_denominator,
+            "accuracy_denominator": total,
+            "value": None
+            if gain_denominator == 0
+            else (hysteretic_correct - no_one_correct) / gain_denominator,
         },
         "critic_minus_confidence_accuracy": {
             "critic_correct_numerator": critic_correct,
@@ -2947,6 +3324,10 @@ def pooled_endpoint_counts(
         int(metrics["critic_latch_regression"]["numerator"])
         for metrics in per_seed.values()
     )
+    hysteretic_regressions = sum(
+        int(metrics["hysteretic_critic_latch_regression_informational"]["numerator"])
+        for metrics in per_seed.values()
+    )
     no_one = sum(
         int(metrics["no_latch_t1_accuracy"]["numerator"])
         for metrics in per_seed.values()
@@ -2965,6 +3346,14 @@ def pooled_endpoint_counts(
     )
     critic = sum(
         int(metrics["critic_latch_endpoint_accuracy"]["numerator"])
+        for metrics in per_seed.values()
+    )
+    hysteretic = sum(
+        int(
+            metrics["hysteretic_critic_latch_endpoint_accuracy_informational"][
+                "numerator"
+            ]
+        )
         for metrics in per_seed.values()
     )
     matched_numerator = sum(
@@ -2992,6 +3381,11 @@ def pooled_endpoint_counts(
             "numerator": critic_regressions,
             "denominator": denominator,
             "value": None if denominator == 0 else critic_regressions / denominator,
+        },
+        "hysteretic_critic_latch_regression_informational": {
+            "numerator": hysteretic_regressions,
+            "denominator": denominator,
+            "value": None if denominator == 0 else hysteretic_regressions / denominator,
         },
         "regression_reduction": {
             "critic_regression_numerator": critic_regressions,
@@ -3026,6 +3420,11 @@ def pooled_endpoint_counts(
             "denominator": total,
             "value": critic / total,
         },
+        "hysteretic_critic_latch_endpoint_accuracy_informational": {
+            "numerator": hysteretic,
+            "denominator": total,
+            "value": hysteretic / total,
+        },
         "gain_retention": {
             "critic_minus_t1_correct_numerator": critic - no_one,
             "t_star_minus_t1_correct_denominator": no_t_star - no_one,
@@ -3033,6 +3432,14 @@ def pooled_endpoint_counts(
             "value": None
             if no_t_star == no_one
             else (critic - no_one) / (no_t_star - no_one),
+        },
+        "hysteretic_gain_retention_informational": {
+            "arm4_minus_t1_correct_numerator": hysteretic - no_one,
+            "t_star_minus_t1_correct_denominator": no_t_star - no_one,
+            "accuracy_denominator": total,
+            "value": None
+            if no_t_star == no_one
+            else (hysteretic - no_one) / (no_t_star - no_one),
         },
         "critic_minus_confidence_accuracy": {
             "critic_correct_numerator": critic,
@@ -3313,12 +3720,18 @@ def per_example_result_records(
                 "critic_latch_predictions_b1_b32": evaluation.critic_latch_predictions[
                     index
                 ].tolist(),
+                "hysteretic_critic_latch_predictions_b1_b32": (
+                    evaluation.hysteretic_critic_latch_predictions[index].tolist()
+                ),
                 "confidence_selected_horizons_b1_b32": evaluation.confidence_selected_horizons[
                     index
                 ].tolist(),
                 "critic_selected_horizons_b1_b32": evaluation.critic_selected_horizons[
                     index
                 ].tolist(),
+                "hysteretic_selected_horizons_b1_b32": (
+                    evaluation.hysteretic_selected_horizons[index].tolist()
+                ),
                 "maximum_answer_probabilities_t1_t32": [
                     float(value)
                     for value in evaluation.maximum_answer_probabilities[index]
@@ -3628,6 +4041,18 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
         calibration_evaluations,
         tuple(int(value) for value in config["evaluation"]["t_star_candidates"]),
     )
+    frozen_hysteresis: dict[int, dict[str, Any]] = {}
+    for seed, evaluation in calibration_evaluations.items():
+        selected_delta, record = select_hysteresis_delta(
+            evaluation.no_latch_predictions,
+            evaluation.gold,
+            evaluation.critic_scores,
+            t_star,
+            config,
+        )
+        frozen_hysteresis[seed] = record
+        if not math.isclose(selected_delta, float(record["selected_delta"])):
+            raise AssertionError("frozen hysteresis delta record mismatch")
     failed_provenance_seeds = [
         seed
         for seed, record in seed_preparation.items()
@@ -3639,7 +4064,7 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
         if not record["latent_critic_fit"]["fit_performed"]
     ]
     base_result: dict[str, Any] = {
-        "schema_version": "1.0.0",
+        "schema_version": config["result_artifact"]["schema_version"],
         "experiment_id": config["experiment_id"],
         "started_utc": started_utc,
         "completed_utc": None,
@@ -3672,6 +4097,15 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
         "dataset_token_audit": token_audit,
         "training": {str(seed): record for seed, record in seed_preparation.items()},
         "calibration_frozen_t_star": t_star_record,
+        "calibration_frozen_hysteresis_by_seed": {
+            str(seed): record for seed, record in frozen_hysteresis.items()
+        },
+        "arm_definitions": {
+            "1": "final_horizon_no_latch",
+            "2": "confidence_plus_schedule_latch",
+            "3": "latent_critic_latch_adjudicating",
+            "4": "hysteretic_critic_latch_informational_only",
+        },
         "evaluation": None,
         "validity_gates": None,
         "decision": None,
@@ -3742,6 +4176,7 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
             tokenizer,
             device,
             max_horizon=32,
+            hysteresis_delta=float(frozen_hysteresis[seed]["selected_delta"]),
         )
         encoder = EncoderOnlyControl(config, len(tokenizer.id_to_token)).to(device)
         selected_encoder = seed_preparation[seed]["encoder_training"][
@@ -3773,6 +4208,23 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
             **{str(seed): metrics for seed, metrics in per_seed.items()},
             "pooled": pooled_endpoint_counts(per_seed, endpoint),
         }
+
+    trajectory_diagnostics_by_scope = {
+        **{
+            str(seed): trajectory_diagnostics([evaluation])
+            for seed, evaluation in test_evaluations.items()
+        },
+        "pooled": trajectory_diagnostics(list(test_evaluations.values())),
+    }
+    trajectory_assertions = trajectory_accounting_assertions(
+        trajectory_diagnostics_by_scope,
+        test_evaluations,
+        t_star,
+        (
+            int(config["evaluation"]["primary_endpoint"]),
+            int(config["evaluation"]["conditional_endpoint"]),
+        ),
+    )
 
     eval_cfg = config["evaluation"]
     common_range = config["common_model"]["target_parameter_range"]
@@ -3823,6 +4275,12 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
             "observed_numerator": len(test_evaluations),
             "required_denominator": len(model_seeds),
             "pass": set(test_evaluations) == set(model_seeds),
+        },
+        "trajectory_accounting_identities": {
+            "observed_violation_numerator": trajectory_assertions["violation_count"],
+            "required_violation_denominator": 0,
+            "pass": trajectory_assertions["all_pass"],
+            "failure_semantics": "evaluator_bug_VOID_integrity",
         },
     }
     for seed in model_seeds:
@@ -3966,6 +4424,8 @@ def run_pilot(config_path: Path, review_attestation: str) -> int:
             str(seed): stratified_accuracy_grid(evaluation)
             for seed, evaluation in test_evaluations.items()
         },
+        "trajectory_diagnostics": trajectory_diagnostics_by_scope,
+        "trajectory_accounting_assertions": trajectory_assertions,
         "endpoint_metrics": {
             str(endpoint): scopes for endpoint, scopes in endpoint_metrics.items()
         },
@@ -4045,6 +4505,104 @@ def _synthetic_metrics(
     }
 
 
+def _hysteresis_rule_self_test() -> dict[str, Any]:
+    tie = hysteretic_incumbent_indices(torch.tensor([[0.5, 0.5]]), 0.0)
+    assert tie.tolist() == [[0, 0]]
+    threshold = hysteretic_incumbent_indices(torch.tensor([[0.50, 0.53, 0.56]]), 0.02)
+    assert threshold.tolist() == [[0, 1, 2]]
+    strict_boundary = hysteretic_incumbent_indices(
+        torch.tensor([[0.50, 0.75, 0.80]], dtype=torch.float64), 0.25
+    )
+    assert strict_boundary.tolist() == [[0, 0, 2]]
+    persistence = hysteretic_incumbent_indices(
+        torch.tensor([[0.60, 0.69, 0.65, 0.80]]), 0.10
+    )
+    assert persistence.tolist() == [[0, 0, 0, 3]]
+    return {
+        "tie_retains_incumbent": tie.tolist(),
+        "delta_thresholding": threshold.tolist(),
+        "strict_boundary_retention": strict_boundary.tolist(),
+        "incumbent_persistence": persistence.tolist(),
+        "pass": True,
+    }
+
+
+def _delta_selection_self_test(config: Mapping[str, Any]) -> dict[str, Any]:
+    examples = 20
+    horizons = 16
+    gold = torch.ones(examples, dtype=torch.long)
+    predictions = torch.ones((examples, horizons), dtype=torch.long)
+    predictions[10:, 0] = 0
+    predictions[:4, 2:] = 0
+    scores = torch.full((examples, horizons), 0.56)
+    scores[:, 0] = 0.50
+    scores[:4, 2:] = 0.59
+    selected, record = select_hysteresis_delta(predictions, gold, scores, 2, config)
+    assert math.isclose(selected, 0.05)
+    assert record["candidate_calibration_metrics"]["0.05"]["feasible"]
+    assert not record["candidate_calibration_metrics"]["0.10"]["feasible"]
+    assert not record["calibration_constraint_miss"]
+    return {"selected_delta": selected, "selection_record": record, "pass": True}
+
+
+def _diagnostics_self_test() -> dict[str, Any]:
+    gold = torch.ones(4, dtype=torch.long)
+    raw = torch.tensor(
+        [[1, 0, 1, 1], [0, 1, 0, 0], [0, 0, 1, 1], [1, 1, 0, 0]],
+        dtype=torch.long,
+    )
+    scores = torch.tensor(
+        [
+            [0.6, 0.7, 0.8, 0.8],
+            [0.5, 0.7, 0.8, 0.8],
+            [0.5, 0.5, 0.7, 0.7],
+            [0.7, 0.7, 0.8, 0.8],
+        ]
+    )
+    critic_selected = cumulative_first_argmax(scores) + 1
+    hysteretic_selected = hysteretic_incumbent_indices(scores, 0.05) + 1
+    critic_predictions = torch.gather(raw, 1, critic_selected - 1)
+    hysteretic_predictions = torch.gather(raw, 1, hysteretic_selected - 1)
+    evaluation = TrajectoryEvaluation(
+        example_metadata=tuple(
+            {"counterfactual_group": str(index)} for index in range(len(gold))
+        ),
+        gold=gold,
+        no_latch_predictions=raw,
+        confidence_latch_predictions=critic_predictions,
+        critic_latch_predictions=critic_predictions,
+        hysteretic_critic_latch_predictions=hysteretic_predictions,
+        confidence_selected_horizons=critic_selected,
+        critic_selected_horizons=critic_selected,
+        hysteretic_selected_horizons=hysteretic_selected,
+        maximum_answer_probabilities=torch.zeros((4, 4)),
+        confidence_scores=scores,
+        critic_scores=scores,
+    )
+    diagnostics = trajectory_diagnostics([evaluation])
+    assertions = trajectory_accounting_assertions(
+        {"42": diagnostics, "pooled": diagnostics}, {42: evaluation}, 2, (4,)
+    )
+    assert assertions["all_pass"]
+    assert (
+        diagnostics["budgets_b1_b32"]["4"]["arms"]["no_latch"]["oracle_headroom"][
+            "numerator"
+        ]
+        == 2
+    )
+    assert (
+        assertions["no_latch_headroom_regression_checks"]["42"]["4"][
+            "a_t_star_times_regression_numerator"
+        ]
+        == 2
+    )
+    return {
+        "f_le_o_h_nonnegative": assertions,
+        "synthetic_no_latch_b4_headroom_numerator": 2,
+        "pass": True,
+    }
+
+
 def _decision_logic_self_test(config: Mapping[str, Any]) -> dict[str, Any]:
     validity = {"integrity": {"pass": True}}
 
@@ -4075,12 +4633,22 @@ def _decision_logic_self_test(config: Mapping[str, Any]) -> dict[str, Any]:
         endpoints(0.10, 0.20), {"integrity": {"pass": False}}, config
     )
     assert validity_void["final_token"] == "VOID"
+    arm4_adversarial = endpoints(0.10, 0.20)
+    for scopes in arm4_adversarial.values():
+        for metrics in scopes.values():
+            metrics["arm4_informational_adversarial_value"] = {
+                "accuracy": -999.0,
+                "regression": 999.0,
+            }
+    arm4_ignored = adjudicate(arm4_adversarial, validity, config)
+    assert arm4_ignored == at_16
     return {
         "h16_precedence": at_16,
         "conditional_h32": at_32,
         "regression_only_void": regression_void,
         "independent_selector_failure": measurable_failure,
         "validity_precedence": validity_void,
+        "arm4_cannot_change_proceed_precedence": arm4_ignored,
         "pass": True,
     }
 
@@ -4231,6 +4799,9 @@ def run_self_tests(config_path: Path) -> int:
             "pass": True,
         },
         "feature_boundary": feature_audit,
+        "hysteresis_rule": _hysteresis_rule_self_test(),
+        "hysteresis_delta_selection": _delta_selection_self_test(config),
+        "trajectory_diagnostics": _diagnostics_self_test(),
         "decision_logic": _decision_logic_self_test(config),
         "training_or_gpu_executed": False,
     }
