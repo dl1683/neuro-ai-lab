@@ -747,3 +747,191 @@ multiplier is applied to frozen-base-dominated rows.
 | Learned reranker | 4–9h |
 | Final inference/ablations | 13–22h |
 | **Full program** | **approximately 90–150 GPU-hours** |
+
+### 2026-08-10 — Exploration-adopted selector and interface amendments (pre-pilot-data)
+
+This amendment is recorded before any mechanics-pilot data or execution. It
+extends the pilot with an informational selector and mandatory diagnostics,
+registers a separate follow-up, and replaces the readout interface for the
+future 0.5B program only. It does not change the existing E1 gates or
+reinterpret any E1 evidence.
+
+#### Arm 4 — hysteretic incumbent-replacement latch (informational only)
+
+Arm 4 operates over the exact shared frozen recurrent-state bank used by the
+other three arms. Let \(q_{i,t}\in[0,1]\) be the frozen post-sigmoid critic
+score for example \(i\) at horizon \(t\). For model seed \(s\), initialize
+
+\[
+j_{i,1}=1,
+\]
+
+and, for \(t\ge2\), apply the sequential rule
+
+\[
+j_{i,t}=
+\begin{cases}
+t,&q_{i,t}-q_{i,j_{i,t-1}}>\delta_s,\\
+j_{i,t-1},&\text{otherwise}.
+\end{cases}
+\]
+
+The arm-4 prediction at budget \(B\) is the prediction from state
+\(j_{i,B}\). The strict inequality retains the incumbent on a tie. The rule
+compares every challenger with the current incumbent, not with the previous
+horizon and not with a separately generated state.
+
+Select one \(\delta_s\) independently for each trained critic/model seed from
+the frozen grid
+
+\[
+\mathcal D=\{0.00,0.02,0.05,0.10\},
+\]
+
+using only that seed's selector-calibration trajectories through \(T=16\).
+Freeze the shared \(t^*\) first under the existing rule. For every candidate
+\(\delta\), simulate the complete sequential latch and record at \(B=16\):
+
+- gain retention relative to the no-latch \(T=1\) accuracy and the frozen
+  no-latch \(t^*\) gain;
+- accuracy;
+- examples with at least one accepted harmful challenge divided by all
+  calibration examples;
+- accepted harmful challenges divided by offered challenges whose incumbent
+  was correct and challenger was incorrect;
+- rejected beneficial challenges divided by offered challenges whose
+  incumbent was incorrect and challenger was correct;
+- total replacements divided by all offered challenges.
+
+A candidate is feasible only when its calibration gain retention is at least
+90%. Among feasible candidates select lexicographically: (1) the smallest
+harmful-switch-example rate; (2) the highest \(B=16\) accuracy; and (3) the
+larger \(\delta\). If none is feasible, freeze \(\delta_s=0\) and record
+`calibration_constraint_miss=true`. Only the selected \(\delta_s\) is applied
+to test data; test results for unselected grid values are not reported. The
+selected constant is frozen without refitting, recalibration, or retuning
+through \(T=32\).
+
+Arm 4 is informational only. It cannot rescue an arm-3 FAIL, veto an arm-3
+PROCEED, enter the regression-only-VOID exception, or create a best-selector
+clause. Its values are excluded from every PROCEED/FAIL/VOID computation.
+Interpret it only as follows:
+
+- improved late-horizon accuracy with fewer harmful switches and retained
+  gain indicates that repeated low-margin replacement was a failure
+  mechanism and favors hysteresis for the 0.5B design;
+- no improvement indicates high-margin critic mistakes, biased scores,
+  schedule drift, or insufficient semantic information rather than a
+  low-margin switching problem;
+- preserved correctness with lost gain indicates a real
+  plasticity-stability tradeoff rather than merely an extreme-value bug.
+
+#### Trajectory diagnostics
+
+For every budget \(B=1,\ldots,32\), every seed \(s\), every selector arm
+\(a\) (including arm 4), and the pooled records formed by concatenating
+examples across seeds, report
+
+\[
+O_s(B)=
+\frac{\#\{i:\exists t\le B,\ \hat y_{i,s,t}=y_i\}}{N_s},
+\]
+
+\[
+F_{a,s}(B)=
+\frac{\#\{i:\hat y^a_{i,s,B}=y_i\}}{N_s},
+\qquad
+H_{a,s}(B)=O_s(B)-F_{a,s}(B).
+\]
+
+The oracle term is shared because all arms select from the same state bank.
+Every reported value includes its numerator and denominator. For the raw
+state dynamics, report at every transition \(t\to t+1\):
+
+\[
+h_{C\to W,s}(t)=
+\frac{\#\{i:\hat y_{i,s,t}=y_i,\ \hat y_{i,s,t+1}\ne y_i\}}
+     {\#\{i:\hat y_{i,s,t}=y_i\}},
+\]
+
+\[
+h_{W\to C,s}(t)=
+\frac{\#\{i:\hat y_{i,s,t}\ne y_i,\ \hat y_{i,s,t+1}=y_i\}}
+     {\#\{i:\hat y_{i,s,t}\ne y_i\}}.
+\]
+
+For every selector arm, report transition-by-transition and aggregate switch
+hazards with numerators and denominators: accepted harmful challenges,
+rejected beneficial challenges, correct-incumbent survival, and total
+replacements. Wherever model-empty outputs are possible, also report raw and
+selected correct-to-empty and empty-to-correct transitions. A challenge is
+every state offered after \(t=1\); acceptance means it replaces the incumbent.
+
+The evaluator must assert the accounting identities
+
+\[
+F_a(B)\le O(B),\qquad H_a(B)\ge0,
+\]
+
+for all arms, budgets, seeds, and the pooled records, and at an adjudicated
+endpoint \(H\),
+
+\[
+H_{\mathrm{no}}(H)\ge A_{\mathrm{no}}(t^*)R_{\mathrm{no}}(H).
+\]
+
+Violation is an evaluator bug and produces `VOID` for integrity; it is not a
+scientific floor. No minimum-headroom validity floor exists. These diagnostics
+may not select \(t^*\), \(\delta\), an endpoint, a subset, generator settings,
+or an outcome.
+
+#### E2-CERT follow-up registration
+
+The following is a registered follow-up, not a fifth E2 pilot arm:
+
+> **E2-CERT — verified-evidence latch follow-up.** Using the same frozen generator family, skeleton-disjoint splits, model seeds, parameter envelope, training-token budget, and \(T=1,\ldots,32\) grid as E2, train a separately budgeted joint answer-and-certificate model that emits a canonical sequence of rule identifiers and grounded substitutions at every state. A deterministic verifier, blind to the gold answer, accepts a certificate only when every premise appears in the prompt or a prior verified step, every rule application type-checks, and the final derived proposition exactly matches the state’s emitted answer choice. The verified latch permanently banks the first accepted state; if no state verifies by budget \(B\), it falls back to the calibration-frozen asymmetric critic latch. A capacity- and token-matched control receives the same certificate supervision but ignores verifier acceptance during selection. At \(H=16\) and \(H=32\), report verified coverage, verifier false-accept count, overall accuracy and regression, oracle headroom, and the fraction of residual asymmetric-latch headroom closed by verification. Support requires zero verifier false accepts, at least 50% verified coverage per seed, and closure of at least 50% of the asymmetric latch’s positive residual headroom pooled and separately in both seeds. E2-CERT cannot alter or reinterpret the E2 outcome.
+
+E2-CERT cannot change, delay, rescue, or reinterpret E2 and requires its own
+implementation, budget matching, review, and launch decision.
+
+#### 0.5B typed terminal interface
+
+For the 0.5B program only, replace the free-text-parser readout with a shared
+two-channel output:
+
+```text
+rationale: <free text>
+decision:
+  kind: answer | abstain
+  value: <canonical numeric value, only when kind=answer>
+  certificate: <nullable; inert in the main experiment>
+```
+
+The sequence reranker receives the prompt, full free-text rationale, and typed
+terminal record for every candidate. The primary scorer reads only the typed
+terminal decision. `abstain` is incorrect in primary exact-answer accuracy;
+coverage and selective risk conditional on answering are secondary metrics.
+Failure to emit a terminal record before the token limit remains a distinct
+model-empty outcome and is incorrect; it is not converted into abstention.
+The nullable certificate field is inert and cannot affect selection,
+adjudication, or the main experiment's result.
+
+Rationale generation remains unconstrained. Grammar masking begins only after
+an explicit terminal-decision marker and uses the smallest terminal grammar
+that expresses `answer` with a canonical numeric value or `abstain`. Every arm
+uses the same terminal grammar, marker, stopping rules, token limit, numeric
+normalization, and accounting. Grammar-mask computation and terminal tokens
+enter the matched layer-token FLOP budget for every arm, including every
+best-of-\(N\) candidate. Confidence features are computed from the same
+constrained terminal distribution in every applicable arm.
+
+After freezing the interface, run a paired masked-versus-unmasked diagnostic
+on calibration data only with matched random seeds. Report answer changes,
+model-empty changes, and likelihood changes where available. This diagnostic
+characterizes grammar-mask distortion but cannot choose the interface, change
+the primary protocol, or select any outcome. Conclusions are scoped to the
+common typed-decoding regime.
+
+This interface amendment applies only to the future 0.5B program. It does not
+alter the E1 task-band gates, their free-text parser, or any existing E1
+evidence or verdict.
