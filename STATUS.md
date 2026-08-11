@@ -115,6 +115,8 @@ The current 0.5B semantic-ratchet program remains **LAUNCH BLOCKED BY E2 VOID**.
 
 The repaired invocation completed 3,000 updates over 2,786,051 non-padding input-plus-answer tokens in 98.873 GPU-seconds, with peak allocated/reserved VRAM of 637,935,104/696,254,464 bytes. The repaired immutable artifact is `experiments/06_uesd/results/exp_e2_diag_stage0_instrumented.json` (canonical-LF SHA-256 `0ad4fc5fafe343b37944b462972d32ff201749280a7bdbb506fa3b62536620d7`). The first operational-VOID artifact remains immutable at `experiments/06_uesd/results/exp_e2_diag.json` (canonical-LF SHA-256 `41c035dd79fe42e9edb891dcc02664077c7d491cd7a2857fe7cc9ae16dc5ab37`). The original E2 controlling `VOID`, blocked 0.5B launch, absence of an automatic Direction 2 route, and line-07 priority remain unchanged.
 
+The dated failure synthesis concludes that successor mechanics work must begin from demonstrated competence, treat recurrent computation as a transient resource, couple supervision and adjudication to correctness, and enforce competence before denominator and provenance claims; see [`Failure Synthesis Retrospective — 2026-08-10`](docs/UNIFIED_ERROR_SPACE.md#12-failure-synthesis-retrospective-2026-08-10).
+
 Operationally, two earlier GSM8K canonical invocations were killed before GPU use while sandboxed dataset loading stalled on user-profile Hugging Face cache lock files; neither wrote an evidence artifact. The successful GSM8K attempt and the SVAMP initial attempt used the ignored workspace-local `.hf_cache/` fully offline. The SVAMP loader began GPU work immediately, so its 10-minute watchdog did not trigger.
 
 ### Canonical Documents and Evidence

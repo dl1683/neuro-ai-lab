@@ -494,3 +494,37 @@ Three causal hypotheses survive as questions, not conclusions or launch authoriz
 - Open Exploration synthesis — external sibling-repository provenance; not required to reproduce this repository.
 - Cross-domain mechanisms note — external sibling-repository provenance; not required to reproduce this repository.
 - Circuit viability: `docs/CIRCUIT_VIABILITY_PRUNING_REPORT.md`
+
+## 12. Failure Synthesis Retrospective — 2026-08-10
+
+### Pattern across failures
+
+- The program repeatedly reached for dynamics or selection conclusions before establishing an informative, competent substrate.
+- Proxy quantities repeatedly separated from semantic correctness: encoder-decodable information was not causal; low residual was not correctness; convergence produced wrong attractors; critic scores over chance states supplied no admissible mechanics evidence.
+- Sparse endpoint supervision plus aggressive anti-shortcut construction removed the learning foothold; the frozen optimizer then compressed the remaining signal through universal clipping.
+- The strongest surviving result, D22, concerns transient compute-window robustness—not convergence or semantic latching.
+- Denominator and competence gates have repeatedly done useful work by preventing vacuous successes.
+
+### What the solution space must look like
+
+- Begin from demonstrated competence, not hoped-for emergence.
+- Treat recurrent computation as a transient resource whose states may be selected, rather than forcing semantic meaning onto convergence.
+- Couple supervision and adjudication to answer correctness, verified process, or readout-relevant outcomes.
+- Enforce the sequence: substrate competence → horizon-dependent gain/regression → informative populations → selector provenance → matched control → transfer.
+- Keep controllers and critics small enough that optimization can be audited and the complete mechanics question fits within the compute cap.
+
+### Untested assumptions
+
+- Frozen pretrained representations support the synthetic deduction interface without base fine-tuning.
+- A small controller can create meaningful horizon-dependent state changes over those representations.
+- The critic contains correctness information beyond confidence plus schedule once matched pairs actually exist.
+- A controller can retain early correct states without merely becoming an early-exit confidence heuristic.
+- Synthetic mechanics transfer to the real-task semantic-ratchet design.
+- The telemetry-derived optimizer regime avoids saturation on the new trainable parameter set.
+
+### Predicted-to-work directions
+
+1. Frozen pretrained substrate plus small recurrent controller/critic—the proposed C-variant.
+2. Verified dense process supervision or certificate-bearing states if answer-only supervision still fails to create informative trajectories.
+3. An anytime/transient-solver design with outcome-coupled stopping or banking, abandoning correctness-by-fixed-point convergence.
+4. Readout-coupled energy whose target is explicitly decoded correctness, tested only after competence and controllability gates.
