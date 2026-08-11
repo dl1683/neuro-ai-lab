@@ -21,14 +21,16 @@ Suite aggregate: `results/pilot_suite_summary.json`.
 
 ## 07: Best-of-N Safe Selection
 
-### Frozen safe-selection pilot (PREREGISTERED / DESIGNED / NOT RUN)
+### Frozen safe-selection pilot (PREFLIGHT IMPLEMENTATION-DISCREPANCY STOP / CANONICAL NOT RUN)
 
 - **Event:** The independent-sampling safe-selection pilot was preregistered on 2026-08-10. No model was loaded, no response was generated, and no metric or result artifact exists.
 - **Canonical protocol:** `experiments/07_safe_selection/PREREGISTRATION.md`.
 - **Frozen cohorts:** Revision-pinned GSM8K official-train rows, excluding the five fixed demonstrations and all normalized-question overlap with the complete prior-consumption registry. The calibration cohort is 256 rows (ordered-index SHA-256 `9236163527dac17431ac43c9d094874ce644a211219a77de6783917ba15705c7`); the disjoint pilot-test cohort is 512 rows (ordered-index SHA-256 `f151f1c46c2421ed78aef43f1cd6e7bd99fc7c8ab5bb945e36adff346bad9c48`). The corrected 12,288-seed schedule hash is `8d3d567ba90da7ec7cdc0eb9c5764b545834975c0d477f0fc030888c9f2f03fd`.
 - **Design:** Six frozen policies share one 16-candidate bank: verifier argmax, fixed-margin incumbent, multiplicity-aware incumbent (primary), calibration-frozen stopping, verifier-blind answer plurality, and verifier-weighted answer plurality. CONFIRM is conjunctive against argmax and both voting baselines and remains scoped to the frozen generator–verifier pair and frozen GSM8K train-split cohort.
-- **Compute boundary:** Bank generation must fit the standing approximately 2.5 GPU-hour cap. If measured throughput projects the frozen 256+512 by 16 bank over the cap, a pre-data cohort-resize amendment is required before any retained generation.
-- **Launch blockers:** Cohort allocation is resolved. The remaining blockers are the unfilled prompt/parser/runner hash slots, the unfilled private manifest identity digest, runner build, and independent review.
+- **Retained smoke:** The immutable two-problem x 16-candidate calibration prefix passed generation/scoring integrity. Its batch-size-1 generation timing projected the original 12,288-response bank at 11.75 GPU-hours, so a pre-data batched-generation/cap amendment was appended before any further retained response.
+- **Verifier compatibility attempts:** The exact published 454-token BF16 golden replay was run under the two predeclared isolated documented-compatible stacks. Transformers 4.47.1 and 4.48.0 both returned `1.0 / 0.154296875 / 0.97265625 / 1.0` against `1.0 / 0.1904296875 / 0.9765625 / 1.0`. Both had maximum absolute error 0.0361328125 against the unchanged 0.002 tolerance; scored-forward times were 0.2904s and 0.2796s. The frozen input SHA-256 was identical in both attempts.
+- **Controlling outcome:** **`PREFLIGHT_STOP_IMPLEMENTATION_DISCREPANCY`**. The two-stack/90-minute diagnosis boundary stopped after the second failure, in under 15 active minutes. No calibration/test row was accessed, no additional retained response was generated, and no threshold, verifier, aggregation, or scientific claim changed.
+- **Next authority:** The runner fails closed on execution. Round-2 steering is required before another compatibility attempt, verifier swap, or fresh preregistration; the outcome is not a scientific KILL.
 - **Line boundary:** Line 07 cannot alter, rescue, veto, or reinterpret E2 or the 0.5B semantic-ratchet program. A result here tests a model-agnostic product claim only.
 
 ---

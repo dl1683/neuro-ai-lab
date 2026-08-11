@@ -1128,3 +1128,216 @@ revalidated exactly in the slot-filling pass. The runner imports the qualified
 E1 numeric parser directly. Independent pre-launch review remains mandatory
 and must bind this exact runner and private-manifest identity before any
 canonical calibration or test run.
+
+## Amendment 2026-08-10 — batched-generation cap resolution and verifier-viability gate
+
+### Evidence boundary
+
+This amendment is appended after the retained two-problem × 16-candidate
+calibration smoke and before any additional calibration response, any test
+response, any calibration threshold, or any adjudicating result exists.
+
+The retained smoke comprises calibration cohort positions 0 and 1 and remains
+immutable. It was generated with the originally registered batch-size-1
+schedule. It will remain in the final calibration bank and will not be
+discarded, overwritten, or regenerated.
+
+This amendment changes the post-smoke generation schedule and adds a pre-test
+verifier-viability gate. It does not change any CONFIRM threshold, permit use
+of test outcomes during calibration, or convert a valid KILL into CONFIRM.
+
+### Non-adjudicating aggregation diagnostic
+
+The retained 32 responses were replayed from their immutable stored step
+scores under four response-level aggregations. The results were:
+
+- minimum: correct mean 0.1541736000, incorrect mean 0.1567845518,
+  candidate-level AUROC 0.3141025641;
+- product: correct mean 0.1367948360, incorrect mean 0.0541080174,
+  candidate-level AUROC 0.6794871795;
+- last: correct mean 0.1542501301, incorrect mean 0.1567845518,
+  candidate-level AUROC 0.3269230769;
+- arithmetic mean: correct mean 0.1544356712, incorrect mean 0.1600666290,
+  candidate-level AUROC 0.2243589744.
+
+These values cover only two problem clusters. Twenty-five of 32 responses
+contain one serialized verifier step, so product is additionally confounded
+by step count. They are diagnostic only and did not select the aggregation.
+
+The canonical candidate score remains the originally registered minimum
+positive-class probability over steps. Product, last-step, mean, or any other
+aggregation is non-adjudicating and may not replace it in this attempt.
+
+Before further retained generation, the scorer must replay the verifier's
+published golden example and reproduce every published step score within an
+absolute tolerance of 0.002 under the frozen BF16 implementation. Failure is
+a launch-blocking implementation discrepancy, not a scientific KILL.
+
+### Batched-generation engineering preflight
+
+Candidate generation after calibration position 1 may use batch size 8 or 16.
+Batches are formed within one problem only:
+
+- batch size 8 generates candidate ordinals 1–8 and then 9–16;
+- batch size 16 generates candidate ordinals 1–16 in one call;
+- prompts are identical within a batch;
+- batch row order is candidate-ordinal order;
+- `num_return_sequences` remains 1 per input row;
+- tokenizer padding side is left;
+- attention masks and per-row stopping states are mandatory.
+
+The original retained smoke remains a batch-size-1 prefix. Exact
+reproducibility therefore means exact reproduction under this mixed frozen
+schedule, not equivalence to standalone batch-size-1 sampling.
+
+For every post-smoke batch define:
+
+batch_payload =
+    "bon-safe-selection-batched-generation-v1-2026-08-10" + "\n" +
+    partition + "\n" +
+    decimal(dataset_index) + "\n" +
+    decimal(first_candidate_ordinal) + "\n" +
+    decimal(batch_size) + "\n" +
+    comma_join(decimal(candidate_identity_seed) in batch-row order)
+
+batch_seed =
+    uint64_big_endian(SHA256(batch_payload)[0:8]) mod (2^63 - 1)
+
+Set the CPU and CUDA RNGs to `batch_seed` immediately before the corresponding
+generation call. The originally registered per-candidate seeds remain frozen
+candidate identity fields; for post-smoke records they are not claims of
+standalone per-candidate RNG reproduction. Every record must additionally
+store its batch seed, batch size, batch row, and batch-payload SHA-256.
+
+Benchmark batch size 8 first on diagnostic duplicates of retained calibration
+positions 0 and 1. Run the complete two-problem schedule twice. If batch size
+8 is ineligible, benchmark batch size 16 identically. Diagnostic duplicates
+do not enter the bank or any metric.
+
+A batch size is eligible only if:
+
+1. the two executions match exactly for response bytes, stopping reason,
+   generated-token count, extracted answer, and verifier-input serialization
+   for all 32 candidates;
+2. peak reserved generation VRAM is at most 20 GiB;
+3. every completed row remains stopped while unfinished rows continue;
+4. no NaN, CUDA error, process leak, or checkpoint inconsistency occurs.
+
+Repeat determinism establishes reproducibility only. It is not evidence that
+sampled generation is invariant to batching or padding.
+
+### Cap projection and batch selection
+
+For an eligible batch size b, let g_b be the larger of the two measured
+diagnostic generation wall times divided by 32. Let s be the retained smoke
+scoring wall time divided by 32. Include measured model-load overhead.
+
+For a bank containing M problems, define:
+
+H_b(M) =
+    retained_smoke_generation_wall_time
+    + g_b × (16M - 32)
+    + s × 16M
+    + measured_generation_and_scoring_model_load_overhead.
+
+Use 8,100 seconds, 90% of the approximately 2.5-hour cap, as the
+launch-authorizing ceiling. The remaining 900 seconds are operational
+headroom and may not be converted into planned bank size.
+
+If the complete 768-problem bank satisfies H_b(768) <= 8,100 seconds, choose
+the smallest eligible batch size that satisfies it and retain all 256
+calibration plus 512 test problems.
+
+If no eligible batch size fits the complete bank, choose the eligible batch
+size with the smallest g_b and let M* be the largest integer M <= 768 for
+which H_b(M) <= 8,100 seconds.
+
+Allocate the resized cohorts as follows:
+
+- if M* >= 640: test count = 512 and calibration count = M* - 512;
+- if 512 <= M* < 640: calibration count = 128 and test count = M* - 128;
+- if M* < 512: no canonical launch is authorized.
+
+Every resized cohort is the corresponding prefix of the already frozen
+ordered cohort. Candidate count remains N=16. Calibration and test remain
+disjoint. All denominators and the paired-bootstrap modulus change to the
+resolved test count; all percentage-point CONFIRM thresholds remain
+unchanged. The candidate-order permutation schedule remains unchanged.
+
+No mid-run cohort resize is permitted. Operational resume preserves the
+resolved bank and counts cumulative retained-bank GPU time. Splitting the
+bank across process invocations does not create multiple 2.5-hour allowances.
+
+### Calibration verifier-viability gate
+
+Before test generation, the complete resolved calibration bank must contain:
+
+- at least 40 correct and at least 40 incorrect candidates;
+- at least 20 verifier-argmax beneficial-acquisition events at N=16;
+- at least 20 verifier-argmax harmful-switch examples at N=16;
+- at least two distinct finite candidate scores.
+
+If any floor is missed, stop before test generation with
+`PREFLIGHT_STOP_INSUFFICIENT_CALIBRATION_HEADROOM`. This is neither CONFIRM,
+KILL, nor VOID and makes no test-set claim. Further work requires steering.
+
+### Remaining bindings
+
+This amendment is not launch-authorizing until a subsequent pre-data
+slot-filling paragraph records:
+
+- selected batch size;
+- measured duplicate timings and both determinism digests;
+- resolved calibration and test counts;
+- all resized ordered-index, sorted-index, row-content, combined-cohort,
+  prompt-serialization, generation-schedule, and batch-seed-schedule hashes;
+- amended runner-source SHA-256;
+- independent-review attestation bound to that runner and schedule.
+
+No further retained generation may occur before those bindings are appended
+and independently reviewed.
+
+## Terminal verifier-compatibility preflight record — 2026-08-11
+
+Status: **`PREFLIGHT_STOP_IMPLEMENTATION_DISCREPANCY / CANONICAL NOT RUN`**
+
+The revision-pinned verifier model card states `transformers>=4.40.0`. The
+two predeclared documented-compatible stack attempts are exhausted. Both held
+the exact frozen golden input, tokenizer revision, checkpoint revision, BF16
+dtype, `use_cache=False`, expected scores, and 0.002 absolute tolerance fixed.
+No calibration or test row was accessed and no retained response was generated.
+
+| Attempt | Environment identity | Environment SHA-256 | Observed step scores | Absolute errors | Max error | Scored tokens | Scored-forward time | Invocation wall | Outcome |
+|---|---|---|---|---|---:|---:|---:|---:|---|
+| 1 | Python 3.13.7; Transformers 4.47.1; Torch 2.11.0+cu128; CUDA 12.8; tokenizers 0.21.0; hub 0.27.1; safetensors 0.8.0; Windows 10.0.26200.8875 | `f69237de68a7c71c4a37e905d7a1249046b56d9a9318337c3bc8ce1c36cd4557` | `1.0 / 0.154296875 / 0.97265625 / 1.0` | `0 / 0.0361328125 / 0.00390625 / 0` | 0.0361328125 | 454 | 0.2904227s | approximately 14.2s | FAIL |
+| 2 | Python 3.13.7; Transformers 4.48.0; Torch 2.11.0+cu128; CUDA 12.8; tokenizers 0.21.0; hub 0.27.1; safetensors 0.8.0; Windows 10.0.26200.8875 | `771ed19944ffb63bc889cbd55a8cdfb58e47760dfffc8088c203172da4f58b2c` | `1.0 / 0.154296875 / 0.97265625 / 1.0` | `0 / 0.0361328125 / 0.00390625 / 0` | 0.0361328125 | 454 | 0.2796334s | approximately 13.9s | FAIL |
+
+The environment hashes are SHA-256 over the UTF-8 one-line canonical JSON
+identity, including its final LF, with sorted keys exactly corresponding to
+the fields listed in the table. The verifier input SHA-256 was
+`e14ec22c375a3dbc31596964e53fe1a59b4f7264b4c73f5dcd80a1bbb3f52741`
+in both attempts. Stack preparation took approximately 38.1 seconds for
+attempt 1 and 23.3 seconds for attempt 2. Total active diagnosis completed in
+under 15 minutes against the registered 90-minute cap.
+
+### Deviations and adjudication boundary
+
+- A non-adjudicating attempt-1 default-cache compatibility probe preceded the
+  exact frozen replay. It produced the same observed score vector and did not
+  select a stack, threshold, or outcome; the registered `use_cache=False`
+  replay controls.
+- Attempt 2 first encountered an unrelated optional-image dependency during
+  `AutoModel` class-map enumeration, before verifier load or scoring. The exact
+  revision-bound remote `AutoModel` class was then loaded directly through
+  Transformers' dynamic-module resolver. This changed no verifier source,
+  tensor, tokenizer, serialization, dtype, score extraction, or threshold.
+- No eager/flash backend sweep, package-version sweep beyond the two declared
+  stacks, threshold relaxation, verifier substitution, calibration/test
+  inspection, or retained generation occurred.
+
+The registered branch therefore stops at
+`PREFLIGHT_STOP_IMPLEMENTATION_DISCREPANCY`. This is an implementation
+preflight outcome, not a scientific KILL or evidence about safe selection.
+The runner fails closed for GPU/execution modes. A new compatibility attempt,
+verifier swap, or scientific continuation requires round-2 steering and a
+fresh pre-data registration where the protocol boundary changes.

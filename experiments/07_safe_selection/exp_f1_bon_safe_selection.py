@@ -9,7 +9,10 @@ This is a provenance runner, not a landing command.  The fast paths are:
   data;
 * ``--smoke``: retain the first two canonical calibration problems, all 16
   registered candidates, and their verifier scores in the ignored resumable
-  bank while measuring throughput and memory.
+  bank while measuring throughput and memory;
+* ``--golden-replay``: replay the verifier's published four-step example;
+* ``--batch-preflight {8,16}``: generate two diagnostic copies of the complete
+  retained-smoke schedule without writing either copy into the candidate bank.
 
 Canonical generation/scoring/evaluation stages require an independent-review
 attestation.  Test generation additionally requires a complete, frozen
@@ -31,6 +34,7 @@ import hashlib
 import importlib.util
 import json
 import math
+import multiprocessing
 import os
 import re
 import shutil
@@ -63,16 +67,16 @@ import numpy as np  # noqa: E402
 import torch  # noqa: E402
 from datasets import Dataset, disable_progress_bar, load_dataset  # noqa: E402
 from transformers import (  # noqa: E402
-    AutoConfig,
-    AutoModel,
     AutoModelForCausalLM,
     AutoTokenizer,
+    StoppingCriteria,
     StoppingCriteriaList,
 )
+from transformers.dynamic_module_utils import get_class_from_dynamic_module  # noqa: E402
 from transformers.utils import logging as transformers_logging  # noqa: E402
 
 
-SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION = "1.1.0"
 EXPERIMENT_ID = "exp_f1_bon_safe_selection"
 PUBLIC_GENERATOR = "base-C"
 PUBLIC_VERIFIER = "verifier-V"
@@ -86,6 +90,15 @@ DEMONSTRATION_INDICES = (0, 1, 2, 3, 4)
 CALIBRATION_COUNT = 256
 TEST_COUNT = 512
 CANDIDATE_COUNT = 16
+RETAINED_SMOKE_PROBLEM_COUNT = 2
+RETAINED_SMOKE_CANDIDATE_COUNT = 32
+ELIGIBLE_BATCH_SIZES = (8, 16)
+RESOLVED_BATCH_SIZE = 8
+BATCH_SEED_STRING = "bon-safe-selection-batched-generation-v1-2026-08-10"
+CAP_AUTHORIZING_SECONDS = 8_100.0
+MAX_PREFLIGHT_RESERVED_BYTES = 20 * 1024**3
+GOLDEN_SCORE_TOLERANCE = 0.002
+VERIFIER_COMPATIBILITY_STATUS = "PREFLIGHT_STOP_IMPLEMENTATION_DISCREPANCY"
 PREFIXES = (1, 2, 4, 8, 16)
 MAX_NEW_TOKENS = 256
 TEMPERATURE = 0.7
@@ -141,6 +154,8 @@ TEST_BANK_PATH = WORK_ROOT / "test_bank.json"
 CALIBRATION_FREEZE_PATH = WORK_ROOT / "calibration_freeze.json"
 PREFLIGHT_PATH = WORK_ROOT / "preflight.json"
 REPEAT_DETERMINISM_PATH = WORK_ROOT / "repeat_determinism.json"
+BATCH_PREFLIGHT_PATH = WORK_ROOT / "batch_preflight.json"
+GOLDEN_REPLAY_PATH = WORK_ROOT / "verifier_golden_replay.json"
 REVIEW_BINDING_PATH = WORK_ROOT / "independent_review_binding.json"
 IMMUTABLE_TEMP_PREFIX = ".f1-immutable-result-tmp-"
 IMMUTABLE_TEMP_SUFFIX = ".tmp"
@@ -471,6 +486,47 @@ def generation_seed(dataset_index: int, candidate_ordinal: int) -> int:
     return int.from_bytes(hashlib.sha256(payload).digest()[:8], "big") % (2**63 - 1)
 
 
+def batch_payload(
+    partition: str,
+    dataset_index: int,
+    first_candidate_ordinal: int,
+    batch_size: int,
+) -> str:
+    if partition not in {"calibration", "test"}:
+        raise ValueError(f"invalid partition for batch seed: {partition}")
+    if batch_size not in ELIGIBLE_BATCH_SIZES:
+        raise ValueError(f"invalid amended batch size: {batch_size}")
+    if first_candidate_ordinal not in range(1, CANDIDATE_COUNT + 1, batch_size):
+        raise ValueError("batch does not start on a frozen candidate boundary")
+    ordinals = range(first_candidate_ordinal, first_candidate_ordinal + batch_size)
+    if max(ordinals) > CANDIDATE_COUNT:
+        raise ValueError("batch crosses a problem boundary")
+    identity_seeds = [generation_seed(dataset_index, ordinal) for ordinal in ordinals]
+    return "\n".join(
+        (
+            BATCH_SEED_STRING,
+            partition,
+            str(dataset_index),
+            str(first_candidate_ordinal),
+            str(batch_size),
+            ",".join(str(seed) for seed in identity_seeds),
+        )
+    )
+
+
+def batch_seed(
+    partition: str,
+    dataset_index: int,
+    first_candidate_ordinal: int,
+    batch_size: int,
+) -> tuple[int, str]:
+    payload = batch_payload(
+        partition, dataset_index, first_candidate_ordinal, batch_size
+    )
+    digest = hashlib.sha256(payload.encode("ascii")).digest()
+    return int.from_bytes(digest[:8], "big") % (2**63 - 1), digest.hex()
+
+
 def generation_schedule(cohorts: Mapping[str, Sequence[int]]) -> list[int]:
     return [
         generation_seed(index, ordinal)
@@ -478,6 +534,55 @@ def generation_schedule(cohorts: Mapping[str, Sequence[int]]) -> list[int]:
         for index in cohorts[partition]
         for ordinal in range(1, CANDIDATE_COUNT + 1)
     ]
+
+
+def mixed_generation_schedule(
+    cohorts: Mapping[str, Sequence[int]], batch_size: int = RESOLVED_BATCH_SIZE
+) -> list[dict[str, Any]]:
+    schedule: list[dict[str, Any]] = []
+    for partition in ("calibration", "test"):
+        for problem_position, dataset_index in enumerate(cohorts[partition]):
+            legacy_smoke = (
+                partition == "calibration"
+                and problem_position < RETAINED_SMOKE_PROBLEM_COUNT
+            )
+            if legacy_smoke:
+                for ordinal in range(1, CANDIDATE_COUNT + 1):
+                    schedule.append(
+                        {
+                            "partition": partition,
+                            "dataset_index": dataset_index,
+                            "first_candidate_ordinal": ordinal,
+                            "batch_size": 1,
+                            "candidate_identity_seeds": [
+                                generation_seed(dataset_index, ordinal)
+                            ],
+                            "batch_seed": None,
+                            "batch_payload_sha256": None,
+                        }
+                    )
+                continue
+            for first_ordinal in range(1, CANDIDATE_COUNT + 1, batch_size):
+                seed, payload_sha256 = batch_seed(
+                    partition, dataset_index, first_ordinal, batch_size
+                )
+                schedule.append(
+                    {
+                        "partition": partition,
+                        "dataset_index": dataset_index,
+                        "first_candidate_ordinal": first_ordinal,
+                        "batch_size": batch_size,
+                        "candidate_identity_seeds": [
+                            generation_seed(dataset_index, ordinal)
+                            for ordinal in range(
+                                first_ordinal, first_ordinal + batch_size
+                            )
+                        ],
+                        "batch_seed": seed,
+                        "batch_payload_sha256": payload_sha256,
+                    }
+                )
+    return schedule
 
 
 def permutation_schedule(count: int = PERMUTATION_REPLICATES) -> list[list[int]]:
@@ -497,8 +602,12 @@ def permutation_schedule(count: int = PERMUTATION_REPLICATES) -> list[list[int]]
 def validate_schedules(cohorts: Mapping[str, Sequence[int]]) -> dict[str, Any]:
     seeds = generation_schedule(cohorts)
     seed_hash = comma_hash(seeds)
-    assert len(seeds) == 12_288
+    assert len(seeds) == (CALIBRATION_COUNT + TEST_COUNT) * CANDIDATE_COUNT
     assert_hash("generation_schedule", seed_hash)
+    mixed = mixed_generation_schedule(cohorts)
+    mixed_hash = sha256_bytes(canonical_json_bytes(mixed))
+    batch_seeds = [int(row["batch_seed"]) for row in mixed if row["batch_seed"]]
+    batch_seed_hash = comma_hash(batch_seeds)
     permutations = permutation_schedule()
     permutation_hash = sha256_text(
         "\n".join(",".join(str(value) for value in row) for row in permutations)
@@ -507,6 +616,11 @@ def validate_schedules(cohorts: Mapping[str, Sequence[int]]) -> dict[str, Any]:
     return {
         "generation_seed_count": len(seeds),
         "generation_schedule_sha256": seed_hash,
+        "mixed_generation_call_count": len(mixed),
+        "mixed_generation_schedule_sha256": mixed_hash,
+        "post_smoke_batch_seed_count": len(batch_seeds),
+        "batch_seed_schedule_sha256": batch_seed_hash,
+        "resolved_batch_size": RESOLVED_BATCH_SIZE,
         "permutation_count": len(permutations),
         "permutation_schedule_sha256": permutation_hash,
     }
@@ -654,8 +768,6 @@ def registered_slot_value(name: str) -> str | None:
     values = pattern.findall(PREREGISTRATION_PATH.read_text(encoding="utf-8"))
     if not values:
         return None
-    if len(set(values)) != 1:
-        raise RuntimeError(f"registration contains conflicting values for {name}")
     return values[-1]
 
 
@@ -827,6 +939,7 @@ def load_generator(manifest: Mapping[str, str], device: torch.device):
         raise RuntimeError("base-C tokenizer has no native chat template")
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "left"
     model = AutoModelForCausalLM.from_pretrained(
         identifier,
         revision=revision,
@@ -839,37 +952,36 @@ def load_generator(manifest: Mapping[str, str], device: torch.device):
 
 
 def load_verifier(manifest: Mapping[str, str], device: torch.device):
-    identifier = manifest[f"{PUBLIC_VERIFIER}-repo-id"]
-    revision = manifest[f"{PUBLIC_VERIFIER}-revision"]
+    snapshot_path = manifest[f"{PUBLIC_VERIFIER}-resolved-path"]
     tokenizer = AutoTokenizer.from_pretrained(
-        identifier,
-        revision=manifest[f"{PUBLIC_VERIFIER}-tokenizer-revision"],
+        snapshot_path,
         local_files_only=True,
         trust_remote_code=True,
     )
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
-    config = AutoConfig.from_pretrained(
-        identifier,
-        revision=revision,
-        local_files_only=True,
-        trust_remote_code=True,
+    snapshot_config = json.loads(
+        (Path(snapshot_path) / "config.json").read_text(encoding="utf-8")
     )
-    config.pad_token_id = tokenizer.pad_token_id
-    model = AutoModel.from_pretrained(
-        identifier,
-        revision=revision,
+    remote_class_ref = snapshot_config.get("auto_map", {}).get("AutoModel")
+    if not isinstance(remote_class_ref, str) or "." not in remote_class_ref:
+        raise RuntimeError("verifier snapshot does not bind a remote AutoModel class")
+    verifier_class = get_class_from_dynamic_module(
+        remote_class_ref,
+        snapshot_path,
         local_files_only=True,
-        dtype=torch.bfloat16,
-        trust_remote_code=True,
-        config=config,
+    )
+    model = verifier_class.from_pretrained(
+        snapshot_path,
+        local_files_only=True,
+        torch_dtype=torch.bfloat16,
     ).to(device)
     model.eval()
     return tokenizer, model
 
 
 def _stop_metadata(
-    generated_ids: torch.Tensor, criteria: Any, tokenizer
+    generated_ids: torch.Tensor, criteria: Any, tokenizer, row_index: int = 0
 ) -> tuple[int, int, str]:
     token_ids = [int(token_id) for token_id in generated_ids.tolist()]
     eos = tokenizer.eos_token_id
@@ -878,7 +990,7 @@ def _stop_metadata(
         if isinstance(eos, (list, tuple))
         else {int(eos)}
     )
-    boundary_count = criteria.boundary_token_counts[0]
+    boundary_count = criteria.boundary_token_counts[row_index]
     eos_position = next(
         (p for p, token in enumerate(token_ids) if token in eos_ids), None
     )
@@ -892,6 +1004,190 @@ def _stop_metadata(
     count = len(token_ids)
     reason = "max_new_tokens" if count >= MAX_NEW_TOKENS else "generation_stopped_other"
     return count, count, reason
+
+
+class PerRowNewQuestionBoundaryCriteria(StoppingCriteria):
+    """Sticky, row-local boundary stops with auditable mixed-state history."""
+
+    def __init__(self, tokenizer, generation_start: int, batch_size: int) -> None:
+        self.tokenizer = tokenizer
+        self.generation_start = generation_start
+        self.boundary_token_counts: list[int | None] = [None] * batch_size
+        self.sticky_stop_checks = [0] * batch_size
+        self.mixed_state_call_count = 0
+
+    def __call__(
+        self,
+        input_ids: torch.LongTensor,
+        scores: torch.FloatTensor,
+        **kwargs: Any,
+    ) -> torch.BoolTensor:
+        del scores, kwargs
+        stopped = torch.zeros(input_ids.shape[0], dtype=torch.bool, device=input_ids.device)
+        for row_index in range(input_ids.shape[0]):
+            if self.boundary_token_counts[row_index] is not None:
+                stopped[row_index] = True
+                self.sticky_stop_checks[row_index] += 1
+                continue
+            generated_ids = input_ids[row_index, self.generation_start :]
+            generated_text = self.tokenizer.decode(
+                generated_ids, skip_special_tokens=True
+            )
+            if E1.NEW_QUESTION_RE.search(generated_text):
+                self.boundary_token_counts[row_index] = int(generated_ids.numel())
+                stopped[row_index] = True
+        if bool(stopped.any().item()) and not bool(stopped.all().item()):
+            self.mixed_state_call_count += 1
+        return stopped
+
+
+def _per_row_stop_audit(
+    generated_rows: torch.Tensor,
+    criteria: PerRowNewQuestionBoundaryCriteria,
+    tokenizer,
+) -> dict[str, Any]:
+    allowed_padding = {int(tokenizer.pad_token_id)}
+    eos = tokenizer.eos_token_id
+    if isinstance(eos, (list, tuple)):
+        allowed_padding.update(int(value) for value in eos)
+    elif eos is not None:
+        allowed_padding.add(int(eos))
+    completion_counts = []
+    suffix_checks = []
+    for row_index, generated in enumerate(generated_rows):
+        generated_count, _, _ = _stop_metadata(
+            generated, criteria, tokenizer, row_index
+        )
+        completion_counts.append(generated_count)
+        suffix = [int(token) for token in generated[generated_count:].tolist()]
+        suffix_checks.append(all(token in allowed_padding for token in suffix))
+    batch_end = max(completion_counts)
+    completed_before_end = sum(count < batch_end for count in completion_counts)
+    return {
+        "completion_token_counts": completion_counts,
+        "rows_completed_before_batch_end": completed_before_end,
+        "post_completion_suffix_padding_only": all(suffix_checks),
+        "boundary_rows_with_sticky_rechecks": sum(
+            count > 0 for count in criteria.sticky_stop_checks
+        ),
+        "sticky_stop_recheck_count": sum(criteria.sticky_stop_checks),
+        "mixed_row_state_call_count": criteria.mixed_state_call_count,
+        "pass": bool(all(suffix_checks)),
+    }
+
+
+def generate_batch(
+    train: Dataset,
+    partition: str,
+    dataset_index: int,
+    first_ordinal: int,
+    batch_size: int,
+    tokenizer,
+    model,
+    device: torch.device,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    if tokenizer.padding_side != "left":
+        raise RuntimeError("amended batched generation requires left padding")
+    messages = build_five_shot_messages(train, str(train[dataset_index]["question"]))
+    serialized_prompt = tokenizer.apply_chat_template(
+        messages, tokenize=False, add_generation_prompt=True
+    )
+    prompts = [serialized_prompt] * batch_size
+    encoded = tokenizer(
+        prompts,
+        add_special_tokens=False,
+        padding=True,
+        return_tensors="pt",
+    )
+    input_ids = encoded["input_ids"].to(device)
+    attention_mask = encoded["attention_mask"].to(device)
+    if input_ids.shape[0] != batch_size or not torch.all(
+        attention_mask == attention_mask[0]
+    ):
+        raise RuntimeError("within-problem prompt batch serialization drift")
+    generation_start = int(input_ids.shape[1])
+    context_limit = getattr(model.config, "max_position_embeddings", None)
+    if context_limit is not None and generation_start + MAX_NEW_TOKENS > context_limit:
+        raise RuntimeError("frozen prompt plus response cap exceeds base-C context")
+    criteria = PerRowNewQuestionBoundaryCriteria(
+        tokenizer=tokenizer,
+        generation_start=generation_start,
+        batch_size=batch_size,
+    )
+    seed, payload_sha256 = batch_seed(
+        partition, dataset_index, first_ordinal, batch_size
+    )
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
+    started = time.perf_counter()
+    with torch.inference_mode():
+        outputs = model.generate(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            do_sample=True,
+            temperature=TEMPERATURE,
+            top_p=TOP_P,
+            top_k=TOP_K,
+            repetition_penalty=REPETITION_PENALTY,
+            num_return_sequences=1,
+            max_new_tokens=MAX_NEW_TOKENS,
+            pad_token_id=tokenizer.pad_token_id,
+            eos_token_id=tokenizer.eos_token_id,
+            stopping_criteria=StoppingCriteriaList([criteria]),
+        )
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
+    seconds = time.perf_counter() - started
+    if outputs.shape[0] != batch_size:
+        raise RuntimeError("batched generation returned the wrong row count")
+    generated_rows = outputs[:, generation_start:]
+    stop_audit = _per_row_stop_audit(generated_rows, criteria, tokenizer)
+    gold = E1.extract_gold_answer(str(train[dataset_index]["answer"]))
+    records = []
+    for batch_row, generated in enumerate(generated_rows):
+        ordinal = first_ordinal + batch_row
+        generated_count, content_count, stop_reason = _stop_metadata(
+            generated, criteria, tokenizer, batch_row
+        )
+        response = tokenizer.decode(
+            generated[:content_count], skip_special_tokens=True
+        ).strip()
+        predicted, extraction_source, scored_segment, segment_stop_reason = (
+            E1.extract_predicted_answer(
+                response=response, generation_stop_reason=stop_reason
+            )
+        )
+        taxonomy = E1.successor_outcome_taxonomy(predicted, gold, scored_segment)
+        records.append(
+            {
+                "dataset_index": dataset_index,
+                "candidate_ordinal": ordinal,
+                "seed": generation_seed(dataset_index, ordinal),
+                "batch_seed": seed,
+                "batch_size": batch_size,
+                "batch_row": batch_row,
+                "batch_payload_sha256": payload_sha256,
+                "question": str(train[dataset_index]["question"]),
+                "gold_answer": gold,
+                "response": response,
+                "scored_response_segment": scored_segment,
+                "extracted_answer": predicted,
+                "extraction_source": extraction_source,
+                "extraction_segment_stop_reason": segment_stop_reason,
+                "stop_reason": stop_reason,
+                "generated_tokens": generated_count,
+                "prompt_tokens": int(attention_mask[batch_row].sum().item()),
+                "generation_seconds": seconds / batch_size,
+                **taxonomy,
+                "verifier_score": None,
+                "verifier_step_scores": None,
+                "verifier_scored_tokens": None,
+                "verifier_seconds": None,
+            }
+        )
+    return records, {"wall_seconds": seconds, "per_row_stopping": stop_audit}
 
 
 def generate_one(
@@ -997,12 +1293,33 @@ def score_one(
     serialized, steps = verifier_serialization(
         str(record["question"]), response, tokenizer
     )
+
+    step_scores, scored_tokens, seconds = verifier_scores_from_serialized(
+        serialized, len(steps), tokenizer, model, device
+    )
+    updated.update(
+        verifier_score=float(min(step_scores)),
+        verifier_step_scores=[float(value) for value in step_scores],
+        verifier_scored_tokens=scored_tokens,
+        verifier_seconds=seconds,
+        verifier_input_sha256=sha256_text(serialized),
+    )
+    return updated
+
+
+def verifier_scores_from_serialized(
+    serialized: str,
+    expected_step_count: int,
+    tokenizer,
+    model,
+    device: torch.device,
+) -> tuple[list[float], int, float]:
     input_ids = tokenizer.encode(serialized, return_tensors="pt").to(device)
     step_sep_ids = tokenizer.encode("<extra_0>", add_special_tokens=False)
     if len(step_sep_ids) != 1:
         raise RuntimeError("verifier step marker is not one token")
     mask = input_ids == step_sep_ids[0]
-    if int(mask.sum().item()) != len(steps):
+    if int(mask.sum().item()) != expected_step_count:
         raise RuntimeError(
             "verifier step-marker count differs from reasoning-step count"
         )
@@ -1012,7 +1329,7 @@ def score_one(
     with torch.inference_mode():
         outputs = model(input_ids=input_ids, use_cache=False)
         logits = outputs[0] if isinstance(outputs, tuple) else outputs.logits
-        probabilities = torch.softmax(logits.float(), dim=-1)
+        probabilities = torch.softmax(logits, dim=-1)
         selected = probabilities[0][mask[0]]
         if selected.shape[-1] != 2:
             raise RuntimeError("verifier output does not expose two-class step logits")
@@ -1020,7 +1337,7 @@ def score_one(
     if device.type == "cuda":
         torch.cuda.synchronize(device)
     seconds = time.perf_counter() - started
-    if len(step_scores) != len(steps):
+    if len(step_scores) != expected_step_count:
         raise RuntimeError("verifier produced the wrong number of step scores")
     if not step_scores or any(
         not math.isfinite(x) or not 0 <= x <= 1 for x in step_scores
@@ -1028,14 +1345,98 @@ def score_one(
         raise RuntimeError(
             "verifier returned missing, nonfinite, or out-of-range scores"
         )
-    updated.update(
-        verifier_score=float(min(step_scores)),
-        verifier_step_scores=[float(value) for value in step_scores],
-        verifier_scored_tokens=int(input_ids.numel()),
-        verifier_seconds=seconds,
-        verifier_input_sha256=sha256_text(serialized),
+    return [float(value) for value in step_scores], int(input_ids.numel()), seconds
+
+
+def published_verifier_golden_replay(
+    manifest: Mapping[str, str],
+) -> dict[str, Any]:
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if device.type != "cuda":
+        raise RuntimeError("published verifier golden replay requires CUDA")
+    tokenizer, model = load_verifier(manifest, device)
+    response_steps = [
+        (
+            "To find out how many more pink plastic flamingos were out than white "
+            "plastic flamingos at noon on Sunday, we can break down the problem "
+            "into steps. First, on Friday, the neighbors start with 18 pink "
+            "plastic flamingos."
+        ),
+        (
+            "On Saturday, they take back one third of the flamingos. Since there "
+            "were 18 flamingos, (1/3 \\times 18 = 6) flamingos are taken back. So, "
+            "they have (18 - 6 = 12) flamingos left in their possession. Then, "
+            "they paint these 6 flamingos white and put them back out on Sue's "
+            "front yard. Now, Sue has the original 12 pink flamingos plus the 6 "
+            "new white ones. Thus, by the end of Saturday, Sue has (12 + 6 = 18) "
+            "pink flamingos and 6 white flamingos."
+        ),
+        (
+            "On Sunday, the neighbors add another 18 pink plastic flamingos to "
+            "Sue's front yard. By the end of Sunday morning, Sue has (18 + 18 = "
+            "36) pink flamingos and still 6 white flamingos."
+        ),
+        (
+            "To find the difference, subtract the number of white flamingos from "
+            "the number of pink flamingos: (36 - 6 = 30). Therefore, at noon on "
+            "Sunday, there were 30 more pink plastic flamingos out than white "
+            "plastic flamingos. The answer is (\\boxed{30})."
+        ),
+    ]
+    messages = [
+        {
+            "role": "system",
+            "content": "Please reason step by step, and put your final answer within \\boxed{}.",
+        },
+        {
+            "role": "user",
+            "content": (
+                "Sue lives in a fun neighborhood.  One weekend, the neighbors "
+                "decided to play a prank on Sue.  On Friday morning, the neighbors "
+                "placed 18 pink plastic flamingos out on Sue's front yard.  On "
+                "Saturday morning, the neighbors took back one third of the "
+                "flamingos, painted them white, and put these newly painted white "
+                "flamingos back out on Sue's front yard.  Then, on Sunday morning, "
+                "they added another 18 pink plastic flamingos to the collection. At "
+                "noon on Sunday, how many more pink plastic flamingos were out than "
+                "white plastic flamingos?"
+            ),
+        },
+        {
+            "role": "assistant",
+            "content": "<extra_0>".join(response_steps) + "<extra_0>",
+        },
+    ]
+    serialized = tokenizer.apply_chat_template(
+        messages, tokenize=False, add_generation_prompt=False
     )
-    return updated
+    observed, scored_tokens, score_seconds = verifier_scores_from_serialized(
+        serialized, len(response_steps), tokenizer, model, device
+    )
+    expected = [1.0, 0.1904296875, 0.9765625, 1.0]
+    errors = [abs(actual - target) for actual, target in zip(observed, expected)]
+    report = {
+        "schema_version": SCHEMA_VERSION,
+        "created_at": utc_now(),
+        "status": "PASS" if max(errors) <= GOLDEN_SCORE_TOLERANCE else "FAIL",
+        "source": "published verifier README golden example",
+        "dtype": "bfloat16",
+        "absolute_tolerance": GOLDEN_SCORE_TOLERANCE,
+        "expected_step_scores": expected,
+        "observed_step_scores": observed,
+        "absolute_errors": errors,
+        "maximum_absolute_error": max(errors),
+        "verifier_input_sha256": sha256_text(serialized),
+        "verifier_scored_tokens": scored_tokens,
+        "score_wall_seconds": score_seconds,
+    }
+    del model, tokenizer
+    gc.collect()
+    torch.cuda.empty_cache()
+    atomic_replace_json(GOLDEN_REPLAY_PATH, report)
+    if report["status"] != "PASS":
+        raise RuntimeError("published verifier golden replay exceeded BF16 tolerance")
+    return report
 
 
 def bank_template(
@@ -1164,6 +1565,33 @@ def persist_candidate_record(
                     )
 
 
+def persist_candidate_batch(
+    partition: str,
+    start_position: int,
+    records: Sequence[Mapping[str, Any]],
+) -> None:
+    """Commit a generated batch atomically so resume never sees a partial call."""
+    path = bank_database_path(partition)
+    with contextlib.closing(sqlite3.connect(path)) as connection:
+        with connection:
+            connection.execute("PRAGMA synchronous=FULL")
+            for batch_row, record in enumerate(records):
+                connection.execute(
+                    """
+                    INSERT INTO candidates(
+                        position, dataset_index, candidate_ordinal, seed, record_json
+                    ) VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        start_position + batch_row,
+                        int(record["dataset_index"]),
+                        int(record["candidate_ordinal"]),
+                        int(record["seed"]),
+                        json.dumps(record, ensure_ascii=False, allow_nan=False),
+                    ),
+                )
+
+
 def bank_content_digest(bank: Mapping[str, Any]) -> str:
     return sha256_bytes(canonical_json_bytes(bank))
 
@@ -1178,19 +1606,39 @@ def load_or_create_bank(
                 "protocol-bound bank metadata exists without its candidate database"
             )
         bank = json.loads(path.read_text(encoding="utf-8"))
+        bank["records"] = load_bank_database_records(partition)
         expected = bank_template(partition, indices, slots)
+        legacy_smoke = (
+            partition == "calibration"
+            and bank.get("schema_version") == "1.0.0"
+            and len(bank["records"]) == RETAINED_SMOKE_CANDIDATE_COUNT
+        )
         for field in (
-            "schema_version",
             "experiment_id",
             "partition",
             "canonical_indices_sha256",
             "expected_problem_count",
             "expected_candidate_count",
-            "protocol_slots",
         ):
             if bank.get(field) != expected[field]:
                 raise RuntimeError(f"resumable bank binding changed at {field}")
-        bank["records"] = load_bank_database_records(partition)
+        if legacy_smoke:
+            previous_slots = dict(bank["protocol_slots"])
+            unchanged_slots = {key: value for key, value in slots.items() if key != "runner_source_sha256"}
+            if {
+                key: value
+                for key, value in previous_slots.items()
+                if key != "runner_source_sha256"
+            } != unchanged_slots:
+                raise RuntimeError("retained smoke provenance changed outside runner amendment")
+            bank["schema_version"] = SCHEMA_VERSION
+            bank["legacy_smoke_protocol_slots"] = previous_slots
+            bank["protocol_slots"] = dict(slots)
+            bank["generation_schedule"] = "mixed_batch1_prefix_then_amended_batch"
+        else:
+            for field in ("schema_version", "protocol_slots"):
+                if bank.get(field) != expected[field]:
+                    raise RuntimeError(f"resumable bank binding changed at {field}")
         return bank
     bank = bank_template(partition, indices, slots)
     if bank_database_path(partition).exists():
@@ -1214,11 +1662,44 @@ def validate_bank_records(bank: Mapping[str, Any], indices: Sequence[int]) -> No
     ]
     if actual_pairs != expected_pairs[: len(actual_pairs)]:
         raise RuntimeError("resumable bank order/identity drift")
-    for record in bank["records"]:
+    partition = str(bank["partition"])
+    for position, record in enumerate(bank["records"]):
         if int(record["seed"]) != generation_seed(
             int(record["dataset_index"]), int(record["candidate_ordinal"])
         ):
             raise RuntimeError("resumable bank seed drift")
+        legacy_smoke = (
+            partition == "calibration"
+            and position < RETAINED_SMOKE_CANDIDATE_COUNT
+        )
+        if legacy_smoke:
+            if any(
+                name in record
+                for name in (
+                    "batch_seed",
+                    "batch_size",
+                    "batch_row",
+                    "batch_payload_sha256",
+                )
+            ):
+                raise RuntimeError("retained batch-size-1 smoke record was rewritten")
+            continue
+        ordinal = int(record["candidate_ordinal"])
+        first_ordinal = ((ordinal - 1) // RESOLVED_BATCH_SIZE) * RESOLVED_BATCH_SIZE + 1
+        expected_batch_seed, expected_payload_hash = batch_seed(
+            partition,
+            int(record["dataset_index"]),
+            first_ordinal,
+            RESOLVED_BATCH_SIZE,
+        )
+        expected_batch_fields = {
+            "batch_seed": expected_batch_seed,
+            "batch_size": RESOLVED_BATCH_SIZE,
+            "batch_row": ordinal - first_ordinal,
+            "batch_payload_sha256": expected_payload_hash,
+        }
+        if any(record.get(key) != value for key, value in expected_batch_fields.items()):
+            raise RuntimeError("resumable bank amended batch binding drift")
 
 
 def generate_bank_prefix(
@@ -1248,29 +1729,81 @@ def generate_bank_prefix(
     tokenizer, model = load_generator(manifest, device)
     load_seconds = time.perf_counter() - load_started
     generation_started = time.perf_counter()
+    generated_this_run: list[dict[str, Any]] = []
+    batch_stop_audits: list[dict[str, Any]] = []
     with PowerSampler.create() as power:
-        for offset in range(len(bank["records"]), target_count):
-            problem_position, ordinal_offset = divmod(offset, CANDIDATE_COUNT)
-            record = generate_one(
-                train,
-                selected_indices[problem_position],
-                ordinal_offset + 1,
-                tokenizer,
-                model,
-                device,
-            )
-            bank["records"].append(record)
-            persist_candidate_record(partition, offset, record, generated=True)
+        if problem_limit is not None:
+            for offset in range(len(bank["records"]), target_count):
+                problem_position, ordinal_offset = divmod(offset, CANDIDATE_COUNT)
+                record = generate_one(
+                    train,
+                    selected_indices[problem_position],
+                    ordinal_offset + 1,
+                    tokenizer,
+                    model,
+                    device,
+                )
+                bank["records"].append(record)
+                generated_this_run.append(record)
+                persist_candidate_record(partition, offset, record, generated=True)
+        else:
+            if (
+                partition == "calibration"
+                and len(bank["records"]) < RETAINED_SMOKE_CANDIDATE_COUNT
+            ):
+                raise RuntimeError(
+                    "amended calibration generation requires the immutable smoke prefix"
+                )
+            offset = len(bank["records"])
+            if offset % RESOLVED_BATCH_SIZE:
+                raise RuntimeError("resume position is inside an amended atomic batch")
+            while offset < target_count:
+                problem_position, ordinal_offset = divmod(offset, CANDIDATE_COUNT)
+                if ordinal_offset % RESOLVED_BATCH_SIZE:
+                    raise RuntimeError("amended batch crosses a frozen ordinal boundary")
+                records, stop_audit = generate_batch(
+                    train,
+                    partition,
+                    selected_indices[problem_position],
+                    ordinal_offset + 1,
+                    RESOLVED_BATCH_SIZE,
+                    tokenizer,
+                    model,
+                    device,
+                )
+                if not stop_audit["per_row_stopping"]["pass"]:
+                    raise RuntimeError("per-row stopping audit failed")
+                persist_candidate_batch(partition, offset, records)
+                bank["records"].extend(records)
+                generated_this_run.extend(records)
+                batch_stop_audits.append(
+                    {
+                        "dataset_index": selected_indices[problem_position],
+                        "first_candidate_ordinal": ordinal_offset + 1,
+                        **stop_audit["per_row_stopping"],
+                    }
+                )
+                offset += len(records)
     generation_seconds = time.perf_counter() - generation_started
-    total_generated_tokens = sum(
-        int(row["generated_tokens"]) for row in bank["records"][:target_count]
-    )
-    active_seconds = sum(
-        float(row["generation_seconds"]) for row in bank["records"][:target_count]
-    )
+    total_generated_tokens = sum(int(row["generated_tokens"]) for row in generated_this_run)
+    active_seconds = sum(float(row["generation_seconds"]) for row in generated_this_run)
+    prior = bank.get("telemetry", {}).get("generation")
+    prior_gpu_seconds = 0.0
+    if prior:
+        prior_gpu_seconds = float(
+            prior.get(
+                "cumulative_gpu_wall_seconds",
+                float(prior.get("model_load_seconds", 0.0))
+                + float(prior.get("wall_seconds", 0.0)),
+            )
+        )
     telemetry = {
         "model_load_seconds": load_seconds,
         "wall_seconds": generation_seconds,
+        "cumulative_gpu_wall_seconds": prior_gpu_seconds
+        + load_seconds
+        + generation_seconds,
+        "new_response_count": len(generated_this_run),
         "active_generation_seconds": active_seconds,
         "generated_tokens": total_generated_tokens,
         "tokens_per_second": total_generated_tokens / active_seconds
@@ -1281,6 +1814,10 @@ def generate_bank_prefix(
         else None,
         "cuda": cuda_telemetry(),
         "power": power.summary(active_seconds),
+        "per_row_stopping_batch_count": len(batch_stop_audits),
+        "per_row_stopping_pass": all(
+            audit["pass"] for audit in batch_stop_audits
+        ),
     }
     bank["telemetry"]["generation"] = telemetry
     if (
@@ -2350,6 +2887,293 @@ def preflight_projection(
     }
 
 
+def candidate_auroc(scores: Sequence[float], labels: Sequence[bool]) -> float:
+    positives = [score for score, label in zip(scores, labels, strict=True) if label]
+    negatives = [score for score, label in zip(scores, labels, strict=True) if not label]
+    if not positives or not negatives:
+        raise RuntimeError("candidate AUROC requires both correctness classes")
+    concordant = sum(
+        1.0 if positive > negative else 0.5 if positive == negative else 0.0
+        for positive in positives
+        for negative in negatives
+    )
+    return concordant / (len(positives) * len(negatives))
+
+
+def smoke_aggregation_diagnostic(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    if len(records) != RETAINED_SMOKE_CANDIDATE_COUNT:
+        raise RuntimeError("aggregation diagnostic requires the immutable 32 responses")
+    aggregators = {
+        "minimum": min,
+        "product": math.prod,
+        "last": lambda values: values[-1],
+        "arithmetic_mean": statistics.fmean,
+    }
+    labels = [bool(record["correct"]) for record in records]
+    expected = {
+        "minimum": (0.1541736000, 0.1567845518, 0.3141025641),
+        "product": (0.1367948360, 0.0541080174, 0.6794871795),
+        "last": (0.1542501301, 0.1567845518, 0.3269230769),
+        "arithmetic_mean": (0.1544356712, 0.1600666290, 0.2243589744),
+    }
+    report: dict[str, Any] = {}
+    for name, aggregate in aggregators.items():
+        scores = [
+            float(aggregate([float(value) for value in record["verifier_step_scores"]]))
+            for record in records
+        ]
+        values = (
+            statistics.fmean(score for score, label in zip(scores, labels, strict=True) if label),
+            statistics.fmean(score for score, label in zip(scores, labels, strict=True) if not label),
+            candidate_auroc(scores, labels),
+        )
+        if any(abs(actual - target) > 5e-10 for actual, target in zip(values, expected[name], strict=True)):
+            raise RuntimeError(f"stored-score {name} diagnostic changed")
+        report[name] = {
+            "correct_mean": values[0],
+            "incorrect_mean": values[1],
+            "candidate_auroc": values[2],
+        }
+    return {
+        "status": "PASS",
+        "problem_cluster_count": RETAINED_SMOKE_PROBLEM_COUNT,
+        "candidate_count": len(records),
+        "single_step_response_count": sum(
+            len(record["verifier_step_scores"]) == 1 for record in records
+        ),
+        "adjudicating_aggregation": "minimum",
+        "alternate_aggregations_diagnostic_only": True,
+        "aggregations": report,
+    }
+
+
+def cap_projection_from_batch_preflight(
+    batch_execution_seconds: Sequence[float],
+    generation_load_seconds: float,
+    original_preflight: Mapping[str, Any],
+) -> dict[str, Any]:
+    if len(batch_execution_seconds) != 2:
+        raise RuntimeError("cap projection requires exactly two diagnostic executions")
+    retained_generation = float(original_preflight["generation"]["wall_seconds"])
+    scoring_wall = float(original_preflight["scoring"]["wall_seconds"])
+    scoring_load = float(original_preflight["scoring"]["model_load_seconds"])
+    g_b = max(batch_execution_seconds) / RETAINED_SMOKE_CANDIDATE_COUNT
+    s = scoring_wall / RETAINED_SMOKE_CANDIDATE_COUNT
+    model_load_overhead = generation_load_seconds + scoring_load
+
+    def hours_for(problem_count: int) -> float:
+        return (
+            retained_generation
+            + g_b * (CANDIDATE_COUNT * problem_count - RETAINED_SMOKE_CANDIDATE_COUNT)
+            + s * CANDIDATE_COUNT * problem_count
+            + model_load_overhead
+        )
+
+    full_seconds = hours_for(CALIBRATION_COUNT + TEST_COUNT)
+    maximum_problem_count = max(
+        problem_count
+        for problem_count in range(CALIBRATION_COUNT + TEST_COUNT + 1)
+        if hours_for(problem_count) <= CAP_AUTHORIZING_SECONDS
+    )
+    if maximum_problem_count >= 640:
+        resolved_test = 512
+        resolved_calibration = maximum_problem_count - resolved_test
+    elif maximum_problem_count >= 512:
+        resolved_calibration = 128
+        resolved_test = maximum_problem_count - resolved_calibration
+    else:
+        resolved_calibration = 0
+        resolved_test = 0
+    if full_seconds <= CAP_AUTHORIZING_SECONDS:
+        maximum_problem_count = CALIBRATION_COUNT + TEST_COUNT
+        resolved_calibration = CALIBRATION_COUNT
+        resolved_test = TEST_COUNT
+    return {
+        "formula": "H_b(M)=smoke_generation+g_b*(16M-32)+s*16M+model_load_overhead",
+        "retained_smoke_generation_wall_seconds": retained_generation,
+        "g_b_seconds_per_response": g_b,
+        "retained_smoke_scoring_seconds_per_response": s,
+        "generation_model_load_seconds": generation_load_seconds,
+        "scoring_model_load_seconds": scoring_load,
+        "combined_model_load_overhead_seconds": model_load_overhead,
+        "authorizing_ceiling_seconds": CAP_AUTHORIZING_SECONDS,
+        "operational_headroom_seconds": 900.0,
+        "full_bank_problem_count": CALIBRATION_COUNT + TEST_COUNT,
+        "full_bank_response_count": (CALIBRATION_COUNT + TEST_COUNT) * CANDIDATE_COUNT,
+        "full_bank_projection_seconds": full_seconds,
+        "full_bank_projection_hours": full_seconds / 3600,
+        "full_bank_fits": full_seconds <= CAP_AUTHORIZING_SECONDS,
+        "maximum_problem_count_under_ceiling": maximum_problem_count,
+        "resolved_calibration_count": resolved_calibration,
+        "resolved_test_count": resolved_test,
+        "canonical_launch_size_authorized": maximum_problem_count >= 512,
+    }
+
+
+def diagnostic_determinism_payload(
+    records: Sequence[Mapping[str, Any]], verifier_tokenizer
+) -> list[dict[str, Any]]:
+    payload = []
+    for record in records:
+        serialized, _ = verifier_serialization(
+            str(record["question"]),
+            str(record["scored_response_segment"]),
+            verifier_tokenizer,
+        )
+        payload.append(
+            {
+                "dataset_index": int(record["dataset_index"]),
+                "candidate_ordinal": int(record["candidate_ordinal"]),
+                "response": str(record["response"]),
+                "stop_reason": str(record["stop_reason"]),
+                "generated_tokens": int(record["generated_tokens"]),
+                "extracted_answer": record["extracted_answer"],
+                "verifier_input_serialization": serialized,
+            }
+        )
+    return payload
+
+
+def batch_generation_preflight(
+    train: Dataset,
+    calibration_indices: Sequence[int],
+    manifest: Mapping[str, str],
+    requested_batch_size: int,
+) -> dict[str, Any]:
+    if requested_batch_size not in ELIGIBLE_BATCH_SIZES:
+        raise RuntimeError("preflight batch size must be 8 or 16")
+    golden = json.loads(GOLDEN_REPLAY_PATH.read_text(encoding="utf-8"))
+    if golden.get("status") != "PASS":
+        raise RuntimeError("batch preflight is blocked on the verifier golden replay")
+    original_preflight = json.loads(PREFLIGHT_PATH.read_text(encoding="utf-8"))
+    bank_metadata = json.loads(CALIBRATION_BANK_PATH.read_text(encoding="utf-8"))
+    bank_metadata["records"] = load_bank_database_records("calibration")
+    retained_records = bank_metadata["records"]
+    if len(retained_records) != RETAINED_SMOKE_CANDIDATE_COUNT:
+        raise RuntimeError("retained smoke must contain exactly 32 candidates")
+    if bank_content_digest(bank_metadata) != original_preflight["retained_bank_content_sha256"]:
+        raise RuntimeError("immutable retained smoke content digest changed")
+    aggregation = smoke_aggregation_diagnostic(retained_records)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if device.type != "cuda":
+        raise RuntimeError("batched generation preflight requires CUDA")
+    child_pids_before = sorted(child.pid for child in multiprocessing.active_children())
+    torch.cuda.empty_cache()
+    load_started = time.perf_counter()
+    tokenizer, model = load_generator(manifest, device)
+    generation_load_seconds = time.perf_counter() - load_started
+    verifier_tokenizer = AutoTokenizer.from_pretrained(
+        manifest[f"{PUBLIC_VERIFIER}-repo-id"],
+        revision=manifest[f"{PUBLIC_VERIFIER}-tokenizer-revision"],
+        local_files_only=True,
+        trust_remote_code=True,
+    )
+    executions: list[dict[str, Any]] = []
+    execution_records: list[list[dict[str, Any]]] = []
+    for execution_index in range(2):
+        torch.cuda.empty_cache()
+        torch.cuda.reset_peak_memory_stats()
+        started = time.perf_counter()
+        records: list[dict[str, Any]] = []
+        stop_audits: list[dict[str, Any]] = []
+        with PowerSampler.create() as power:
+            for dataset_index in calibration_indices[:RETAINED_SMOKE_PROBLEM_COUNT]:
+                for first_ordinal in range(1, CANDIDATE_COUNT + 1, requested_batch_size):
+                    batch_records, batch_telemetry = generate_batch(
+                        train,
+                        "calibration",
+                        int(dataset_index),
+                        first_ordinal,
+                        requested_batch_size,
+                        tokenizer,
+                        model,
+                        device,
+                    )
+                    records.extend(batch_records)
+                    stop_audits.append(batch_telemetry["per_row_stopping"])
+        wall_seconds = time.perf_counter() - started
+        payload = diagnostic_determinism_payload(records, verifier_tokenizer)
+        executions.append(
+            {
+                "execution_index": execution_index + 1,
+                "wall_seconds": wall_seconds,
+                "determinism_sha256": sha256_bytes(canonical_json_bytes(payload)),
+                "peak_reserved_bytes": int(torch.cuda.max_memory_reserved()),
+                "peak_allocated_bytes": int(torch.cuda.max_memory_allocated()),
+                "rows_completed_before_batch_end": sum(
+                    int(audit["rows_completed_before_batch_end"])
+                    for audit in stop_audits
+                ),
+                "mixed_row_state_call_count": sum(
+                    int(audit["mixed_row_state_call_count"])
+                    for audit in stop_audits
+                ),
+                "post_completion_suffix_padding_only": all(
+                    bool(audit["post_completion_suffix_padding_only"])
+                    for audit in stop_audits
+                ),
+                "power": power.summary(wall_seconds),
+            }
+        )
+        execution_records.append(records)
+    first_payload = diagnostic_determinism_payload(execution_records[0], verifier_tokenizer)
+    second_payload = diagnostic_determinism_payload(execution_records[1], verifier_tokenizer)
+    exact_match = first_payload == second_payload
+    field_mismatches = []
+    if not exact_match:
+        for position, (first, second) in enumerate(zip(first_payload, second_payload, strict=True)):
+            changed = sorted(key for key in first if first[key] != second[key])
+            if changed:
+                field_mismatches.append({"candidate_position": position, "fields": changed})
+    del model, tokenizer
+    gc.collect()
+    torch.cuda.empty_cache()
+    child_pids_after = sorted(child.pid for child in multiprocessing.active_children())
+    process_leak = child_pids_after != child_pids_before
+    stopping_pass = all(
+        execution["rows_completed_before_batch_end"] > 0
+        and execution["post_completion_suffix_padding_only"]
+        for execution in executions
+    )
+    vram_pass = all(
+        execution["peak_reserved_bytes"] <= MAX_PREFLIGHT_RESERVED_BYTES
+        for execution in executions
+    )
+    projection = cap_projection_from_batch_preflight(
+        [float(execution["wall_seconds"]) for execution in executions],
+        generation_load_seconds,
+        original_preflight,
+    )
+    eligible = exact_match and vram_pass and stopping_pass and not process_leak
+    report = {
+        "schema_version": SCHEMA_VERSION,
+        "created_at": utc_now(),
+        "mode": "diagnostic_duplicate_batch_preflight",
+        "batch_size": requested_batch_size,
+        "diagnostic_duplicates_enter_bank_or_metrics": False,
+        "retained_smoke_content_sha256": original_preflight["retained_bank_content_sha256"],
+        "published_verifier_golden_replay": golden,
+        "aggregation_diagnostic": aggregation,
+        "generation_model_load_seconds": generation_load_seconds,
+        "executions": executions,
+        "exact_match_all_32_candidates": exact_match,
+        "field_mismatches": field_mismatches,
+        "vram_limit_bytes": MAX_PREFLIGHT_RESERVED_BYTES,
+        "vram_pass": vram_pass,
+        "per_row_stopping_pass": stopping_pass,
+        "nan_or_cuda_error": False,
+        "process_leak": process_leak,
+        "checkpoint_inconsistency": False,
+        "eligible": eligible,
+        "projection": projection,
+        "status": "PASS" if eligible else "FAIL",
+    }
+    atomic_replace_json(BATCH_PREFLIGHT_PATH, report)
+    if not eligible:
+        raise RuntimeError("requested batch size is ineligible")
+    return report
+
+
 def smoke_run(
     train: Dataset,
     cohorts: Mapping[str, list[int]],
@@ -2484,12 +3308,52 @@ def freeze_calibration(bank: Mapping[str, Any]) -> dict[str, Any]:
         raise RuntimeError("calibration bank is not completely scored")
     problems = group_records(bank["records"])
     if len(problems) != CALIBRATION_COUNT:
-        raise RuntimeError("calibration bank does not contain 256 problems")
-    selected = select_calibration_parameters(problems)
+        raise RuntimeError("calibration bank does not contain the resolved problem count")
+    correct_candidates = sum(bool(record["correct"]) for record in bank["records"])
+    incorrect_candidates = len(bank["records"]) - correct_candidates
+    argmax = evaluate_policy(problems, 0, include_ledgers=False)["prefixes"]["16"]
+    beneficial = int(
+        argmax["first_incorrect_to_selected_correct"]["numerator"]
+    )
+    harmful = int(argmax["harmful_switch_examples"]["numerator"])
+    distinct_scores = len({float(record["verifier_score"]) for record in bank["records"]})
+    finite_scores = all(
+        math.isfinite(float(record["verifier_score"])) for record in bank["records"]
+    )
+    viability = {
+        "correct_candidates": correct_candidates,
+        "incorrect_candidates": incorrect_candidates,
+        "verifier_argmax_beneficial_acquisition_events": beneficial,
+        "verifier_argmax_harmful_switch_examples": harmful,
+        "distinct_finite_candidate_scores": distinct_scores if finite_scores else 0,
+        "floors": {
+            "correct_candidates_at_least_40": correct_candidates >= 40,
+            "incorrect_candidates_at_least_40": incorrect_candidates >= 40,
+            "beneficial_acquisitions_at_least_20": beneficial >= 20,
+            "harmful_switch_examples_at_least_20": harmful >= 20,
+            "at_least_two_distinct_finite_scores": finite_scores
+            and distinct_scores >= 2,
+        },
+    }
+    viability["status"] = (
+        "PASS"
+        if all(viability["floors"].values())
+        else "PREFLIGHT_STOP_INSUFFICIENT_CALIBRATION_HEADROOM"
+    )
+    selected = (
+        select_calibration_parameters(problems)
+        if viability["status"] == "PASS"
+        else {
+            "status": "PREFLIGHT_STOP_INSUFFICIENT_CALIBRATION_HEADROOM",
+            "reason": "CALIBRATION_VERIFIER_VIABILITY_FLOOR_MISSED",
+            "selected": {},
+        }
+    )
     payload = {
         "schema_version": SCHEMA_VERSION,
         "created_at": utc_now(),
         "calibration_bank_content_sha256": bank_content_digest(bank),
+        "verifier_viability": viability,
         "selection": selected,
     }
     payload["freeze_sha256"] = sha256_bytes(canonical_json_bytes(payload))
@@ -2527,9 +3391,13 @@ def canonical_evaluate(
     review_binding = json.loads(REVIEW_BINDING_PATH.read_text(encoding="utf-8"))
     if review_binding.get("runner_source_sha256") != slots["runner_source_sha256"]:
         raise RuntimeError("independent review is not bound to the current runner")
-    repeat_report = json.loads(REPEAT_DETERMINISM_PATH.read_text(encoding="utf-8"))
-    if repeat_report.get("status") != "PASS":
-        raise RuntimeError("canonical evaluation requires passing repeat determinism")
+    repeat_report = json.loads(BATCH_PREFLIGHT_PATH.read_text(encoding="utf-8"))
+    if (
+        repeat_report.get("status") != "PASS"
+        or repeat_report.get("batch_size") != RESOLVED_BATCH_SIZE
+        or not repeat_report.get("eligible")
+    ):
+        raise RuntimeError("canonical evaluation requires the eligible batch preflight")
     calibration_bank = json.loads(CALIBRATION_BANK_PATH.read_text(encoding="utf-8"))
     calibration_bank["records"] = load_bank_database_records("calibration")
     test_bank = json.loads(TEST_BANK_PATH.read_text(encoding="utf-8"))
@@ -2565,7 +3433,8 @@ def canonical_evaluate(
                 "top_k": TOP_K,
                 "repetition_penalty": REPETITION_PENALTY,
                 "max_new_tokens": MAX_NEW_TOKENS,
-                "batch_size": 1,
+                "batch_size": RESOLVED_BATCH_SIZE,
+                "retained_smoke_prefix_batch_size": 1,
                 "dtype": "bfloat16",
             },
             "parser": "qualified E1 exact-rational numeric parser imported directly",
@@ -2867,13 +3736,22 @@ def require_review_attestation(args: argparse.Namespace) -> None:
 
 
 def bind_review_attestation(
-    attestation_sha256: str, slots: Mapping[str, Any]
+    attestation_sha256: str,
+    slots: Mapping[str, Any],
+    schedule_evidence: Mapping[str, Any],
 ) -> dict[str, Any]:
     binding = {
         "schema_version": SCHEMA_VERSION,
         "independent_review_attestation_sha256": attestation_sha256,
         "runner_source_sha256": slots["runner_source_sha256"],
         "manifest_identity_digest": slots["local_manifest_identity_digest"],
+        "mixed_generation_schedule_sha256": schedule_evidence[
+            "mixed_generation_schedule_sha256"
+        ],
+        "batch_seed_schedule_sha256": schedule_evidence[
+            "batch_seed_schedule_sha256"
+        ],
+        "resolved_batch_size": RESOLVED_BATCH_SIZE,
     }
     if REVIEW_BINDING_PATH.is_file():
         existing = json.loads(REVIEW_BINDING_PATH.read_text(encoding="utf-8"))
@@ -2890,6 +3768,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     modes.add_argument("--cohort-only", action="store_true")
     modes.add_argument("--self-test-fast", action="store_true")
     modes.add_argument("--smoke", action="store_true")
+    modes.add_argument("--golden-replay", action="store_true")
+    modes.add_argument("--batch-preflight", type=int, choices=ELIGIBLE_BATCH_SIZES)
     modes.add_argument("--repeat-determinism", action="store_true")
     modes.add_argument("--generate", choices=("calibration", "test"))
     modes.add_argument("--score", choices=("calibration", "test"))
@@ -2904,6 +3784,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     scavenge_stale_immutable_temps(RESULT_PATH.parent, RESULT_PATH)
     if args.self_test_fast:
         print(json.dumps(self_test_fast(), indent=2, allow_nan=False))
+        return 0
+    if not args.cohort_only:
+        raise RuntimeError(
+            f"line-07 is stopped at {VERIFIER_COMPATIBILITY_STATUS}; "
+            "fresh steering and registration are required before execution"
+        )
+    if args.golden_replay:
+        print(
+            json.dumps(
+                published_verifier_golden_replay(parse_manifest()),
+                indent=2,
+                allow_nan=False,
+            )
+        )
         return 0
     pilot_test_mode = (
         args.generate == "test"
@@ -2950,6 +3844,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         )
         return 0
+    if args.batch_preflight:
+        print(
+            json.dumps(
+                batch_generation_preflight(
+                    train,
+                    cohorts["calibration"],
+                    parse_manifest(),
+                    args.batch_preflight,
+                ),
+                indent=2,
+                allow_nan=False,
+            )
+        )
+        return 0
     require_review_attestation(args)
     slots = provenance_slots(
         train,
@@ -2958,7 +3866,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         allow_pilot_test_access=expose_pilot_test_content,
     )
     manifest = parse_manifest()
-    bind_review_attestation(args.review_attestation, slots)
+    bind_review_attestation(args.review_attestation, slots, schedule_evidence)
     if args.repeat_determinism:
         print(
             json.dumps(
@@ -2975,16 +3883,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             freeze = load_calibration_freeze()
             if freeze["selection"]["status"] != "PASS":
                 raise RuntimeError("test generation blocked by calibration outcome")
-            repeat_report = json.loads(
-                REPEAT_DETERMINISM_PATH.read_text(encoding="utf-8")
-            )
-            if repeat_report.get("status") != "PASS":
-                raise RuntimeError("test generation blocked by repeat determinism")
-            preflight = json.loads(PREFLIGHT_PATH.read_text(encoding="utf-8"))
-            if preflight.get("protocol_slots") != slots:
-                raise RuntimeError("test generation blocked by preflight binding drift")
-            if not preflight["projection"]["within_cap"]:
-                raise RuntimeError("test generation blocked by over-cap preflight")
+            repeat_report = json.loads(BATCH_PREFLIGHT_PATH.read_text(encoding="utf-8"))
+            if (
+                repeat_report.get("status") != "PASS"
+                or repeat_report.get("batch_size") != RESOLVED_BATCH_SIZE
+                or not repeat_report.get("projection", {}).get("full_bank_fits")
+            ):
+                raise RuntimeError("test generation blocked by amended batch preflight")
         bank, telemetry = generate_bank_prefix(
             train, args.generate, cohorts[args.generate], slots, manifest
         )
