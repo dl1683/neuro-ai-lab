@@ -531,26 +531,28 @@ Three causal hypotheses survive as questions, not conclusions or launch authoriz
 3. An anytime/transient-solver design with outcome-coupled stopping or banking, abandoning correctness-by-fixed-point convergence.
 4. Readout-coupled energy whose target is explicitly decoded correctness, tested only after competence and controllability gates.
 
-### Registered interface-supervision question (not run)
+### Interface-supervision question (frozen not launchable; not run)
 
 The E3 competence-smoke miss leaves interface exposure and supervision density
-confounded. A six-cell diagnostic is now preregistered to measure one-hop and
+confounded. A six-cell diagnostic was preregistered to measure one-hop and
 hard-answer linear exposure, localize atomic entailment across proof distances
 0-5, and compare paired answer-only versus mechanically verified dense-process
 supervision with the frozen substrate, controller core, hard examples,
 initialization, order, optimizer, and answer loss held fixed.
 
-The 2026-08-11 pre-data blocking-review repair makes the diagnostic inputs
-route-safe before re-review: I0 now uses a shared fixed entity vocabulary with
-symbolically verified skeleton-disjoint splits; I2 serializes exact matched
-entity/predicate/lexical/answer-position contingencies under both labels; and
-S2 uses only grounded registered-rule applications with exact asserted
-validity-label feature balances. The all-record CPU self-test passes, and the
-GPU-free conservative cell projection is `150/140/850/80/260/700` seconds for
-I0/I1/I2/S0/S1/S2, or 2,180 seconds total against the 5,400-second cap.
+The bounded independent re-review found a remaining design-level I2 shortcut.
+Although queried predicate identities were balanced, the queried label-word's
+context occurrence count differed under the two labels at every distance in
+both fact splits. A one-feature affine classifier using only that count reached
+69.73% on miniature validation. Correcting this requires reconstructing the
+matched-negative assignment and rebinding the fact datasets, so the controlling
+bottom-out rule freezes the instrument as `FROZEN_NOT_LAUNCHABLE` rather than
+permitting another design cycle.
 
-This is a diagnostic question only. No cell or result exists yet, E3 remains
-stopped, official tests and line 07 remain inaccessible, and neither canonical
-E3/E3b nor the 0.5B program is authorized. Independent re-review and an explicit
-clean-launch attestation still precede I0; the executor repair does not claim a
-clean-review token.
+No cell or result exists and no scientific conclusion is drawn. The mechanics
+question remains open and may be revisited only through fresh steering plus
+registration. Independently verified assets remain available for that future
+design: grounded S2 registered-rule distractors and their shortcut checks, the
+frozen-substrate/access boundaries, and the exhaustively exercised branch
+table. E3 remains stopped, official tests and line 07 remain inaccessible, and
+neither canonical E3/E3b nor the 0.5B program is authorized.

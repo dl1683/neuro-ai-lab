@@ -1378,7 +1378,7 @@ def main():
     )
 
     # 38. Bind the fresh diagnostic as preregistered, hash-bound, not run, and
-    #     still launch-blocked at the separate full-pipeline review boundary.
+    #     subsequently frozen at the bounded design-review bottom-out boundary.
     diagnostic_registration = (
         Path(__file__).resolve().parent
         / "E3_INTERFACE_SUPERVISION_DIAGNOSTIC_PREREGISTRATION.md"
@@ -1402,13 +1402,40 @@ def main():
     diagnostic_entry = (
         diagnostic_entries[0] if len(diagnostic_entries) == 1 else {}
     )
+    diagnostic_freeze_entries = [
+        entry
+        for entry in ledger_entries
+        if entry.get("id")
+        == "E3_INTERFACE_SUPERVISION_DIAGNOSTIC_FROZEN_NOT_LAUNCHABLE"
+    ]
+    diagnostic_freeze_entry = (
+        diagnostic_freeze_entries[0]
+        if len(diagnostic_freeze_entries) == 1
+        else {}
+    )
+    diagnostic_freeze_metrics = diagnostic_freeze_entry.get("metrics", {})
     check(
-        "e3_interface_supervision_diagnostic_preregistered_not_run",
+        "e3_interface_supervision_diagnostic_frozen_not_launchable",
         len(diagnostic_entries) == 1
         and diagnostic_entry.get("status") == "designed"
         and diagnostic_entry.get("metrics", {}).get("diagnostic_cells_executed")
         == 0
         and not diagnostic_entry.get("metrics", {}).get("launch_authorized")
+        and len(diagnostic_freeze_entries) == 1
+        and diagnostic_freeze_entry.get("status") == "stopped"
+        and diagnostic_freeze_metrics.get("final_status")
+        == "FROZEN_NOT_LAUNCHABLE"
+        and not diagnostic_freeze_metrics.get("scientific_conclusion_drawn")
+        and diagnostic_freeze_metrics.get("diagnostic_cells_executed") == 0
+        and not diagnostic_freeze_metrics.get("result_artifact_exists")
+        and diagnostic_freeze_metrics.get("shortcut_probe", {}).get(
+            "miniature_validation_accuracy_percent"
+        )
+        == 69.73
+        and diagnostic_freeze_metrics.get("repair_class")
+        == "DESIGN_LEVEL_FACT_DATASET_RECONSTRUCTION"
+        and diagnostic_freeze_metrics.get("mechanics_routing_question")
+        == "OPEN_REQUIRES_FRESH_STEERING_AND_REGISTRATION"
         and diagnostic_config.get("experiment_id")
         == "exp_e3_interface_supervision_diagnostic"
         and diagnostic_config.get("status")
@@ -1428,13 +1455,14 @@ def main():
         and diagnostic_config["compute"]["per_cell_wall_cap_seconds"] == 900
         and diagnostic_config["compute"]["suite_wall_cap_seconds"] == 5400
         and "PENDING" not in json.dumps(diagnostic_config["bindings"])
-        and "LAUNCH BLOCKED ON SEPARATE FULL-PIPELINE REVIEW"
+        and "FROZEN_NOT_LAUNCHABLE / NOT RUN / NO SCIENTIFIC CONCLUSION"
         in diagnostic_registration_text
         and not diagnostic_result_path.exists(),
         (
-            f"entry_count={len(diagnostic_entries)}, "
+            f"registration_entry_count={len(diagnostic_entries)}, "
+            f"freeze_entry_count={len(diagnostic_freeze_entries)}, "
             f"result_exists={diagnostic_result_path.exists()}, "
-            f"status={diagnostic_config.get('status')}"
+            f"freeze_status={diagnostic_freeze_metrics.get('final_status')}"
         ),
     )
 

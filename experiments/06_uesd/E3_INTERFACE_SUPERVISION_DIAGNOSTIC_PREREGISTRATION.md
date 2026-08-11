@@ -1,6 +1,6 @@
 # E3 Interface-Supervision Diagnostic Preregistration
 
-Status: **PREREGISTERED / NOT RUN / IMPLEMENTED AND DATA-HASH-BOUND / LAUNCH BLOCKED ON SEPARATE FULL-PIPELINE REVIEW, MEASURED PROJECTION, AND CLEAN ATTESTATION**
+Status: **FROZEN_NOT_LAUNCHABLE / NOT RUN / NO SCIENTIFIC CONCLUSION**
 
 Experiment ID: `exp_e3_interface_supervision_diagnostic`
 
@@ -553,3 +553,34 @@ line-07/official-test access existed when these slots were filled.
   the complete pipeline, all blocking findings must be resolved, a reviewed
   non-scientific projection must fit 5,400 seconds, and the clean-launch token
   must be issued before I0.
+
+## Terminal design-gate record — 2026-08-11
+
+The permitted correction cycle and full independent re-review are exhausted.
+The re-review found a design-level I2 lexical shortcut that requires
+reconstructing the matched-negative assignment and rebinding the fact
+datasets:
+
+- queried predicate identities are balanced, but the queried label-word's
+  context occurrence count differs under the two labels at every distance in
+  both full fact splits;
+- the matcher requires only nonzero occurrence and the serialized balance
+  assertions omit the actual occurrence count;
+- on miniature validation, a one-feature affine classifier using only that
+  count reached **69.73%** accuracy. Ordinary query-word and full-prompt
+  unigram probes were exactly 50%, localizing the shortcut to the unbalanced
+  query/context relationship.
+
+Under the controlling queue recalibration's bottom-out rule, this registration
+is therefore `FROZEN_NOT_LAUNCHABLE`. No diagnostic cell ran, no result artifact
+or scientific metric exists, and no scientific conclusion may be drawn about
+interface exposure, representation content, controller competence, or dense
+supervision.
+
+The mechanics line's representation-versus-supervision routing question
+remains **OPEN**. It may be revisited only through fresh steering and a fresh
+registration; this document authorizes no repair, rerun, successor, or launch.
+The following independently verified pieces may be reused as design assets in
+that future work: S2's grounded registered-rule distractor construction and
+shortcut checks, the frozen-substrate and access boundaries, and the
+exhaustively exercised branch table.
