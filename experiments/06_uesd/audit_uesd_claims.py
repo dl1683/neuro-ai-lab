@@ -1324,6 +1324,108 @@ def main():
         ),
     )
 
+    # 38. Bind the fresh diagnostic as preregistered, hash-bound, not run, and
+    #     still launch-blocked at the separate full-pipeline review boundary.
+    diagnostic_registration = (
+        Path(__file__).resolve().parent
+        / "E3_INTERFACE_SUPERVISION_DIAGNOSTIC_PREREGISTRATION.md"
+    )
+    diagnostic_config_path = (
+        Path(__file__).resolve().parent
+        / "exp_e3_interface_supervision_diagnostic_config.json"
+    )
+    diagnostic_result_path = RESULTS / "exp_e3_interface_supervision_diagnostic.json"
+    diagnostic_config = json.loads(
+        diagnostic_config_path.read_text(encoding="utf-8")
+    )
+    diagnostic_registration_text = diagnostic_registration.read_text(
+        encoding="utf-8"
+    )
+    diagnostic_entries = [
+        entry
+        for entry in ledger_entries
+        if entry.get("id") == "E3_INTERFACE_SUPERVISION_DIAGNOSTIC_PREREGISTERED"
+    ]
+    diagnostic_entry = (
+        diagnostic_entries[0] if len(diagnostic_entries) == 1 else {}
+    )
+    check(
+        "e3_interface_supervision_diagnostic_preregistered_not_run",
+        len(diagnostic_entries) == 1
+        and diagnostic_entry.get("status") == "designed"
+        and diagnostic_entry.get("metrics", {}).get("diagnostic_cells_executed")
+        == 0
+        and not diagnostic_entry.get("metrics", {}).get("launch_authorized")
+        and diagnostic_config.get("experiment_id")
+        == "exp_e3_interface_supervision_diagnostic"
+        and diagnostic_config.get("status")
+        == (
+            "PREREGISTERED_NOT_RUN_IMPLEMENTED_HASH_BOUND_"
+            "LAUNCH_BLOCKED_ON_INDEPENDENT_REVIEW"
+        )
+        and diagnostic_config["compute"]["cell_order"]
+        == [
+            "I0_ONE_HOP_LINEAR_FLOOR",
+            "I1_HARD_ANSWER_LINEAR",
+            "I2_FACT_TRACE_LINEAR",
+            "S0_ONE_HOP_CONTROLLER_FLOOR",
+            "S1_HARD_ANSWER_ONLY",
+            "S2_HARD_PROCESS_DENSE",
+        ]
+        and diagnostic_config["compute"]["per_cell_wall_cap_seconds"] == 900
+        and diagnostic_config["compute"]["suite_wall_cap_seconds"] == 5400
+        and "PENDING" not in json.dumps(diagnostic_config["bindings"])
+        and "LAUNCH BLOCKED ON SEPARATE FULL-PIPELINE REVIEW"
+        in diagnostic_registration_text
+        and not diagnostic_result_path.exists(),
+        (
+            f"entry_count={len(diagnostic_entries)}, "
+            f"result_exists={diagnostic_result_path.exists()}, "
+            f"status={diagnostic_config.get('status')}"
+        ),
+    )
+
+    diagnostic_runner_path = (
+        Path(__file__).resolve().parent
+        / "exp_e3_interface_supervision_diagnostic.py"
+    )
+    implementation_entries = [
+        entry
+        for entry in ledger_entries
+        if entry.get("id")
+        == "E3_INTERFACE_SUPERVISION_DIAGNOSTIC_IMPLEMENTED_HASH_BOUND"
+    ]
+    implementation_entry = (
+        implementation_entries[0] if len(implementation_entries) == 1 else {}
+    )
+    implementation_metrics = implementation_entry.get("metrics", {})
+    check(
+        "e3_interface_supervision_implementation_hash_binding",
+        len(implementation_entries) == 1
+        and implementation_entry.get("status") == "designed"
+        and implementation_metrics.get("runner_sha256")
+        == canonical_lf_sha256(diagnostic_runner_path)
+        and implementation_metrics.get("config_sha256")
+        == canonical_lf_sha256(diagnostic_config_path)
+        and implementation_metrics.get("registration_protocol_sha256")
+        == diagnostic_config["bindings"]["registration_protocol_sha256"]
+        and implementation_metrics.get("split_sha256")
+        == diagnostic_config["bindings"]["split_sha256"]
+        and implementation_metrics.get("fast_self_test_pass")
+        and implementation_metrics.get("full_binding_replay_pass")
+        and implementation_metrics.get("diagnostic_cells_executed") == 0
+        and implementation_metrics.get("scientific_metrics_computed") == 0
+        and not implementation_metrics.get("result_artifact_exists")
+        and implementation_metrics.get("line_07_examples_accessed") == 0
+        and implementation_metrics.get("official_test_examples_accessed") == 0
+        and not implementation_metrics.get("launch_authorized"),
+        (
+            f"entry_count={len(implementation_entries)}, "
+            f"runner={canonical_lf_sha256(diagnostic_runner_path)}, "
+            f"config={canonical_lf_sha256(diagnostic_config_path)}"
+        ),
+    )
+
     failed = [c for c in checks if not c["ok"]]
     print(json.dumps({
         "passed": len(checks) - len(failed),

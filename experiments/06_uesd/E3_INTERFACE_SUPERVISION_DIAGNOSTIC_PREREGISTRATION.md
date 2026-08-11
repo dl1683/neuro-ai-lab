@@ -1,6 +1,6 @@
 # E3 Interface-Supervision Diagnostic Preregistration
 
-Status: **PREREGISTERED / NOT RUN / BUILD AUTHORIZED / LAUNCH BLOCKED ON IMPLEMENTATION, HASH BINDINGS, FULL-PIPELINE REVIEW, AND CLEAN ATTESTATION**
+Status: **PREREGISTERED / NOT RUN / IMPLEMENTED AND DATA-HASH-BOUND / LAUNCH BLOCKED ON SEPARATE FULL-PIPELINE REVIEW, MEASURED PROJECTION, AND CLEAN ATTESTATION**
 
 Experiment ID: `exp_e3_interface_supervision_diagnostic`
 
@@ -478,3 +478,25 @@ A completed or terminal suite lands in one coherent block:
 
 A route token authorizes only drafting and steering review of its named
 successor. It never authorizes that successor's implementation or launch.
+
+## Implementation binding attestation
+
+This pre-data slot-filling block records implementation details that were
+implicit in the frozen probe contract and binds the executable surface. No
+diagnostic cell, validation endpoint, scientific metric, result artifact, or
+line-07/official-test access existed when these slots were filled.
+
+- I2 uses the masked mean of the appended atomic-query span and the same single
+  1,000-update affine-probe schedule frozen in Section 8.1. One shared binary
+  probe is fit across all six distances; it is evaluated once and then reported
+  by distance without refitting or distance selection.
+- The tracked config binds the registration protocol body, E2 generator source,
+  E3 reusable runner source, template inventory, three prompt/serialization
+  templates, proof-replay contract, tokenizer-containing frozen substrate
+  digest, and all six ordered split payloads by SHA-256.
+- `E3-interface-diagnostic-runner-sha256`: `a5424d066647af784002655bae3109c48450177519a1257ce3729349ae3aab25`
+- `E3-interface-diagnostic-config-sha256`: `3fdeeb0b4636446f9fb0ca8c8d7c8f87e6c0a12c29d0d89f0e5bee765639301a`
+- The implementation remains launch-blocked. A separate reviewer must inspect
+  the complete pipeline, all blocking findings must be resolved, a reviewed
+  non-scientific projection must fit 5,400 seconds, and the clean-launch token
+  must be issued before I0.

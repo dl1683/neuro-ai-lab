@@ -1,0 +1,156 @@
+{
+  "schema_version": "1.0.0",
+  "experiment_id": "exp_e3_interface_supervision_diagnostic",
+  "status": "PREREGISTERED_NOT_RUN_IMPLEMENTED_HASH_BOUND_LAUNCH_BLOCKED_ON_INDEPENDENT_REVIEW",
+  "preregistration": "experiments/06_uesd/E3_INTERFACE_SUPERVISION_DIAGNOSTIC_PREREGISTRATION.md",
+  "substrate": {
+    "alias": "base-B",
+    "expected_hidden_width": 1536,
+    "maximum_cache_bytes": 34359738368,
+    "representation": "final_layer_after_final_normalization",
+    "offline_required": true
+  },
+  "generator": {
+    "version": "typed-datalog-e3-interface-supervision-v1",
+    "seed": 20260815,
+    "proof_depths": [2, 3, 4, 5],
+    "lure_mixture": {"late": 0.5, "direction": 0.25, "clean": 0.25},
+    "late_lure_extra_steps": [2, 3],
+    "entities_min": 6,
+    "entities_max": 10,
+    "ground_facts_min": 8,
+    "ground_facts_max": 12,
+    "rules_min": 10,
+    "rules_max": 14,
+    "property_words": [
+      "amber", "quiet", "careful", "patient", "silver", "wary",
+      "gentle", "nimble", "vivid", "steady", "lucid", "brisk"
+    ],
+    "relation_verbs": ["guides", "follows", "visits"],
+    "name_syllables": [
+      "mira", "tov", "nera", "kel", "savi", "dor", "luma", "fen",
+      "ravi", "zen", "kora", "pil", "dara", "vex", "nori", "tal",
+      "bela", "sun", "cira", "mon", "fara", "kes", "gali", "rin",
+      "havi", "pol", "jara", "wen", "lori", "dak", "mena", "sil",
+      "pava", "tor", "rena", "vik", "sora", "lun", "tavi", "mer",
+      "zara", "kin", "vani", "ros", "dema", "ful", "nava", "qir"
+    ],
+    "template_families": 6,
+    "choice_count": 4,
+    "max_generation_attempts_per_pair": 5000,
+    "hard_prompt_template": "Synthetic deduction task. Determine which numbered choice (1, 2, 3, or 4) must hold.\n\n{deduction}\n\nDo not assume facts not licensed by the rules.",
+    "fact_query_suffix_template": "\n\nAtomic query: Is it entailed that {entity} is {property}? Answer entailed or not entailed.",
+    "candidate_application_template": "Rule application: {premises} therefore {conclusion}.",
+    "split_counts": {
+      "easy_train": 2048,
+      "easy_validation": 1024,
+      "hard_train": 2048,
+      "hard_validation": 512,
+      "fact_probe_train_per_distance": 2048,
+      "fact_probe_validation_per_distance": 512
+    }
+  },
+  "probes": {
+    "views": ["final_nonpadding_token", "masked_prompt_mean", "query_choices_span_mean"],
+    "fact_view": "atomic_query_span_mean",
+    "updates": 1000,
+    "batch_size": 64,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0,
+    "gradient_clip_norm": 1.0,
+    "initialization_seeds": {
+      "final_nonpadding_token": 81001,
+      "masked_prompt_mean": 81002,
+      "query_choices_span_mean": 81003,
+      "fact_trace": 81004
+    },
+    "i0_correct_floor": 922,
+    "i1_correct_floor": 205,
+    "i2_distance_correct_floor": 308
+  },
+  "common_model": {
+    "substrate_width": 1536,
+    "width": 512,
+    "attention_heads": 8,
+    "ffn_width": 2048,
+    "dropout": 0.1,
+    "latent_plan_slots": 8,
+    "controller_layers": 2,
+    "controller_weight_tied_across_iterations": true,
+    "absolute_iteration_embedding": false,
+    "answer_decoder_layers": 1,
+    "answer_choices": 4,
+    "target_parameter_maximum": 30000000
+  },
+  "controller_training": {
+    "seed": 82001,
+    "updates": 500,
+    "batch_size": 8,
+    "optimizer": "AdamW",
+    "peak_learning_rate": 0.0003,
+    "warmup_updates": 50,
+    "betas": [0.9, 0.95],
+    "epsilon": 1e-8,
+    "weight_decay": 0.01,
+    "gradient_clip_norm": 14.0,
+    "s0_horizon": 1,
+    "hard_horizon": 5,
+    "process_loss_coefficient": 1.0,
+    "s0_correct_floor": 922,
+    "hard_correct_floor": 205,
+    "dense_gain_correct_floor": 77,
+    "dense_gain_mcnemar_p_maximum": 0.01
+  },
+  "process": {
+    "candidate_count": 4,
+    "maximum_steps": 5,
+    "per_step_correct_floors": {"1": 308, "2": 308, "3": 231, "4": 154, "5": 77},
+    "exact_trace_correct_floor": 308
+  },
+  "compute": {
+    "cell_order": [
+      "I0_ONE_HOP_LINEAR_FLOOR",
+      "I1_HARD_ANSWER_LINEAR",
+      "I2_FACT_TRACE_LINEAR",
+      "S0_ONE_HOP_CONTROLLER_FLOOR",
+      "S1_HARD_ANSWER_ONLY",
+      "S2_HARD_PROCESS_DENSE"
+    ],
+    "per_cell_wall_cap_seconds": 900,
+    "suite_wall_cap_seconds": 5400,
+    "projection_safety_multiplier": 1.35
+  },
+  "review": {
+    "required_attestation": "E3_INTERFACE_SUPERVISION_DIAGNOSTIC_FULL_PIPELINE_REVIEW_CLEAN",
+    "clean_launch_attestation": "E3_INTERFACE_SUPERVISION_DIAGNOSTIC_CLEAN_LAUNCH",
+    "projection_path": "experiments/06_uesd/checkpoints/exp_e3_interface_supervision_diagnostic/projection.json"
+  },
+  "result_artifact": {
+    "path": "experiments/06_uesd/results/exp_e3_interface_supervision_diagnostic.json",
+    "write_mode": "same_directory_fsync_atomic_no_clobber"
+  },
+  "bindings": {
+    "registration_protocol_sha256": "c21d444fb8687285c1242ad5e605260fb9b4709bb163630c93af34b715df0d84",
+    "e2_generator_source_sha256": "7ffccdba80ec5fccdd8888c6a07202b06ee62c8402d209b5f3785c5bffa140f7",
+    "e3_runner_source_sha256": "93f261ca881efad4d61ae35ce69f30e6c7e64e87b26943525877ef76c2510703",
+    "template_inventory_sha256": "cbdab209efe1b91d291d99ec358597c38962024e871a300e555d98854c21bbc2",
+    "hard_prompt_sha256": "c793529f5a42467a9daf9df3c61c1c05cfc5545f0a48ad5964c8efd77d48136f",
+    "fact_query_suffix_sha256": "7e24b11426babc0433e3dbdd8de40aa3bfe45e86d80f7743767fed38fcad2a35",
+    "candidate_application_template_sha256": "a89acf111d295b1437d854d0cfcd768de6b13c207409f2440a138928ab4c3537",
+    "proof_trace_contract_sha256": "caa00647371ff436a47c0d1ea5269a2885bb0d9d2a3357138fc4d74415842458",
+    "substrate_local_content_sha256": "e9ef35702fc422242097e8cbe02e9ace360509fbee4992fd1fcc8c348c296d71",
+    "split_sha256": {
+      "easy_train": "19faca230c28b3106324f99948f5f995143bc3162b111cb41c84cf41c2bc537c",
+      "easy_validation": "12a17d283d5cb673c69d4e06301d7c89ad6a3678b99ed3f11feae4d01ab451e5",
+      "hard_train": "6deb6f2efbd46fecc903de90fd16d50715765d8b9ec61bf1c0aef44f6236ecba",
+      "hard_validation": "f56ead8eac55c0755f89d3d01006aa08d76fb3fc9afc3fe6b9cc0881d643557c",
+      "fact_probe_train": "28c8923ad0af9d375b24408de42ea7c62afc5a76b9b32db273b8f0fe06cbf4da",
+      "fact_probe_validation": "30ceee54b686f6bddb1736598696cfdb9695863268474cde992d57e1ca5e7642"
+    }
+  },
+  "self_test": {
+    "seed": 20260816,
+    "examples_per_split": 32,
+    "torch_threads": 2
+  }
+}

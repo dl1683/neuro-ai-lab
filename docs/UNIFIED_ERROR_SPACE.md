@@ -528,3 +528,17 @@ Three causal hypotheses survive as questions, not conclusions or launch authoriz
 2. Verified dense process supervision or certificate-bearing states if answer-only supervision still fails to create informative trajectories.
 3. An anytime/transient-solver design with outcome-coupled stopping or banking, abandoning correctness-by-fixed-point convergence.
 4. Readout-coupled energy whose target is explicitly decoded correctness, tested only after competence and controllability gates.
+
+### Registered interface-supervision question (not run)
+
+The E3 competence-smoke miss leaves interface exposure and supervision density
+confounded. A six-cell diagnostic is now preregistered to measure one-hop and
+hard-answer linear exposure, localize atomic entailment across proof distances
+0-5, and compare paired answer-only versus mechanically verified dense-process
+supervision with the frozen substrate, controller core, hard examples,
+initialization, order, optimizer, and answer loss held fixed.
+
+This is a diagnostic question only. No cell or result exists yet, E3 remains
+stopped, official tests and line 07 remain inaccessible, and neither canonical
+E3/E3b nor the 0.5B program is authorized. The complete invocation is separately
+review-gated because its registered cap is 5,400 seconds.

@@ -37,13 +37,14 @@ Suite aggregate: `results/pilot_suite_summary.json`.
 
 Framework where AI generation happens in continuous embedding space via iterative dynamics, with no softmax collapse. Tests whether self-consistency energy E(s) = ||F_theta(s,c)||^2 produces correct, stable attractors.
 
-### E3 Interface-Supervision Diagnostic (PREREGISTERED / NOT RUN)
+### E3 Interface-Supervision Diagnostic (IMPLEMENTED / HASH-BOUND / NOT RUN)
 
 - **Event:** The six-cell interface-supervision diagnostic was preregistered on 2026-08-10 before any diagnostic runner outcome, cell execution, metric, or result artifact existed.
 - **Canonical protocol:** `experiments/06_uesd/E3_INTERFACE_SUPERVISION_DIAGNOSTIC_PREREGISTRATION.md`.
 - **Question:** Holding the frozen `base-B` substrate fixed, separate whether answer-relevant information is exposed at the registered final-layer interface from whether verified dense rule-application supervision creates a discrimination foothold that sparse answer-only CE does not.
 - **Frozen grid:** `I0_ONE_HOP_LINEAR_FLOOR`, `I1_HARD_ANSWER_LINEAR`, `I2_FACT_TRACE_LINEAR`, `S0_ONE_HOP_CONTROLLER_FLOOR`, `S1_HARD_ANSWER_ONLY`, and paired `S2_HARD_PROCESS_DENSE`, in that order without between-cell scientific inspection.
-- **Compute and launch boundary:** Each cell is capped at 900 GPU-wall seconds and the single complete invocation at 5,400 seconds including loading, caches, evaluation, and publication. Build is authorized. Launch is blocked pending implementation and SHA-256 bindings, separate full-pipeline review, measured completion projection within cap, resolution of all blocking findings, and explicit clean-launch attestation.
+- **Implementation and bindings:** The runner/config, registration protocol body, E2 generator and E3 reusable source, template inventory, proof-trace replay contract, tokenizer-containing substrate digest, three prompt serializations, and all six ordered split payloads are SHA-256-bound. Fast CPU self-tests and full deterministic binding replay pass. No diagnostic result or metric exists.
+- **Compute and launch boundary:** Each cell is capped at 900 GPU-wall seconds and the single complete invocation at 5,400 seconds including loading, caches, evaluation, and publication. Launch is blocked on a separate full-pipeline review, resolution of all blocking findings, a reviewed non-scientific completion projection within cap, and explicit clean-launch attestation.
 - **Claim and access boundary:** This is diagnostic only. It cannot rescue the E3 preflight, establish mechanics, authorize canonical E3/E3b or the 0.5B program, inspect official tests, modify line 07, or consume any line-07 cohort. Any routed token authorizes only successor drafting and steering review.
 
 ---
