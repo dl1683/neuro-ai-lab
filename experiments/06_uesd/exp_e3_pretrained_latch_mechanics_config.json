@@ -1,0 +1,187 @@
+{
+  "schema_version": "1.0.0",
+  "experiment_id": "exp_e3_pretrained_latch_mechanics",
+  "preflight_id": "exp_e3_preflight",
+  "status": "PREREGISTERED_NOT_RUN_BUILD_AUTHORIZED_LAUNCH_BLOCKED",
+  "preregistration": "experiments/06_uesd/E3_PRETRAINED_MECHANICS_PREREGISTRATION.md",
+  "substrate": {
+    "alias": "base-B",
+    "local_manifest": "experiments/06_uesd/_local_manifest.md",
+    "workspace_hf_home": ".hf_cache",
+    "offline_required": true,
+    "representation": "final_layer_after_final_normalization",
+    "expected_hidden_width": 1536,
+    "maximum_cache_bytes": 34359738368
+  },
+  "generator": {
+    "version": "typed-datalog-latch-e3-v1",
+    "seed": 20260813,
+    "proof_depths": [2, 3, 4, 5],
+    "lure_mixture": {"late": 0.5, "direction": 0.25, "clean": 0.25},
+    "late_lure_extra_steps": [2, 3],
+    "entities_min": 6,
+    "entities_max": 10,
+    "ground_facts_min": 8,
+    "ground_facts_max": 12,
+    "rules_min": 10,
+    "rules_max": 14,
+    "property_words": [
+      "amber", "quiet", "careful", "patient", "silver", "wary",
+      "gentle", "nimble", "vivid", "steady", "lucid", "brisk"
+    ],
+    "relation_verbs": ["guides", "follows", "visits"],
+    "name_syllables": [
+      "mira", "tov", "nera", "kel", "savi", "dor", "luma", "fen",
+      "ravi", "zen", "kora", "pil", "dara", "vex", "nori", "tal",
+      "bela", "sun", "cira", "mon", "fara", "kes", "gali", "rin",
+      "havi", "pol", "jara", "wen", "lori", "dak", "mena", "sil",
+      "pava", "tor", "rena", "vik", "sora", "lun", "tavi", "mer",
+      "zara", "kin", "vani", "ros", "dema", "ful", "nava", "qir"
+    ],
+    "template_families": 6,
+    "template_inventory_sha256": "cbdab209efe1b91d291d99ec358597c38962024e871a300e555d98854c21bbc2",
+    "choice_count": 4,
+    "max_generation_attempts_per_pair": 5000,
+    "types": {
+      "entity": "person",
+      "unary_predicate": "person_to_boolean_property",
+      "binary_relation": "person_x_person_to_boolean"
+    },
+    "examples_per_split": {
+      "controller_train": 8192,
+      "selector_harvest": 2048,
+      "selector_calibration": 1024,
+      "test": 4096,
+      "instrument_probe_train": 400,
+      "competence_smoke_train": 2048,
+      "competence_smoke_validation": 512
+    },
+    "prompt_template": "Synthetic deduction task. Determine which numbered choice (1, 2, 3, or 4) must hold.\n\n{deduction}\n\nDo not assume facts not licensed by the rules."
+  },
+  "common_model": {
+    "substrate_width": 1536,
+    "width": 512,
+    "attention_heads": 8,
+    "ffn_width": 2048,
+    "dropout": 0.1,
+    "latent_plan_slots": 8,
+    "controller_layers": 2,
+    "controller_weight_tied_across_iterations": true,
+    "absolute_iteration_embedding": false,
+    "answer_decoder_layers": 1,
+    "answer_choices": 4,
+    "target_parameter_maximum": 30000000
+  },
+  "critic": {
+    "allowed_features": [
+      "prompt_conditioned_pooled_latent",
+      "prompt_conditioned_pooled_update",
+      "frozen_prompt_representation",
+      "update_norm",
+      "consecutive_update_cosine",
+      "cross_horizon_latent_agreement",
+      "t_over_16"
+    ],
+    "forbidden_features": [
+      "raw_answer_logits", "answer_probabilities", "top_two_margin", "entropy",
+      "answer_identity", "sampled_answer_frequency", "response_log_probability"
+    ],
+    "frozen_prompt_projection_width": 128,
+    "mlp_widths": [400, 128],
+    "dropout": 0.1,
+    "gradient_clip_norm": 1.0,
+    "target_parameter_range": [700000, 900000]
+  },
+  "training": {
+    "model_seeds": [42, 31415],
+    "batch_size": 8,
+    "controller_updates": 2500,
+    "example_exposures": 20000,
+    "train_horizons": [1, 2, 4],
+    "horizon_schedule": "exact_repeating_balanced",
+    "loss": "four_way_cross_entropy_only",
+    "optimizer": "AdamW",
+    "peak_learning_rate": 0.0003,
+    "minimum_learning_rate": 0.00003,
+    "betas": [0.9, 0.95],
+    "epsilon": 1e-8,
+    "weight_decay": 0.01,
+    "precision": "bfloat16",
+    "tf32": true,
+    "warmup_updates": 500,
+    "plateau_end_update": 2000,
+    "controller_gradient_clip_norm": "INSTRUMENT_DERIVED_FROM_IMMUTABLE_PREFLIGHT",
+    "harvest_updates": [0, 500, 1250, 2000, 2500]
+  },
+  "instrument_probe": {
+    "initialization_seeds": [73001, 73002],
+    "updates_per_initialization": 25,
+    "total_updates": 50,
+    "provisional_safety_clip": 16.0,
+    "mapping": "min(16,max(2,floor(median+0.5)))"
+  },
+  "competence_smoke": {
+    "seed": 73003,
+    "train_examples": 2048,
+    "validation_examples": 512,
+    "batch_size": 8,
+    "updates": 500,
+    "horizon_schedule": [1, 2, 4],
+    "warmup_updates": 50,
+    "validation_horizon": 4,
+    "pass_correct_minimum": 205,
+    "wall_time_cap_seconds": 900
+  },
+  "selectors": {
+    "fit_horizons": [1, 2, 4, 8, 16],
+    "checkpoint_replay_fraction": 0.5,
+    "on_policy_fraction": 0.5,
+    "minimum_training_states_per_seed": 20000,
+    "minimum_calibration_states_per_seed": 10000,
+    "minimum_confidence_matched_pairs_per_seed": 200,
+    "confidence_matched_pair_fraction_min": 0.5,
+    "provenance_gates": {
+      "minimum_overall_critic_auroc": 0.75,
+      "minimum_confidence_matched_concordance": 0.7,
+      "minimum_critic_auroc_advantage_over_confidence": 0.05,
+      "minimum_critic_selection_accuracy_advantage": 0.03,
+      "minimum_on_policy_critic_auroc": 0.7
+    },
+    "hysteretic_latch": {
+      "arm_number": 4,
+      "informational_only": true,
+      "delta_grid": [0.0, 0.02, 0.05, 0.1],
+      "minimum_calibration_gain_retention": 0.9,
+      "excluded_from_adjudication": true
+    }
+  },
+  "nonrecurrent_control": {
+    "parameter_match_relative_tolerance": 0.05,
+    "void_accuracy_strictly_above": 0.8
+  },
+  "evaluation": {
+    "horizons": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32],
+    "t_star_candidates": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    "primary_endpoint": 16,
+    "conditional_endpoint": 32,
+    "minimum_t_star_correct": 2458,
+    "minimum_t_star_gain_correct": 205,
+    "minimum_earlier_correct": 500,
+    "minimum_no_latch_regression_rate": 0.1,
+    "minimum_regression_reduction": 0.8,
+    "minimum_gain_retention": 0.9,
+    "minimum_critic_accuracy_advantage": 0.03,
+    "minimum_confidence_matched_concordance": 0.7
+  },
+  "result_artifact": {
+    "preflight_path": "experiments/06_uesd/results/exp_e3_preflight.json",
+    "canonical_path": "experiments/06_uesd/results/exp_e3_pretrained_latch_mechanics.json",
+    "write_mode": "same_directory_fsync_atomic_no_clobber",
+    "preflight_final_tokens": ["PASS", "PREFLIGHT_STOP", "VOID_NO_ROUTE"]
+  },
+  "self_test": {
+    "seed": 20260814,
+    "examples_per_split": 16,
+    "torch_threads": 2
+  }
+}
