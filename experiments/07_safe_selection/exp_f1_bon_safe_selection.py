@@ -9,12 +9,13 @@ This is a provenance runner, not a landing command.  The fast paths are:
   data;
 * ``--scorer-determinism``: run the frozen operational fixture across three
   clean model loads spanning two fresh Python processes;
+* ``--batch-preflight`` / ``--resolve-cap``: measure throwaway diagnostic
+  duplicates, then immutably bind a cap-safe cohort prefix before retained data;
 
-All retained generation/scoring/evaluation modes fail closed pending holistic
-review.  Once that gate is separately opened, test generation additionally
-requires a complete frozen calibration bank, the preserved headroom gate, and
-an exact outcome-blind calibration rescore.  Completed immutable evidence is
-never overwritten.
+Every canonical mode is hash-attested and advances one persisted, forward-only
+stage ledger.  Test work additionally requires a complete frozen calibration
+bank, the preserved headroom gate, and an exact one-shot outcome-blind rescore.
+Completed gate and result evidence is never overwritten.
 
 The qualified E1 numeric parser and four-category taxonomy are imported
 directly from ``exp_e1_task_band.py``.  The immutable JSON writer and stale-temp
@@ -47,7 +48,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Iterable, Mapping, NoReturn, Sequence
 
 # The workspace cache contract must be established before hub clients import.
 HERE = Path(__file__).resolve().parent
@@ -80,7 +81,7 @@ from transformers.modeling_outputs import TokenClassifierOutput  # noqa: E402
 from transformers.utils import logging as transformers_logging  # noqa: E402
 
 
-SCHEMA_VERSION = "2.0.0"
+SCHEMA_VERSION = "3.0.0"
 EXPERIMENT_ID = "exp_f1_bon_safe_selection"
 PUBLIC_GENERATOR = "base-C"
 PUBLIC_VERIFIER = "verifier-V"
@@ -103,6 +104,13 @@ ELIGIBLE_BATCH_SIZES = (8, 16)
 RESOLVED_BATCH_SIZE = 8
 CAP_AUTHORIZING_SECONDS = 8_100.0
 MAX_PREFLIGHT_RESERVED_BYTES = 20 * 1024**3
+HISTORICAL_SMOKE_TIMING_ARTIFACT_SHA256 = (
+    "db64bbf7f44d4135fa7960ce37aa6cfb79abe177ad5aa16ed92327490e327112"
+)
+HISTORICAL_SMOKE_GENERATION_LOAD_SECONDS = 3.162245300001814
+HISTORICAL_SMOKE_GENERATION_WALL_SECONDS = 110.15521369999624
+HISTORICAL_SMOKE_SCORING_LOAD_SECONDS = 8.827072100000805
+HISTORICAL_SMOKE_SCORING_WALL_SECONDS = 2.666824199986877
 SCORER_CONTRACT = "verifier-V / maintained-eager-BF16-v1"
 SCORER_INTERNAL_REFERENCE = (1.0, 0.1923828125, 0.98046875, 1.0)
 SCORER_INTERNAL_REFERENCE_BF16_BITS = (16256, 15941, 16251, 16256)
@@ -111,7 +119,6 @@ SCORER_FIXTURE_INPUT_SHA256 = (
 )
 SCORER_DETERMINISM_STOP = "PREFLIGHT_STOP_SCORER_NONDETERMINISM"
 SCORER_RESCORE_VOID = "VOID_SCORER_RESCORE_MISMATCH"
-SUCCESSOR_REVIEW_STATUS = "READY_FOR_HOLISTIC_REVIEW"
 PREFIXES = (1, 2, 4, 8, 16)
 MAX_NEW_TOKENS = 256
 TEMPERATURE = 0.7
@@ -146,6 +153,30 @@ DELTA_GRID = (0.00, 0.01, 0.02, 0.03, 0.05, 0.075, 0.10, 0.15, 0.20, 0.30)
 LAMBDA_GRID = (0.000, 0.005, 0.010, 0.020, 0.030, 0.050, 0.075, 0.100)
 BUDGET_GRID = (1, 2, 4, 8, 16)
 FINAL_TOKENS = {"CONFIRM", "KILL", "VOID"}
+NOT_APPLICABLE = "N/A"
+CLAIM_CONTRACT_SECTION = "Claim-language contract"
+STAGE_ORDER = ("probe", "cap_resolution", "calibration", "viability", "rescore", "test")
+STAGE_STATES = {
+    "probe": ("PASS",),
+    "cap_resolution": ("PASS",),
+    "calibration": ("STARTED", "PASS"),
+    "viability": ("PASS", "STOP"),
+    "rescore": ("STARTED", "PASS", "VOID"),
+    "test": ("STARTED", "SCORED", "PASS"),
+}
+
+
+class StageTransitionError(RuntimeError):
+    """A persisted stage was skipped, repeated, or advanced out of order."""
+
+
+class VoidIntegrityError(RuntimeError):
+    """A post-retention registered integrity failure that requires VOID landing."""
+
+    def __init__(self, reason: str, stage: str):
+        super().__init__(reason)
+        self.reason = reason
+        self.stage = stage
 
 EXPECTED_HASHES = {
     "demonstration_indices": "6484c68c0c85987f9beb3db42175c46955a8abe05170239580fcd1ff8b514452",
@@ -180,12 +211,14 @@ WORK_ROOT = HF_HOME / "line07_safe_selection_successor_a"
 CALIBRATION_BANK_PATH = WORK_ROOT / "calibration_bank.json"
 TEST_BANK_PATH = WORK_ROOT / "test_bank.json"
 CALIBRATION_FREEZE_PATH = WORK_ROOT / "calibration_freeze.json"
-PREFLIGHT_PATH = WORK_ROOT / "preflight.json"
-REPEAT_DETERMINISM_PATH = WORK_ROOT / "repeat_determinism.json"
 BATCH_PREFLIGHT_PATH = WORK_ROOT / "batch_preflight.json"
+CAP_RESOLUTION_PATH = WORK_ROOT / "cap_resolution.json"
 SCORER_DETERMINISM_PATH = WORK_ROOT / "scorer_determinism.json"
 OUTCOME_BLIND_RESCORE_PATH = WORK_ROOT / "outcome_blind_rescore.json"
+RESCORE_TERMINAL_FAILURE_PATH = WORK_ROOT / "rescore_terminal_failure.json"
 REVIEW_BINDING_PATH = WORK_ROOT / "independent_review_binding.json"
+STAGE_LEDGER_DIR = WORK_ROOT / "stage_ledger"
+GPU_TIME_LEDGER_PATH = WORK_ROOT / "retained_gpu_time_ledger.jsonl"
 IMMUTABLE_TEMP_PREFIX = ".f1-immutable-result-tmp-"
 IMMUTABLE_TEMP_SUFFIX = ".tmp"
 IMMUTABLE_TEMP_GLOB = f"{IMMUTABLE_TEMP_PREFIX}*{IMMUTABLE_TEMP_SUFFIX}"
@@ -307,8 +340,15 @@ def load_artifact_indices(filename: str, *, ordered: bool = True) -> list[int]:
 
 
 def construct_cohorts(
-    *, expose_pilot_test_content: bool = True
+    *,
+    expose_pilot_test_content: bool = True,
+    resolved_calibration_count: int = CALIBRATION_COUNT,
+    resolved_test_count: int = TEST_COUNT,
 ) -> tuple[Dataset, dict[str, list[int]], dict[str, Any]]:
+    if not 0 < resolved_calibration_count <= CALIBRATION_COUNT:
+        raise RuntimeError("resolved calibration count is outside the frozen prefix")
+    if not 0 < resolved_test_count <= TEST_COUNT:
+        raise RuntimeError("resolved test count is outside the frozen prefix")
     dataset = load_dataset(
         DATASET_ID,
         DATASET_CONFIG,
@@ -362,21 +402,25 @@ def construct_cohorts(
     assert_hash("unallocated_indices", comma_hash(successor_source_pool))
     assert_hash("unallocated_content", gsm_rows_hash(train, successor_source_pool))
 
-    calibration = ranked_indices(
+    full_calibration = ranked_indices(
         successor_source_pool, CALIBRATION_SELECTION_STRING, CALIBRATION_COUNT
     )
-    calibration_set = set(calibration)
+    full_calibration_set = set(full_calibration)
     test_pool = [
-        index for index in successor_source_pool if index not in calibration_set
+        index for index in successor_source_pool if index not in full_calibration_set
     ]
     if len(test_pool) != 6_444:
         raise RuntimeError("successor test pool has the wrong size")
-    test = ranked_indices(test_pool, TEST_SELECTION_STRING, TEST_COUNT)
+    full_test = ranked_indices(test_pool, TEST_SELECTION_STRING, TEST_COUNT)
+    calibration = full_calibration[:resolved_calibration_count]
+    test = full_test[:resolved_test_count]
+    calibration_set = set(calibration)
     selected_set = calibration_set | set(test)
     unallocated = [
         index for index in successor_source_pool if index not in selected_set
     ]
-    if len(unallocated) != 5_932:
+    expected_unallocated = len(successor_source_pool) - len(calibration) - len(test)
+    if len(unallocated) != expected_unallocated:
         raise RuntimeError("successor unallocated pool has the wrong size")
 
     calibration_hash = gsm_rows_hash(train, calibration)
@@ -389,9 +433,9 @@ def construct_cohorts(
         raise RuntimeError("successor test content slot is not registered")
     unallocated_hash = gsm_rows_hash(train, unallocated)
 
-    if len(set(calibration)) != CALIBRATION_COUNT:
+    if len(set(calibration)) != resolved_calibration_count:
         raise RuntimeError("calibration cohort is not unique")
-    if len(set(test)) != TEST_COUNT:
+    if len(set(test)) != resolved_test_count:
         raise RuntimeError("test cohort is not unique")
     if calibration_set & set(test):
         raise RuntimeError("calibration/test cohort overlap")
@@ -408,7 +452,7 @@ def construct_cohorts(
     calibration_questions = [
         normalized_question(train[i]["question"]) for i in calibration
     ]
-    if len(set(calibration_questions)) != CALIBRATION_COUNT:
+    if len(set(calibration_questions)) != resolved_calibration_count:
         raise RuntimeError("calibration normalized questions are not unique")
     if set(calibration_questions) & prior_questions:
         raise RuntimeError("calibration questions overlap prior consumption")
@@ -416,7 +460,7 @@ def construct_cohorts(
         raise RuntimeError("calibration questions overlap original line-07 rows")
     if expose_pilot_test_content:
         test_questions = [normalized_question(train[i]["question"]) for i in test]
-        if len(set(test_questions)) != TEST_COUNT:
+        if len(set(test_questions)) != resolved_test_count:
             raise RuntimeError("test normalized questions are not unique")
         if set(calibration_questions) & set(test_questions):
             raise RuntimeError("calibration/test normalized-question overlap")
@@ -447,12 +491,19 @@ def construct_cohorts(
             "source_pool": len(successor_source_pool),
             "original_rows_excluded": len(original_selected),
             "unallocated": len(unallocated),
+            "full_frozen_calibration": len(full_calibration),
+            "full_frozen_test": len(full_test),
+            "cohorts_are_frozen_ordered_prefixes": True,
             "calibration_test_overlap": 0,
             "selected_demonstration_overlap": 0,
             "calibration_prior_question_overlap": 0,
             "test_prior_question_overlap": (
                 0 if expose_pilot_test_content else "registered_not_reaccessed"
             ),
+        },
+        "resolved_ordered_indices": {
+            "calibration": [int(index) for index in calibration],
+            "test": [int(index) for index in test],
         },
         "pilot_test_content_revalidated_in_this_process": expose_pilot_test_content,
         "hashes": {
@@ -681,11 +732,20 @@ def permutation_schedule(count: int = PERMUTATION_REPLICATES) -> list[list[int]]
     return result
 
 
-def validate_schedules(cohorts: Mapping[str, Sequence[int]]) -> dict[str, Any]:
+def validate_schedules(
+    cohorts: Mapping[str, Sequence[int]],
+    *,
+    batch_size: int = RESOLVED_BATCH_SIZE,
+    enforce_registered_full_bank: bool = True,
+) -> dict[str, Any]:
     seeds = generation_schedule(cohorts)
     seed_hash = comma_hash(seeds)
-    assert len(seeds) == (CALIBRATION_COUNT + TEST_COUNT) * CANDIDATE_COUNT
-    mixed = mixed_generation_schedule(cohorts)
+    expected_seed_count = (
+        len(cohorts["calibration"]) + len(cohorts["test"])
+    ) * CANDIDATE_COUNT
+    if len(seeds) != expected_seed_count:
+        raise RuntimeError("generation schedule denominator drift")
+    mixed = mixed_generation_schedule(cohorts, batch_size=batch_size)
     mixed_hash = sha256_bytes(canonical_json_bytes(mixed))
     batch_seeds = [int(row["batch_seed"]) for row in mixed if row["batch_seed"]]
     batch_seed_hash = comma_hash(batch_seeds)
@@ -695,7 +755,10 @@ def validate_schedules(cohorts: Mapping[str, Sequence[int]]) -> dict[str, Any]:
     )
     bootstrap_hash = sha256_text(
         "\n".join(
-            ",".join(str(value) for value in bootstrap_positions(replicate, TEST_COUNT))
+            ",".join(
+                str(value)
+                for value in bootstrap_positions(replicate, len(cohorts["test"]))
+            )
             for replicate in range(BOOTSTRAP_REPLICATES)
         )
     )
@@ -710,13 +773,18 @@ def validate_schedules(cohorts: Mapping[str, Sequence[int]]) -> dict[str, Any]:
         "successor_permutation_schedule_sha256": permutation_hash,
         "successor_outcome_blind_rescore_schedule_sha256": rescore_hash,
     }
-    for name, actual in bindings.items():
-        registered = registered_slot_value(name)
-        if registered is not None and registered != actual:
-            raise RuntimeError(
-                f"registered successor schedule drift for {name}: "
-                f"expected {registered}, got {actual}"
-            )
+    if enforce_registered_full_bank:
+        if len(cohorts["calibration"]) != CALIBRATION_COUNT or len(
+            cohorts["test"]
+        ) != TEST_COUNT:
+            raise RuntimeError("only the full bank may use pre-cap registered schedules")
+        for name, actual in bindings.items():
+            registered = registered_slot_value(name)
+            if registered is not None and registered != actual:
+                raise RuntimeError(
+                    f"registered successor schedule drift for {name}: "
+                    f"expected {registered}, got {actual}"
+                )
     return {
         "generation_seed_count": len(seeds),
         "generation_schedule_sha256": seed_hash,
@@ -726,7 +794,9 @@ def validate_schedules(cohorts: Mapping[str, Sequence[int]]) -> dict[str, Any]:
         "batch_seed_schedule_sha256": batch_seed_hash,
         "bootstrap_replicates": BOOTSTRAP_REPLICATES,
         "bootstrap_schedule_sha256": bootstrap_hash,
-        "resolved_batch_size": RESOLVED_BATCH_SIZE,
+        "resolved_calibration_count": len(cohorts["calibration"]),
+        "resolved_test_count": len(cohorts["test"]),
+        "resolved_batch_size": batch_size,
         "permutation_count": len(permutations),
         "permutation_schedule_sha256": permutation_hash,
         "outcome_blind_rescore_count": len(rescore_identities),
@@ -886,6 +956,7 @@ def provenance_slots(
     *,
     require_manifest: bool,
     allow_pilot_test_access: bool,
+    validate_bindings: bool = True,
 ) -> dict[str, str | None]:
     slots: dict[str, str | None] = {
         "dataset_train_split_fingerprint": train._fingerprint,
@@ -908,8 +979,8 @@ def provenance_slots(
         "successor_calibration_row_content_sha256": gsm_rows_hash(
             train, cohorts["calibration"]
         ),
-        "successor_test_pool_sorted_indices_sha256": comma_hash(
-            sorted(index for index in [*cohorts["test"], *cohorts["unallocated"]])
+        "successor_test_pool_sorted_indices_sha256": registered_slot_value(
+            "successor_test_pool_sorted_indices_sha256"
         ),
         "successor_test_ordered_indices_sha256": comma_hash(cohorts["test"]),
         "successor_test_sorted_indices_sha256": comma_hash(sorted(cohorts["test"])),
@@ -947,12 +1018,19 @@ def provenance_slots(
                 train, cohorts, entries
             )
         else:
-            slots["successor_test_row_content_sha256"] = registered_slot_value(
-                "successor_test_row_content_sha256"
-            )
-            slots["successor_prompt_serialization_sha256"] = registered_slot_value(
-                "successor_prompt_serialization_sha256"
-            )
+            cap_slots = None
+            if CAP_RESOLUTION_PATH.is_file():
+                cap_report = json.loads(CAP_RESOLUTION_PATH.read_text(encoding="utf-8"))
+                cap_slots = cap_report.get("resolved_provenance_slots")
+            for name in (
+                "successor_test_row_content_sha256",
+                "successor_prompt_serialization_sha256",
+            ):
+                slots[name] = (
+                    cap_slots.get(name)
+                    if isinstance(cap_slots, Mapping)
+                    else registered_slot_value(name)
+                )
         if SCORER_DETERMINISM_PATH.is_file():
             determinism = json.loads(
                 SCORER_DETERMINISM_PATH.read_text(encoding="utf-8")
@@ -969,8 +1047,38 @@ def provenance_slots(
     elif require_manifest:
         raise RuntimeError("manifest-bound provenance slots cannot be filled")
 
+    if not validate_bindings:
+        return slots
+    full_bank = (
+        len(cohorts["calibration"]) == CALIBRATION_COUNT
+        and len(cohorts["test"]) == TEST_COUNT
+    )
+    resolved_binding = None
+    if not full_bank:
+        resolved_binding = json.loads(CAP_RESOLUTION_PATH.read_text(encoding="utf-8"))
+        if resolved_binding.get("status") != "PASS":
+            raise RuntimeError("resized provenance requires a passing cap resolution")
+    cohort_dependent = {
+        "successor_calibration_ordered_indices_sha256",
+        "successor_calibration_sorted_indices_sha256",
+        "successor_calibration_row_content_sha256",
+        "successor_test_ordered_indices_sha256",
+        "successor_test_sorted_indices_sha256",
+        "successor_test_row_content_sha256",
+        "successor_calibration_then_test_ordered_indices_sha256",
+        "successor_remaining_unallocated_sorted_indices_sha256",
+        "successor_remaining_unallocated_row_content_sha256",
+        "successor_prompt_serialization_sha256",
+    }
     for name, actual in slots.items():
         if not name.startswith("successor_"):
+            continue
+        if not full_bank and name in cohort_dependent:
+            expected = resolved_binding["resolved_provenance_slots"].get(name)
+            if expected != actual:
+                raise RuntimeError(
+                    f"cap-resolved provenance drift for {name}: expected {expected}, got {actual}"
+                )
             continue
         registered = registered_slot_value(name)
         if registered is not None and actual != registered:
@@ -1834,43 +1942,57 @@ def _determinism_comparable(report: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def run_scorer_determinism_gate() -> dict[str, Any]:
+    if SCORER_DETERMINISM_PATH.exists():
+        raise RuntimeError("scorer determinism gate is one-shot and already resolved")
     manifest = parse_manifest()
-    loads = [
-        successor_scorer_fixture_load(
-            manifest, load_ordinal=load_ordinal, process_ordinal=1
+    loads: list[dict[str, Any]] = []
+    failure: str | None = None
+    try:
+        loads = [
+            successor_scorer_fixture_load(
+                manifest, load_ordinal=load_ordinal, process_ordinal=1
+            )
+            for load_ordinal in (1, 2)
+        ]
+        child = subprocess.run(
+            [sys.executable, str(Path(__file__).resolve()), "--scorer-determinism-worker"],
+            cwd=str(ROOT),
+            check=True,
+            capture_output=True,
+            text=True,
+            env=dict(os.environ),
         )
-        for load_ordinal in (1, 2)
-    ]
-    child = subprocess.run(
-        [sys.executable, str(Path(__file__).resolve()), "--scorer-determinism-worker"],
-        cwd=str(ROOT),
-        check=True,
-        capture_output=True,
-        text=True,
-        env=dict(os.environ),
-    )
-    child_lines = [line for line in child.stdout.splitlines() if line.strip()]
-    if not child_lines:
-        raise RuntimeError("scorer determinism worker returned no report")
-    loads.append(json.loads(child_lines[-1]))
+        child_lines = [line for line in child.stdout.splitlines() if line.strip()]
+        if not child_lines:
+            raise RuntimeError("scorer determinism worker returned no report")
+        loads.append(json.loads(child_lines[-1]))
+    except Exception as error:  # terminal by preregistration; no retry path
+        failure = f"{type(error).__name__}: {error}"
     comparables = [_determinism_comparable(load) for load in loads]
-    bit_exact = all(item == comparables[0] for item in comparables[1:])
-    status = "PASS" if bit_exact else SCORER_DETERMINISM_STOP
+    bit_exact = (
+        failure is None
+        and len(comparables) == 3
+        and all(item == comparables[0] for item in comparables[1:])
+    )
     report = {
         "schema_version": SCHEMA_VERSION,
         "created_at": utc_now(),
-        "status": status,
+        "status": "PASS" if bit_exact else SCORER_DETERMINISM_STOP,
+        "terminal": not bit_exact,
+        "failure": failure,
         "scorer_contract": SCORER_CONTRACT,
         "clean_loads": len(loads),
-        "fresh_processes": 2,
+        "fresh_processes": 2 if len(loads) == 3 else None,
         "bit_exact_across_loads": bit_exact,
         "loads": loads,
-        "comparison_digest": sha256_bytes(canonical_json_bytes(comparables[0])),
+        "comparison_digest": (
+            sha256_bytes(canonical_json_bytes(comparables[0])) if comparables else None
+        ),
         "retained_generation_performed": False,
         "calibration_rows_accessed": 0,
         "test_rows_accessed": 0,
     }
-    atomic_replace_json(SCORER_DETERMINISM_PATH, report)
+    write_one_shot_gate(SCORER_DETERMINISM_PATH, report)
     if not bit_exact:
         raise RuntimeError(SCORER_DETERMINISM_STOP)
     return report
@@ -2029,6 +2151,35 @@ def persist_candidate_batch(
                 )
 
 
+def persist_scored_batch(
+    partition: str,
+    start_position: int,
+    records: Sequence[Mapping[str, Any]],
+) -> None:
+    """Atomically replace one fully rescored problem after time is durably charged."""
+    path = bank_database_path(partition)
+    with contextlib.closing(sqlite3.connect(path)) as connection:
+        with connection:
+            connection.execute("PRAGMA synchronous=FULL")
+            for offset, record in enumerate(records):
+                cursor = connection.execute(
+                    """
+                    UPDATE candidates SET record_json = ?
+                    WHERE position = ? AND dataset_index = ?
+                      AND candidate_ordinal = ? AND seed = ?
+                    """,
+                    (
+                        json.dumps(record, ensure_ascii=False, allow_nan=False),
+                        start_position + offset,
+                        int(record["dataset_index"]),
+                        int(record["candidate_ordinal"]),
+                        int(record["seed"]),
+                    ),
+                )
+                if cursor.rowcount != 1:
+                    raise RuntimeError("scored-batch update lost its candidate binding")
+
+
 def bank_content_digest(bank: Mapping[str, Any]) -> str:
     return sha256_bytes(canonical_json_bytes(bank))
 
@@ -2112,7 +2263,9 @@ def validate_bank_records(bank: Mapping[str, Any], indices: Sequence[int]) -> No
         ):
             raise RuntimeError("resumable bank seed drift")
         legacy_smoke = (
-            partition == "calibration" and position < RETAINED_SMOKE_CANDIDATE_COUNT
+            partition == "calibration"
+            and "legacy_smoke_protocol_slots" in bank
+            and position < RETAINED_SMOKE_CANDIDATE_COUNT
         )
         if legacy_smoke:
             if any(
@@ -2127,16 +2280,17 @@ def validate_bank_records(bank: Mapping[str, Any], indices: Sequence[int]) -> No
                 raise RuntimeError("retained batch-size-1 smoke record was rewritten")
             continue
         ordinal = int(record["candidate_ordinal"])
-        first_ordinal = ((ordinal - 1) // RESOLVED_BATCH_SIZE) * RESOLVED_BATCH_SIZE + 1
+        batch_size = int(bank.get("resolved_batch_size", RESOLVED_BATCH_SIZE))
+        first_ordinal = ((ordinal - 1) // batch_size) * batch_size + 1
         expected_batch_seed, expected_payload_hash = batch_seed(
             partition,
             int(record["dataset_index"]),
             first_ordinal,
-            RESOLVED_BATCH_SIZE,
+            batch_size,
         )
         expected_batch_fields = {
             "batch_seed": expected_batch_seed,
-            "batch_size": RESOLVED_BATCH_SIZE,
+            "batch_size": batch_size,
             "batch_row": ordinal - first_ordinal,
             "batch_payload_sha256": expected_payload_hash,
         }
@@ -2154,15 +2308,21 @@ def generate_bank_prefix(
     manifest: Mapping[str, str],
     *,
     problem_limit: int | None = None,
+    batch_size: int = RESOLVED_BATCH_SIZE,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     selected_indices = list(indices[:problem_limit] if problem_limit else indices)
     bank = load_or_create_bank(partition, indices, slots)
+    if "resolved_batch_size" not in bank:
+        bank["resolved_batch_size"] = batch_size
+    elif int(bank["resolved_batch_size"]) != batch_size:
+        raise RuntimeError("resumable bank batch-size binding changed")
     validate_bank_records(bank, indices)
     target_count = len(selected_indices) * CANDIDATE_COUNT
-    if len(bank["records"]) >= target_count and problem_limit is not None:
-        telemetry = bank.get("telemetry", {}).get("generation")
+    if len(bank["records"]) >= target_count:
+        telemetry_rows = bank.get("telemetry", {}).get("generation_invocations", [])
+        telemetry = telemetry_rows[-1] if telemetry_rows else None
         if not telemetry:
-            raise RuntimeError("generated smoke prefix has no bound telemetry")
+            raise RuntimeError("generated prefix has no bound telemetry")
         return bank, telemetry
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if device.type != "cuda":
@@ -2172,7 +2332,10 @@ def generate_bank_prefix(
     load_started = time.perf_counter()
     tokenizer, model = load_generator(manifest, device)
     load_seconds = time.perf_counter() - load_started
+    if problem_limit is None:
+        record_retained_gpu_time(partition, "generation_model_load", load_seconds)
     generation_started = time.perf_counter()
+    accounting_checkpoint = generation_started
     generated_this_run: list[dict[str, Any]] = []
     batch_stop_audits: list[dict[str, Any]] = []
     with PowerSampler.create() as power:
@@ -2191,35 +2354,55 @@ def generate_bank_prefix(
                 generated_this_run.append(record)
                 persist_candidate_record(partition, offset, record, generated=True)
         else:
-            if (
-                partition == "calibration"
-                and len(bank["records"]) < RETAINED_SMOKE_CANDIDATE_COUNT
-            ):
-                raise RuntimeError(
-                    "amended calibration generation requires the immutable smoke prefix"
-                )
             offset = len(bank["records"])
-            if offset % RESOLVED_BATCH_SIZE:
+            if offset % batch_size:
                 raise RuntimeError("resume position is inside an amended atomic batch")
             while offset < target_count:
                 problem_position, ordinal_offset = divmod(offset, CANDIDATE_COUNT)
-                if ordinal_offset % RESOLVED_BATCH_SIZE:
+                if ordinal_offset % batch_size:
                     raise RuntimeError(
                         "amended batch crosses a frozen ordinal boundary"
                     )
-                records, stop_audit = generate_batch(
-                    train,
-                    partition,
-                    selected_indices[problem_position],
-                    ordinal_offset + 1,
-                    RESOLVED_BATCH_SIZE,
-                    tokenizer,
-                    model,
-                    device,
-                )
+                try:
+                    records, stop_audit = generate_batch(
+                        train,
+                        partition,
+                        selected_indices[problem_position],
+                        ordinal_offset + 1,
+                        batch_size,
+                        tokenizer,
+                        model,
+                        device,
+                    )
+                except Exception:
+                    record_retained_gpu_time(
+                        partition,
+                        "generation_failed_batch",
+                        time.perf_counter() - accounting_checkpoint,
+                    )
+                    raise
                 if not stop_audit["per_row_stopping"]["pass"]:
-                    raise RuntimeError("per-row stopping audit failed")
-                persist_candidate_batch(partition, offset, records)
+                    record_retained_gpu_time(
+                        partition,
+                        "generation_failed_stop_audit",
+                        time.perf_counter() - accounting_checkpoint,
+                    )
+                    raise VoidIntegrityError(
+                        "VOID_PER_ROW_STOPPING_AUDIT_FAILED", f"{partition}_generation"
+                    )
+                record_retained_gpu_time(
+                    partition,
+                    "generation_batch_before_bank_commit",
+                    time.perf_counter() - accounting_checkpoint,
+                )
+                accounting_checkpoint = time.perf_counter()
+                try:
+                    persist_candidate_batch(partition, offset, records)
+                except Exception as error:
+                    raise VoidIntegrityError(
+                        "VOID_GENERATED_BANK_PERSISTENCE_FAILURE",
+                        f"{partition}_generation",
+                    ) from error
                 bank["records"].extend(records)
                 generated_this_run.extend(records)
                 batch_stop_audits.append(
@@ -2230,34 +2413,34 @@ def generate_bank_prefix(
                     }
                 )
                 offset += len(records)
+    if problem_limit is None:
+        record_retained_gpu_time(
+            partition,
+            "generation_finalize_before_metadata_commit",
+            time.perf_counter() - accounting_checkpoint,
+        )
     generation_seconds = time.perf_counter() - generation_started
     total_generated_tokens = sum(
         int(row["generated_tokens"]) for row in generated_this_run
     )
     active_seconds = sum(float(row["generation_seconds"]) for row in generated_this_run)
-    prior = bank.get("telemetry", {}).get("generation")
-    prior_gpu_seconds = 0.0
-    if prior:
-        prior_gpu_seconds = float(
-            prior.get(
-                "cumulative_gpu_wall_seconds",
-                float(prior.get("model_load_seconds", 0.0))
-                + float(prior.get("wall_seconds", 0.0)),
-            )
-        )
+    prior_invocations = bank.get("telemetry", {}).get("generation_invocations", [])
+    prior_gpu_seconds = sum(
+        float(row["gpu_wall_seconds_delta"]) for row in prior_invocations
+    )
+    gpu_delta = load_seconds + generation_seconds
     telemetry = {
         "model_load_seconds": load_seconds,
         "wall_seconds": generation_seconds,
-        "cumulative_gpu_wall_seconds": prior_gpu_seconds
-        + load_seconds
-        + generation_seconds,
+        "gpu_wall_seconds_delta": gpu_delta,
+        "cumulative_partition_gpu_wall_seconds": prior_gpu_seconds + gpu_delta,
         "new_response_count": len(generated_this_run),
         "active_generation_seconds": active_seconds,
         "generated_tokens": total_generated_tokens,
         "tokens_per_second": total_generated_tokens / active_seconds
         if active_seconds
         else None,
-        "responses_per_second": target_count / active_seconds
+        "responses_per_second": len(generated_this_run) / active_seconds
         if active_seconds
         else None,
         "cuda": cuda_telemetry(),
@@ -2265,7 +2448,7 @@ def generate_bank_prefix(
         "per_row_stopping_batch_count": len(batch_stop_audits),
         "per_row_stopping_pass": all(audit["pass"] for audit in batch_stop_audits),
     }
-    bank["telemetry"]["generation"] = telemetry
+    bank["telemetry"].setdefault("generation_invocations", []).append(telemetry)
     if (
         problem_limit is None
         and len(bank["records"]) == bank["expected_candidate_count"]
@@ -2291,14 +2474,26 @@ def score_bank_prefix(
     target_count = (problem_limit or len(indices)) * CANDIDATE_COUNT
     if len(bank["records"]) < target_count:
         raise RuntimeError("requested scoring prefix has not been generated")
-    if problem_limit is not None and all(
+    if all(
         bank["records"][offset].get("verifier_score") is not None
         for offset in range(target_count)
     ):
-        telemetry = bank.get("telemetry", {}).get("scoring")
+        telemetry_rows = bank.get("telemetry", {}).get("scoring_invocations", [])
+        telemetry = telemetry_rows[-1] if telemetry_rows else None
         if not telemetry:
             raise RuntimeError("scored smoke prefix has no bound telemetry")
         return bank, telemetry
+    scored_flags = [
+        bank["records"][offset].get("verifier_score") is not None
+        for offset in range(target_count)
+    ]
+    first_unscored = next(
+        (offset for offset, scored in enumerate(scored_flags) if not scored), target_count
+    )
+    if first_unscored % CANDIDATE_COUNT or any(scored_flags[first_unscored:]):
+        raise VoidIntegrityError(
+            "VOID_SCORING_RESUME_NOT_PROBLEM_ATOMIC", f"{partition}_scoring"
+        )
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if device.type != "cuda":
         raise RuntimeError("verifier scoring requires CUDA")
@@ -2307,31 +2502,74 @@ def score_bank_prefix(
     load_started = time.perf_counter()
     tokenizer, model = load_verifier(manifest, device)
     load_seconds = time.perf_counter() - load_started
+    if problem_limit is None:
+        record_retained_gpu_time(partition, "scoring_model_load", load_seconds)
     score_started = time.perf_counter()
+    accounting_checkpoint = score_started
+    scored_this_run: list[dict[str, Any]] = []
     with PowerSampler.create() as power:
-        for offset in range(target_count):
-            if bank["records"][offset].get("verifier_score") is not None:
-                continue
-            bank["records"][offset] = score_one(
-                bank["records"][offset], tokenizer, model, device
-            )
-            persist_candidate_record(
-                partition, offset, bank["records"][offset], generated=False
-            )
+        for problem_start in range(first_unscored, target_count, CANDIDATE_COUNT):
+            problem_records: list[dict[str, Any]] = []
+            try:
+                for offset in range(problem_start, problem_start + CANDIDATE_COUNT):
+                    problem_records.append(
+                        score_one(bank["records"][offset], tokenizer, model, device)
+                    )
+            except Exception as error:
+                if problem_limit is None:
+                    record_retained_gpu_time(
+                        partition,
+                        "scoring_failed_problem",
+                        time.perf_counter() - accounting_checkpoint,
+                    )
+                raise VoidIntegrityError(
+                    f"VOID_SCORER_INTEGRITY_FAILURE:{type(error).__name__}",
+                    f"{partition}_scoring",
+                ) from error
+            if problem_limit is None:
+                record_retained_gpu_time(
+                    partition,
+                    "scoring_problem_before_bank_commit",
+                    time.perf_counter() - accounting_checkpoint,
+                )
+                accounting_checkpoint = time.perf_counter()
+            try:
+                persist_scored_batch(partition, problem_start, problem_records)
+            except Exception as error:
+                raise VoidIntegrityError(
+                    "VOID_SCORED_BANK_PERSISTENCE_FAILURE", f"{partition}_scoring"
+                ) from error
+            bank["records"][
+                problem_start : problem_start + CANDIDATE_COUNT
+            ] = problem_records
+            scored_this_run.extend(problem_records)
+    if problem_limit is None:
+        record_retained_gpu_time(
+            partition,
+            "scoring_finalize_before_metadata_commit",
+            time.perf_counter() - accounting_checkpoint,
+        )
     score_seconds = time.perf_counter() - score_started
-    selected = bank["records"][:target_count]
-    active_seconds = sum(float(row["verifier_seconds"]) for row in selected)
-    scored_tokens = sum(int(row["verifier_scored_tokens"]) for row in selected)
+    active_seconds = sum(float(row["verifier_seconds"]) for row in scored_this_run)
+    scored_tokens = sum(int(row["verifier_scored_tokens"]) for row in scored_this_run)
+    prior_invocations = bank.get("telemetry", {}).get("scoring_invocations", [])
+    prior_gpu_seconds = sum(
+        float(row["gpu_wall_seconds_delta"]) for row in prior_invocations
+    )
+    gpu_delta = load_seconds + score_seconds
     telemetry = {
         "model_load_seconds": load_seconds,
         "wall_seconds": score_seconds,
+        "gpu_wall_seconds_delta": gpu_delta,
+        "cumulative_partition_gpu_wall_seconds": prior_gpu_seconds + gpu_delta,
+        "new_score_count": len(scored_this_run),
         "active_scoring_seconds": active_seconds,
         "verifier_scored_tokens": scored_tokens,
         "tokens_per_second": scored_tokens / active_seconds if active_seconds else None,
         "cuda": cuda_telemetry(),
         "power": power.summary(active_seconds),
     }
-    bank["telemetry"]["scoring"] = telemetry
+    bank["telemetry"].setdefault("scoring_invocations", []).append(telemetry)
     if problem_limit is None and target_count == bank["expected_candidate_count"]:
         bank["complete_scoring"] = True
     atomic_replace_json(bank_path(partition), _bank_metadata(bank))
@@ -3174,6 +3412,7 @@ def validate_result_schema(result: Mapping[str, Any]) -> None:
         "permutations",
         "compute",
         "adjudication",
+        "claim_language_contract",
         "final_token",
     }
     missing = sorted(required - set(result))
@@ -3183,9 +3422,40 @@ def validate_result_schema(result: Mapping[str, Any]) -> None:
         raise ValueError("result schema version changed")
     if result["final_token"] not in FINAL_TOKENS:
         raise ValueError("result final token is invalid")
+    if result["claim_language_contract"] != _claim_language_contract():
+        raise ValueError("result is not bound to the canonical claim-language contract")
+    scientific_fields = (
+        "calibration",
+        "candidate_records",
+        "policy_results",
+        "bootstrap",
+        "permutations",
+    )
+    if result["final_token"] == "VOID":
+        if any(result[name] != NOT_APPLICABLE for name in scientific_fields):
+            raise ValueError("VOID scientific fields must be N/A")
+        adjudication = result["adjudication"]
+        if (
+            adjudication.get("final_token") != "VOID"
+            or adjudication.get("scientific_adjudication") != NOT_APPLICABLE
+            or not adjudication.get("reason")
+        ):
+            raise ValueError("VOID adjudication lacks reason/N-A discipline")
+        return
+    if any(result[name] == NOT_APPLICABLE for name in scientific_fields):
+        raise ValueError("CONFIRM/KILL scientific fields may not be N/A")
+    cap_resolution = result["protocol"].get("cap_resolution", {})
+    counts = cap_resolution.get("resolved_counts", {})
+    calibration_count = int(counts.get("calibration", -1))
+    test_count = int(counts.get("test", -1))
+    if not 0 < calibration_count <= CALIBRATION_COUNT:
+        raise ValueError("result calibration denominator is not cap-resolved")
+    if not 0 < test_count <= TEST_COUNT:
+        raise ValueError("result test denominator is not cap-resolved")
     records = result["candidate_records"]
-    if len(records) != 12_288:
-        raise ValueError("result must bind all 12,288 candidate records")
+    expected_records = (calibration_count + test_count) * CANDIDATE_COUNT
+    if len(records) != expected_records:
+        raise ValueError(f"result must bind all {expected_records} resolved candidates")
     required_record = {
         "dataset_index",
         "candidate_ordinal",
@@ -3234,12 +3504,36 @@ def validate_result_schema(result: Mapping[str, Any]) -> None:
         }:
             raise ValueError(f"{policy_key} does not report every frozen prefix")
         ledgers = result["policy_results"][policy_key].get("switch_ledgers")
-        if not isinstance(ledgers, list) or len(ledgers) != TEST_COUNT:
-            raise ValueError(f"{policy_key} lacks 512 switch ledgers")
+        if not isinstance(ledgers, list) or len(ledgers) != test_count:
+            raise ValueError(f"{policy_key} lacks {test_count} switch ledgers")
         if any(len(ledger.get("events", [])) != 15 for ledger in ledgers):
             raise ValueError(f"{policy_key} has an incomplete switch ledger")
     if result["adjudication"]["final_token"] != result["final_token"]:
         raise ValueError("adjudication token mismatch")
+
+    def check_denominators(value: Any, path: str) -> None:
+        if isinstance(value, Mapping):
+            if {"numerator", "denominator", "rate"} <= set(value):
+                numerator = value["numerator"]
+                denominator = value["denominator"]
+                rate = value["rate"]
+                if not isinstance(denominator, int) or denominator < 0:
+                    raise ValueError(f"{path} has an invalid denominator")
+                if denominator == 0:
+                    if rate is not None:
+                        raise ValueError(f"{path} reports a vacuous rate")
+                elif not isinstance(rate, (int, float)) or not math.isclose(
+                    float(rate), float(numerator) / denominator, rel_tol=0.0, abs_tol=1e-12
+                ):
+                    raise ValueError(f"{path} rate does not match numerator/denominator")
+            for key, child in value.items():
+                check_denominators(child, f"{path}.{key}")
+        elif isinstance(value, list):
+            for index, child in enumerate(value):
+                check_denominators(child, f"{path}[{index}]")
+
+    for name in ("calibration", "policy_results", "bootstrap", "permutations"):
+        check_denominators(result[name], name)
 
 
 def _open_exclusive_private_temp(directory: Path) -> tuple[Path, Any]:
@@ -3310,108 +3604,507 @@ def _atomic_no_clobber_bytes(payload: bytes, path: Path) -> None:
                 temporary.unlink()
 
 
+def write_one_shot_gate(path: Path, report: Mapping[str, Any]) -> None:
+    """Write a controlling gate exactly once; PASS and terminal failure are final."""
+    payload = (json.dumps(report, indent=2, allow_nan=False) + "\n").encode("utf-8")
+    try:
+        _atomic_no_clobber_bytes(payload, path)
+    except RuntimeError as error:
+        raise RuntimeError(f"one-shot gate already resolved: {path}") from error
+
+
+def _claim_language_contract() -> dict[str, Any]:
+    text = PREREGISTRATION_PATH.read_text(encoding="utf-8").replace("\r\n", "\n")
+    marker = f"## {CLAIM_CONTRACT_SECTION}\n"
+    start = text.find(marker)
+    if start < 0:
+        raise RuntimeError("claim-language contract section is missing")
+    end = text.find("\n## ", start + len(marker))
+    if end < 0:
+        raise RuntimeError("claim-language contract section has no closing heading")
+    section = text[start:end].rstrip("\n")
+    return {
+        "source": "experiments/07_safe_selection/PREREGISTRATION.md",
+        "section": CLAIM_CONTRACT_SECTION,
+        "section_sha256": sha256_text(section),
+        "required_scope_phrase": (
+            "on this frozen generator-verifier pair and frozen GSM8K train-split cohort"
+        ),
+        "ratio_language_requires_named_rates": True,
+        "zero_numerator_requires_denominator_and_one_sided_bound": True,
+        "forbidden_claims": [
+            "never gets worse",
+            "cannot abandon a correct answer",
+            "eliminates harmful replacement",
+            "virtually never",
+            "monotonic",
+            "anytime-safe",
+        ],
+    }
+
+
+def _ledger_events(directory: Path) -> list[dict[str, Any]]:
+    if not directory.exists():
+        return []
+    paths = sorted(directory.glob("*.json"))
+    if [path.name for path in paths] != [
+        f"{index:08d}.json" for index in range(1, len(paths) + 1)
+    ]:
+        raise StageTransitionError(f"ledger sequence is not contiguous: {directory}")
+    events: list[dict[str, Any]] = []
+    previous_digest: str | None = None
+    for index, path in enumerate(paths, start=1):
+        event = json.loads(path.read_text(encoding="utf-8"))
+        digest = event.pop("event_sha256", None)
+        if event.get("event_index") != index:
+            raise StageTransitionError(f"ledger event index drift: {path}")
+        if event.get("previous_event_sha256") != previous_digest:
+            raise StageTransitionError(f"ledger hash chain drift: {path}")
+        actual = sha256_bytes(canonical_json_bytes(event))
+        if digest != actual:
+            raise StageTransitionError(f"ledger event digest drift: {path}")
+        event["event_sha256"] = digest
+        events.append(event)
+        previous_digest = digest
+    return events
+
+
+def _append_ledger_event(directory: Path, payload: Mapping[str, Any]) -> dict[str, Any]:
+    events = _ledger_events(directory)
+    event = {
+        "event_index": len(events) + 1,
+        "previous_event_sha256": events[-1]["event_sha256"] if events else None,
+        "created_at": utc_now(),
+        "runner_source_sha256": sha256_file(Path(__file__).resolve()),
+        **dict(payload),
+    }
+    event["event_sha256"] = sha256_bytes(canonical_json_bytes(event))
+    path = directory / f"{event['event_index']:08d}.json"
+    _atomic_no_clobber_bytes(
+        (json.dumps(event, indent=2, allow_nan=False) + "\n").encode("utf-8"), path
+    )
+    return event
+
+
+def _stage_snapshot(directory: Path = STAGE_LEDGER_DIR) -> dict[str, str]:
+    snapshot: dict[str, str] = {}
+    last_index = -1
+    terminal = False
+    for event in _ledger_events(directory):
+        stage = str(event.get("stage"))
+        state = str(event.get("state"))
+        if stage not in STAGE_ORDER or state not in STAGE_STATES[stage]:
+            raise StageTransitionError("stage ledger contains an unknown transition")
+        index = STAGE_ORDER.index(stage)
+        if terminal or index < last_index or index > last_index + 1:
+            raise StageTransitionError("stage ledger is not forward-only")
+        previous = snapshot.get(stage)
+        allowed = {
+            "calibration": {None: "STARTED", "STARTED": "PASS"},
+            "test": {None: "STARTED", "STARTED": "SCORED", "SCORED": "PASS"},
+        }.get(stage, {None: state})
+        rescore_terminal_reconcile = (
+            stage == "rescore"
+            and state == "VOID"
+            and previous in {None, "STARTED", "PASS"}
+            and isinstance(event.get("terminal_failure_sha256"), str)
+            and re.fullmatch(r"[0-9a-f]{64}", event["terminal_failure_sha256"])
+        )
+        rescore_progress = stage == "rescore" and (
+            (previous is None and state == "STARTED")
+            or (previous == "STARTED" and state == "PASS")
+        )
+        if stage == "rescore" and state == "VOID" and not rescore_terminal_reconcile:
+            raise StageTransitionError("rescore VOID lacks terminal failure evidence")
+        if stage == "rescore" and not (
+            rescore_progress or rescore_terminal_reconcile
+        ):
+            raise StageTransitionError(f"invalid repeated transition for {stage}: {state}")
+        if (
+            allowed.get(previous) != state
+            and not rescore_progress
+            and not rescore_terminal_reconcile
+        ):
+            raise StageTransitionError(f"invalid repeated transition for {stage}: {state}")
+        if index == last_index + 1:
+            if index and snapshot.get(STAGE_ORDER[index - 1]) != "PASS":
+                raise StageTransitionError(f"stage {stage} skipped its predecessor")
+            last_index = index
+        snapshot[stage] = state
+        terminal = state in {"STOP", "VOID"}
+    return snapshot
+
+
+def advance_stage(
+    stage: str,
+    state: str,
+    *,
+    directory: Path = STAGE_LEDGER_DIR,
+    gpu_time_path: Path = GPU_TIME_LEDGER_PATH,
+    terminal_failure_sha256: str | None = None,
+) -> dict[str, Any]:
+    before = _stage_snapshot(directory)
+    if stage not in STAGE_ORDER or state not in STAGE_STATES[stage]:
+        raise StageTransitionError("unknown stage transition")
+    if before.get(stage) == state:
+        raise StageTransitionError(f"stage transition is one-shot: {stage} {state}")
+    index = STAGE_ORDER.index(stage)
+    previous = before.get(stage)
+    expected = {
+        "calibration": {None: "STARTED", "STARTED": "PASS"},
+        "test": {None: "STARTED", "STARTED": "SCORED", "SCORED": "PASS"},
+    }.get(stage, {None: state}).get(previous)
+    rescore_terminal_reconcile = (
+        stage == "rescore"
+        and state == "VOID"
+        and previous in {None, "STARTED", "PASS"}
+        and isinstance(terminal_failure_sha256, str)
+        and re.fullmatch(r"[0-9a-f]{64}", terminal_failure_sha256)
+    )
+    rescore_progress = stage == "rescore" and (
+        (previous is None and state == "STARTED")
+        or (previous == "STARTED" and state == "PASS")
+    )
+    if stage == "rescore" and state == "VOID" and not rescore_terminal_reconcile:
+        raise StageTransitionError("rescore VOID lacks terminal failure evidence")
+    if stage == "rescore" and not (rescore_progress or rescore_terminal_reconcile):
+        raise StageTransitionError(f"invalid transition for {stage}: {previous} -> {state}")
+    if expected != state and not rescore_progress and not rescore_terminal_reconcile:
+        raise StageTransitionError(f"invalid transition for {stage}: {previous} -> {state}")
+    if previous is None and index and before.get(STAGE_ORDER[index - 1]) != "PASS":
+        raise StageTransitionError(f"stage {stage} skipped its predecessor")
+    if any(STAGE_ORDER.index(name) > index for name in before):
+        raise StageTransitionError(f"stage {stage} cannot move backward")
+    retained_gpu_at_boundary: float | str
+    retained_gpu_ledger_error: str | None = None
+    try:
+        retained_gpu_at_boundary = retained_gpu_seconds(gpu_time_path)
+    except Exception as error:
+        if not rescore_terminal_reconcile:
+            raise
+        retained_gpu_at_boundary = NOT_APPLICABLE
+        retained_gpu_ledger_error = f"{type(error).__name__}: {error}"
+    event_payload = {
+        "stage": stage,
+        "state": state,
+        "retained_gpu_seconds_at_boundary": retained_gpu_at_boundary,
+    }
+    if rescore_terminal_reconcile:
+        event_payload["terminal_failure_sha256"] = terminal_failure_sha256
+        event_payload["retained_gpu_ledger_error"] = retained_gpu_ledger_error
+    event = _append_ledger_event(
+        directory,
+        event_payload,
+    )
+    _stage_snapshot(directory)
+    return event
+
+
+def require_stage(
+    stage: str,
+    state: str = "PASS",
+    *,
+    directory: Path = STAGE_LEDGER_DIR,
+) -> None:
+    actual = _stage_snapshot(directory).get(stage)
+    if actual != state:
+        raise StageTransitionError(
+            f"stage boundary requires {stage}={state}; observed {actual or 'UNRUN'}"
+        )
+    assert_retained_gpu_cap()
+
+
+def ensure_stage_started(stage: str) -> None:
+    snapshot = _stage_snapshot()
+    if stage not in snapshot:
+        advance_stage(stage, "STARTED")
+    elif snapshot[stage] != "STARTED":
+        raise StageTransitionError(
+            f"stage {stage} cannot start from persisted state {snapshot[stage]}"
+        )
+    assert_retained_gpu_cap()
+
+
+def _gpu_time_events(path: Path = GPU_TIME_LEDGER_PATH) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+    events: list[dict[str, Any]] = []
+    previous_digest: str | None = None
+    for index, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError as error:
+            raise StageTransitionError("retained GPU ledger has a partial event") from error
+        digest = event.pop("event_sha256", None)
+        if (
+            event.get("event_index") != index
+            or event.get("previous_event_sha256") != previous_digest
+            or digest != sha256_bytes(canonical_json_bytes(event))
+        ):
+            raise StageTransitionError("retained GPU ledger hash chain drift")
+        event["event_sha256"] = digest
+        events.append(event)
+        previous_digest = digest
+    return events
+
+
+def retained_gpu_seconds(path: Path = GPU_TIME_LEDGER_PATH) -> float:
+    events = _gpu_time_events(path)
+    cumulative = 0.0
+    for event in events:
+        delta = float(event.get("delta_gpu_seconds", -1.0))
+        if delta < 0:
+            raise StageTransitionError("retained GPU ledger contains a negative delta")
+        cumulative += delta
+        if not math.isclose(
+            float(event.get("cumulative_gpu_seconds", -1.0)),
+            cumulative,
+            rel_tol=0.0,
+            abs_tol=1e-9,
+        ):
+            raise StageTransitionError("retained GPU ledger cumulative total drifted")
+    return cumulative
+
+
+def record_retained_gpu_time(
+    stage: str,
+    operation: str,
+    delta_seconds: float,
+    *,
+    path: Path = GPU_TIME_LEDGER_PATH,
+) -> dict[str, Any]:
+    if not math.isfinite(delta_seconds) or delta_seconds < 0:
+        raise ValueError("retained GPU time delta must be finite and nonnegative")
+    events = _gpu_time_events(path)
+    cumulative = retained_gpu_seconds(path) + delta_seconds
+    event = {
+        "event_index": len(events) + 1,
+        "previous_event_sha256": events[-1]["event_sha256"] if events else None,
+        "created_at": utc_now(),
+        "runner_source_sha256": sha256_file(Path(__file__).resolve()),
+        "stage": stage,
+        "operation": operation,
+        "delta_gpu_seconds": delta_seconds,
+        "cumulative_gpu_seconds": cumulative,
+        "authorizing_ceiling_seconds": CAP_AUTHORIZING_SECONDS,
+    }
+    event["event_sha256"] = sha256_bytes(canonical_json_bytes(event))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    line = canonical_json_bytes(event) + b"\n"
+    with path.open("ab") as handle:
+        handle.write(line)
+        handle.flush()
+        os.fsync(handle.fileno())
+    if cumulative > CAP_AUTHORIZING_SECONDS:
+        raise VoidIntegrityError("VOID_RETAINED_GPU_TIME_CAP_EXCEEDED", stage)
+    return event
+
+
+def assert_retained_gpu_cap(path: Path = GPU_TIME_LEDGER_PATH) -> float:
+    cumulative = retained_gpu_seconds(path)
+    if cumulative > CAP_AUTHORIZING_SECONDS:
+        raise VoidIntegrityError("VOID_RETAINED_GPU_TIME_CAP_EXCEEDED", "stage_boundary")
+    return cumulative
+
+
 def write_immutable_result(result: Mapping[str, Any], path: Path) -> None:
     validate_result_schema(result)
     payload = (json.dumps(result, indent=2, allow_nan=False) + "\n").encode("utf-8")
     _atomic_no_clobber_bytes(payload, path)
 
 
-def preflight_projection(
-    generation: Mapping[str, Any], response_count: int
+def land_void_result(
+    reason: str,
+    stage: str,
+    *,
+    protocol: Mapping[str, Any] | None = None,
+    compute: Mapping[str, Any] | None = None,
+    result_path: Path = RESULT_PATH,
+    stage_directory: Path = STAGE_LEDGER_DIR,
+    gpu_time_path: Path = GPU_TIME_LEDGER_PATH,
 ) -> dict[str, Any]:
-    observed_wall = float(generation["wall_seconds"])
-    if response_count <= 0 or observed_wall <= 0:
-        raise RuntimeError("preflight has no generation throughput")
-    projected_stage = observed_wall / response_count * 12_288
-    projected_with_load = projected_stage + float(generation["model_load_seconds"])
-    max_token_projection = 12_288 * MAX_NEW_TOKENS / float(
-        generation["tokens_per_second"]
-    ) + float(generation["model_load_seconds"])
-    return {
-        "basis": "measured_seconds_per_response_on_2x16_retained_calibration_smoke",
-        "observed_responses": response_count,
-        "projected_full_bank_seconds": projected_with_load,
-        "projected_full_bank_hours": projected_with_load / 3600,
-        "max_token_conservative_projection_hours": max_token_projection / 3600,
-        "cap_hours": 2.5,
-        "within_cap": projected_with_load <= 2.5 * 3600,
-        "required_action": (
-            "proceed_to_independent_review_before_canonical_run"
-            if projected_with_load <= 2.5 * 3600
-            else "STOP_AND_APPEND_CONDITIONAL_RESIZE_AMENDMENT"
-        ),
+    try:
+        retained_seconds: float | str = retained_gpu_seconds(gpu_time_path)
+        retained_ledger_error: str | None = None
+    except Exception as error:
+        retained_seconds = NOT_APPLICABLE
+        retained_ledger_error = f"{type(error).__name__}: {error}"
+    result = {
+        "schema_version": SCHEMA_VERSION,
+        "experiment_id": EXPERIMENT_ID,
+        "created_at": utc_now(),
+        "protocol": {
+            "runner_source_sha256": sha256_file(Path(__file__).resolve()),
+            "failed_stage": stage,
+            "stage_ledger": _stage_snapshot(stage_directory),
+            **dict(protocol or {}),
+        },
+        "calibration": NOT_APPLICABLE,
+        "candidate_records": NOT_APPLICABLE,
+        "policy_results": NOT_APPLICABLE,
+        "bootstrap": NOT_APPLICABLE,
+        "permutations": NOT_APPLICABLE,
+        "compute": {
+            "retained_gpu_seconds": retained_seconds,
+            "retained_gpu_ledger_error": retained_ledger_error,
+            **dict(compute or {}),
+        },
+        "adjudication": {
+            "final_token": "VOID",
+            "reason": reason,
+            "scientific_adjudication": NOT_APPLICABLE,
+            "claim_authorized": False,
+        },
+        "claim_language_contract": _claim_language_contract(),
+        "final_token": "VOID",
     }
+    write_immutable_result(result, result_path)
+    return result
 
 
-def candidate_auroc(scores: Sequence[float], labels: Sequence[bool]) -> float:
-    positives = [score for score, label in zip(scores, labels, strict=True) if label]
-    negatives = [
-        score for score, label in zip(scores, labels, strict=True) if not label
-    ]
-    if not positives or not negatives:
-        raise RuntimeError("candidate AUROC requires both correctness classes")
-    concordant = sum(
-        1.0 if positive > negative else 0.5 if positive == negative else 0.0
-        for positive in positives
-        for negative in negatives
-    )
-    return concordant / (len(positives) * len(negatives))
+def _rescore_terminal_failure_digest(report: Mapping[str, Any]) -> str:
+    unsigned = dict(report)
+    unsigned.pop("artifact_sha256", None)
+    return sha256_bytes(canonical_json_bytes(unsigned))
 
 
-def smoke_aggregation_diagnostic(
-    records: Sequence[Mapping[str, Any]],
+def _rescore_pass_artifact_digest(report: Mapping[str, Any]) -> str:
+    unsigned = dict(report)
+    unsigned.pop("artifact_sha256", None)
+    return sha256_bytes(canonical_json_bytes(unsigned))
+
+
+def load_rescore_pass_artifact(
+    path: Path = OUTCOME_BLIND_RESCORE_PATH,
 ) -> dict[str, Any]:
-    if len(records) != RETAINED_SMOKE_CANDIDATE_COUNT:
-        raise RuntimeError("aggregation diagnostic requires the immutable 32 responses")
-    aggregators = {
-        "minimum": min,
-        "product": math.prod,
-        "last": lambda values: values[-1],
-        "arithmetic_mean": statistics.fmean,
+    report = json.loads(path.read_text(encoding="utf-8"))
+    if (
+        report.get("status") != "PASS"
+        or report.get("terminal") is not False
+        or report.get("runner_source_sha256")
+        != sha256_file(Path(__file__).resolve())
+        or report.get("artifact_sha256") != _rescore_pass_artifact_digest(report)
+    ):
+        raise VoidIntegrityError("VOID_SCORER_RESCORE_PASS_ARTIFACT_INVALID", "rescore")
+    return report
+
+
+def load_rescore_terminal_failure(
+    path: Path = RESCORE_TERMINAL_FAILURE_PATH,
+) -> dict[str, Any]:
+    report = json.loads(path.read_text(encoding="utf-8"))
+    if (
+        report.get("status") != "VOID"
+        or report.get("terminal") is not True
+        or report.get("failed_stage") != "rescore"
+        or not report.get("reason")
+        or report.get("runner_source_sha256")
+        != sha256_file(Path(__file__).resolve())
+        or report.get("artifact_sha256") != _rescore_terminal_failure_digest(report)
+    ):
+        raise StageTransitionError("rescore terminal failure artifact is invalid")
+    return report
+
+
+def persist_rescore_terminal_failure(
+    reason: str,
+    failure: str | None,
+    *,
+    details: Mapping[str, Any] | None = None,
+    path: Path = RESCORE_TERMINAL_FAILURE_PATH,
+) -> dict[str, Any]:
+    """Persist the first terminal rescore failure; it controls every retry."""
+    if path.is_file():
+        return load_rescore_terminal_failure(path)
+    report = {
+        "schema_version": SCHEMA_VERSION,
+        "created_at": utc_now(),
+        "status": "VOID",
+        "terminal": True,
+        "failed_stage": "rescore",
+        "reason": reason,
+        "failure": failure,
+        "runner_source_sha256": sha256_file(Path(__file__).resolve()),
+        "details": dict(details or {}),
     }
-    labels = [bool(record["correct"]) for record in records]
-    expected = {
-        "minimum": (0.1541736000, 0.1567845518, 0.3141025641),
-        "product": (0.1367948360, 0.0541080174, 0.6794871795),
-        "last": (0.1542501301, 0.1567845518, 0.3269230769),
-        "arithmetic_mean": (0.1544356712, 0.1600666290, 0.2243589744),
-    }
-    report: dict[str, Any] = {}
-    for name, aggregate in aggregators.items():
-        scores = [
-            float(aggregate([float(value) for value in record["verifier_step_scores"]]))
-            for record in records
-        ]
-        values = (
-            statistics.fmean(
-                score for score, label in zip(scores, labels, strict=True) if label
-            ),
-            statistics.fmean(
-                score for score, label in zip(scores, labels, strict=True) if not label
-            ),
-            candidate_auroc(scores, labels),
+    report["artifact_sha256"] = _rescore_terminal_failure_digest(report)
+    write_one_shot_gate(path, report)
+    return report
+
+
+def reconcile_rescore_terminal(
+    *,
+    failure_path: Path = RESCORE_TERMINAL_FAILURE_PATH,
+    stage_directory: Path = STAGE_LEDGER_DIR,
+    result_path: Path = RESULT_PATH,
+    gpu_time_path: Path = GPU_TIME_LEDGER_PATH,
+    protocol: Mapping[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    """Finish an interrupted rescore VOID landing without rerunning GPU work."""
+    if not failure_path.is_file():
+        return None
+    failure = load_rescore_terminal_failure(failure_path)
+    failure_digest = str(failure["artifact_sha256"])
+    snapshot = _stage_snapshot(stage_directory)
+    if snapshot.get("rescore") != "VOID":
+        if "test" in snapshot:
+            raise StageTransitionError("rescore terminal failure appeared after test access")
+        advance_stage(
+            "rescore",
+            "VOID",
+            directory=stage_directory,
+            gpu_time_path=gpu_time_path,
+            terminal_failure_sha256=failure_digest,
         )
-        if any(
-            abs(actual - target) > 5e-10
-            for actual, target in zip(values, expected[name], strict=True)
+    if result_path.is_file():
+        result = json.loads(result_path.read_text(encoding="utf-8"))
+        validate_result_schema(result)
+        if (
+            result.get("final_token") != "VOID"
+            or result.get("adjudication", {}).get("reason") != failure["reason"]
+            or result.get("protocol", {}).get("rescore_terminal_failure_sha256")
+            != failure_digest
         ):
-            raise RuntimeError(f"stored-score {name} diagnostic changed")
-        report[name] = {
-            "correct_mean": values[0],
-            "incorrect_mean": values[1],
-            "candidate_auroc": values[2],
-        }
-    return {
-        "status": "PASS",
-        "problem_cluster_count": RETAINED_SMOKE_PROBLEM_COUNT,
-        "candidate_count": len(records),
-        "single_step_response_count": sum(
-            len(record["verifier_step_scores"]) == 1 for record in records
-        ),
-        "adjudicating_aggregation": "minimum",
-        "alternate_aggregations_diagnostic_only": True,
-        "aggregations": report,
-    }
+            raise StageTransitionError(
+                "immutable result conflicts with rescore terminal failure"
+            )
+        return result
+    return land_void_result(
+        str(failure["reason"]),
+        "rescore",
+        protocol={
+            **dict(protocol or {}),
+            "rescore_terminal_failure_sha256": failure_digest,
+            "rescore_terminal_failure": failure,
+        },
+        result_path=result_path,
+        stage_directory=stage_directory,
+        gpu_time_path=gpu_time_path,
+    )
+
+
+def terminalize_rescore(
+    reason: str,
+    failure: str | None,
+    *,
+    details: Mapping[str, Any] | None = None,
+    protocol: Mapping[str, Any] | None = None,
+    failure_path: Path = RESCORE_TERMINAL_FAILURE_PATH,
+    stage_directory: Path = STAGE_LEDGER_DIR,
+    result_path: Path = RESULT_PATH,
+    gpu_time_path: Path = GPU_TIME_LEDGER_PATH,
+) -> NoReturn:
+    controlling = persist_rescore_terminal_failure(
+        reason, failure, details=details, path=failure_path
+    )
+    reconcile_rescore_terminal(
+        failure_path=failure_path,
+        stage_directory=stage_directory,
+        result_path=result_path,
+        gpu_time_path=gpu_time_path,
+        protocol=protocol,
+    )
+    raise VoidIntegrityError(str(controlling["reason"]), "rescore")
 
 
 def cap_projection_from_batch_preflight(
@@ -3428,7 +4121,7 @@ def cap_projection_from_batch_preflight(
     s = scoring_wall / RETAINED_SMOKE_CANDIDATE_COUNT
     model_load_overhead = generation_load_seconds + scoring_load
 
-    def hours_for(problem_count: int) -> float:
+    def seconds_for(problem_count: int) -> float:
         return (
             retained_generation
             + g_b * (CANDIDATE_COUNT * problem_count - RETAINED_SMOKE_CANDIDATE_COUNT)
@@ -3436,16 +4129,17 @@ def cap_projection_from_batch_preflight(
             + model_load_overhead
         )
 
-    full_seconds = hours_for(CALIBRATION_COUNT + TEST_COUNT)
-    maximum_problem_count = max(
+    full_seconds = seconds_for(CALIBRATION_COUNT + TEST_COUNT)
+    fitting_counts = [
         problem_count
         for problem_count in range(CALIBRATION_COUNT + TEST_COUNT + 1)
-        if hours_for(problem_count) <= CAP_AUTHORIZING_SECONDS
-    )
-    if maximum_problem_count >= 640:
-        resolved_test = 512
+        if seconds_for(problem_count) <= CAP_AUTHORIZING_SECONDS
+    ]
+    maximum_problem_count = max(fitting_counts, default=0)
+    if maximum_problem_count >= TEST_COUNT + 128:
+        resolved_test = TEST_COUNT
         resolved_calibration = maximum_problem_count - resolved_test
-    elif maximum_problem_count >= 512:
+    elif maximum_problem_count >= TEST_COUNT:
         resolved_calibration = 128
         resolved_test = maximum_problem_count - resolved_calibration
     else:
@@ -3455,6 +4149,16 @@ def cap_projection_from_batch_preflight(
         maximum_problem_count = CALIBRATION_COUNT + TEST_COUNT
         resolved_calibration = CALIBRATION_COUNT
         resolved_test = TEST_COUNT
+    resolved_seconds = (
+        seconds_for(resolved_calibration + resolved_test)
+        if resolved_calibration and resolved_test
+        else None
+    )
+    launch_authorized = (
+        maximum_problem_count >= TEST_COUNT
+        and resolved_seconds is not None
+        and resolved_seconds <= CAP_AUTHORIZING_SECONDS
+    )
     return {
         "formula": "H_b(M)=smoke_generation+g_b*(16M-32)+s*16M+model_load_overhead",
         "retained_smoke_generation_wall_seconds": retained_generation,
@@ -3473,7 +4177,9 @@ def cap_projection_from_batch_preflight(
         "maximum_problem_count_under_ceiling": maximum_problem_count,
         "resolved_calibration_count": resolved_calibration,
         "resolved_test_count": resolved_test,
-        "canonical_launch_size_authorized": maximum_problem_count >= 512,
+        "resolved_bank_projection_seconds": resolved_seconds,
+        "resolved_bank_projection_under_authorizing_ceiling": launch_authorized,
+        "canonical_launch_size_authorized": launch_authorized,
     }
 
 
@@ -3507,23 +4213,37 @@ def batch_generation_preflight(
     manifest: Mapping[str, str],
     requested_batch_size: int,
 ) -> dict[str, Any]:
+    if _stage_snapshot().get("probe") == "PASS":
+        raise StageTransitionError("probe stage already passed; no further probe is allowed")
     if requested_batch_size not in ELIGIBLE_BATCH_SIZES:
         raise RuntimeError("preflight batch size must be 8 or 16")
+    batch8_path = WORK_ROOT / "batch_preflight_8.json"
+    if requested_batch_size == 16:
+        if not batch8_path.is_file():
+            raise StageTransitionError("batch 16 probe requires the one-shot batch 8 probe")
+        batch8 = json.loads(batch8_path.read_text(encoding="utf-8"))
+        if batch8.get("eligible") and batch8.get("projection", {}).get(
+            "full_bank_fits"
+        ):
+            raise StageTransitionError(
+                "batch 8 already fits the full bank; batch 16 is not registered"
+            )
+    gate_path = WORK_ROOT / f"batch_preflight_{requested_batch_size}.json"
+    if gate_path.exists():
+        raise RuntimeError(f"batch-{requested_batch_size} probe is one-shot")
     golden = json.loads(SCORER_DETERMINISM_PATH.read_text(encoding="utf-8"))
     if golden.get("status") != "PASS":
         raise RuntimeError("batch preflight is blocked on the verifier golden replay")
-    original_preflight = json.loads(PREFLIGHT_PATH.read_text(encoding="utf-8"))
-    bank_metadata = json.loads(CALIBRATION_BANK_PATH.read_text(encoding="utf-8"))
-    bank_metadata["records"] = load_bank_database_records("calibration")
-    retained_records = bank_metadata["records"]
-    if len(retained_records) != RETAINED_SMOKE_CANDIDATE_COUNT:
-        raise RuntimeError("retained smoke must contain exactly 32 candidates")
-    if (
-        bank_content_digest(bank_metadata)
-        != original_preflight["retained_bank_content_sha256"]
-    ):
-        raise RuntimeError("immutable retained smoke content digest changed")
-    aggregation = smoke_aggregation_diagnostic(retained_records)
+    original_preflight = {
+        "generation": {
+            "model_load_seconds": HISTORICAL_SMOKE_GENERATION_LOAD_SECONDS,
+            "wall_seconds": HISTORICAL_SMOKE_GENERATION_WALL_SECONDS,
+        },
+        "scoring": {
+            "model_load_seconds": HISTORICAL_SMOKE_SCORING_LOAD_SECONDS,
+            "wall_seconds": HISTORICAL_SMOKE_SCORING_WALL_SECONDS,
+        },
+    }
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if device.type != "cuda":
         raise RuntimeError("batched generation preflight requires CUDA")
@@ -3623,18 +4343,30 @@ def batch_generation_preflight(
         generation_load_seconds,
         original_preflight,
     )
-    eligible = exact_match and vram_pass and stopping_pass and not process_leak
+    technical_eligibility = exact_match and vram_pass and stopping_pass and not process_leak
+    eligible = technical_eligibility and bool(
+        projection["resolved_bank_projection_under_authorizing_ceiling"]
+    )
+    probe_sequence_complete = bool(
+        requested_batch_size == 16 or projection["full_bank_fits"]
+    )
+    prior_eligible = bool(
+        requested_batch_size == 16
+        and batch8.get("eligible")
+        and batch8.get("under_8100_second_projection")
+    )
     report = {
         "schema_version": SCHEMA_VERSION,
         "created_at": utc_now(),
         "mode": "diagnostic_duplicate_batch_preflight",
         "batch_size": requested_batch_size,
         "diagnostic_duplicates_enter_bank_or_metrics": False,
-        "retained_smoke_content_sha256": original_preflight[
-            "retained_bank_content_sha256"
-        ],
+        "diagnostic_successor_rows": [int(v) for v in calibration_indices[:2]],
+        "historical_timing_only_artifact_sha256": (
+            HISTORICAL_SMOKE_TIMING_ARTIFACT_SHA256
+        ),
+        "historical_responses_or_scores_read": False,
         "successor_scorer_determinism": golden,
-        "aggregation_diagnostic": aggregation,
         "generation_model_load_seconds": generation_load_seconds,
         "executions": executions,
         "exact_match_all_32_candidates": exact_match,
@@ -3645,150 +4377,146 @@ def batch_generation_preflight(
         "nan_or_cuda_error": False,
         "process_leak": process_leak,
         "checkpoint_inconsistency": False,
+        "technical_eligibility": technical_eligibility,
+        "under_8100_second_projection": bool(
+            projection["resolved_bank_projection_under_authorizing_ceiling"]
+        ),
         "eligible": eligible,
+        "probe_sequence_complete": probe_sequence_complete,
+        "probe_stage_can_pass": probe_sequence_complete
+        and (eligible or prior_eligible),
         "projection": projection,
         "status": "PASS" if eligible else "FAIL",
     }
-    atomic_replace_json(BATCH_PREFLIGHT_PATH, report)
-    if not eligible:
+    write_one_shot_gate(gate_path, report)
+    if report["probe_stage_can_pass"]:
+        advance_stage("probe", "PASS")
+    if not eligible and not prior_eligible:
         raise RuntimeError("requested batch size is ineligible")
     return report
 
 
-def smoke_run(
-    train: Dataset,
-    cohorts: Mapping[str, list[int]],
-    cohort_evidence: Mapping[str, Any],
-    schedule_evidence: Mapping[str, Any],
+def load_cap_resolution() -> dict[str, Any]:
+    require_stage("cap_resolution")
+    report = json.loads(CAP_RESOLUTION_PATH.read_text(encoding="utf-8"))
+    if (
+        report.get("status") != "PASS"
+        or not report.get("projection", {}).get(
+            "resolved_bank_projection_under_authorizing_ceiling"
+        )
+        or float(report["projection"]["resolved_bank_projection_seconds"])
+        > CAP_AUTHORIZING_SECONDS
+    ):
+        raise RuntimeError("cap resolution is not launch-authorizing")
+    if report.get("runner_source_sha256") != sha256_file(Path(__file__).resolve()):
+        raise RuntimeError("cap resolution is not bound to the current runner")
+    return report
+
+
+def select_cap_probe(
+    eligible_reports: Sequence[Mapping[str, Any]],
+) -> tuple[Mapping[str, Any], str]:
+    if not eligible_reports:
+        raise RuntimeError("cap resolution requires an eligible under-cap probe")
+    full_bank_reports = [
+        report for report in eligible_reports if report["projection"]["full_bank_fits"]
+    ]
+    if full_bank_reports:
+        return (
+            min(full_bank_reports, key=lambda item: int(item["batch_size"])),
+            "smallest_eligible_batch_fitting_full_bank",
+        )
+    return (
+        min(
+            eligible_reports,
+            key=lambda item: (
+                float(item["projection"]["g_b_seconds_per_response"]),
+                int(item["batch_size"]),
+            ),
+        ),
+        "smallest_g_b_among_eligible_resized_batches",
+    )
+
+
+def resolve_cap(
+    manifest: Mapping[str, str],
 ) -> dict[str, Any]:
+    require_stage("probe")
+    if CAP_RESOLUTION_PATH.exists():
+        raise RuntimeError("cap resolution is one-shot and already resolved")
+    eligible_reports = []
+    for batch_size in ELIGIBLE_BATCH_SIZES:
+        path = WORK_ROOT / f"batch_preflight_{batch_size}.json"
+        if not path.is_file():
+            continue
+        report = json.loads(path.read_text(encoding="utf-8"))
+        if report.get("status") == "PASS" and report.get("eligible"):
+            eligible_reports.append(report)
+    probe, selection_rule = select_cap_probe(eligible_reports)
+    projection = probe["projection"]
+    calibration_count = int(projection["resolved_calibration_count"])
+    test_count = int(projection["resolved_test_count"])
+    if calibration_count + test_count < TEST_COUNT:
+        raise RuntimeError("cap resolution does not authorize a canonical launch")
+    train, cohorts, cohort_evidence = construct_cohorts(
+        expose_pilot_test_content=True,
+        resolved_calibration_count=calibration_count,
+        resolved_test_count=test_count,
+    )
+    schedule_evidence = validate_schedules(
+        cohorts,
+        batch_size=int(probe["batch_size"]),
+        enforce_registered_full_bank=False,
+    )
     slots = provenance_slots(
         train,
         cohorts,
         require_manifest=True,
-        allow_pilot_test_access=False,
+        allow_pilot_test_access=True,
+        validate_bindings=False,
     )
-    manifest = parse_manifest()
-    identity_digest, _ = manifest_identity(manifest)
-    if identity_digest != slots["local_manifest_identity_digest"]:
-        raise RuntimeError("manifest identity digest mismatch")
-    bank, generation = generate_bank_prefix(
-        train, "calibration", cohorts["calibration"], slots, manifest, problem_limit=2
-    )
-    bank, scoring = score_bank_prefix(
-        "calibration", cohorts["calibration"], slots, manifest, problem_limit=2
-    )
-    if generation["power"]["sample_count"] == 0:
-        raise RuntimeError("generation power telemetry is missing")
-    if scoring["power"]["sample_count"] == 0:
-        raise RuntimeError("verifier power telemetry is missing")
-    records = bank["records"][:32]
-    projection = preflight_projection(generation, len(records))
-    smoke = {
-        "schema_version": SCHEMA_VERSION,
-        "mode": "retained_calibration_smoke",
-        "status": "PASS" if projection["within_cap"] else "STOP_OVER_CAP",
-        "created_at": utc_now(),
-        "public_models": [PUBLIC_GENERATOR, PUBLIC_VERIFIER],
-        "cohort": cohort_evidence,
-        "schedules": schedule_evidence,
-        "protocol_slots": slots,
-        "problem_count": 2,
-        "candidate_count": len(records),
-        "generation": generation,
-        "scoring": scoring,
-        "projection": projection,
-        "outcome_taxonomy": dict(Counter(row["outcome_category"] for row in records)),
-        "score_range": [
-            min(row["verifier_score"] for row in records),
-            max(row["verifier_score"] for row in records),
-        ],
-        "retained_bank_path": str(CALIBRATION_BANK_PATH.relative_to(ROOT)),
-        "retained_bank_content_sha256": bank_content_digest(bank),
-    }
-    atomic_replace_json(PREFLIGHT_PATH, smoke)
-    return smoke
-
-
-def repeat_determinism_check(
-    train: Dataset,
-    calibration_indices: Sequence[int],
-    slots: Mapping[str, Any],
-    manifest: Mapping[str, str],
-) -> dict[str, Any]:
-    bank = load_or_create_bank("calibration", calibration_indices, slots)
-    if len(bank["records"]) < 2 * CANDIDATE_COUNT:
-        raise RuntimeError(
-            "repeat check requires the retained two-problem calibration smoke"
-        )
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if device.type != "cuda":
-        raise RuntimeError("repeat determinism requires CUDA")
-    tokenizer, model = load_generator(manifest, device)
-    repeated = []
-    for position in range(2 * CANDIDATE_COUNT):
-        expected = bank["records"][position]
-        actual = generate_one(
-            train,
-            int(expected["dataset_index"]),
-            int(expected["candidate_ordinal"]),
-            tokenizer,
-            model,
-            device,
-        )
-        repeated.append(actual)
-    del model, tokenizer
-    gc.collect()
-    torch.cuda.empty_cache()
-    verifier_tokenizer = AutoTokenizer.from_pretrained(
-        manifest[f"{PUBLIC_VERIFIER}-repo-id"],
-        revision=manifest[f"{PUBLIC_VERIFIER}-tokenizer-revision"],
-        local_files_only=True,
-        trust_remote_code=True,
-    )
-    mismatches = []
-    for position, (expected, actual) in enumerate(
-        zip(bank["records"][:32], repeated, strict=True)
-    ):
-        expected_serialized, _ = verifier_serialization(
-            str(expected["question"]),
-            str(expected["scored_response_segment"]),
-            verifier_tokenizer,
-        )
-        actual_serialized, _ = verifier_serialization(
-            str(actual["question"]),
-            str(actual["scored_response_segment"]),
-            verifier_tokenizer,
-        )
-        fields = {
-            "response": expected["response"] == actual["response"],
-            "stop_reason": expected["stop_reason"] == actual["stop_reason"],
-            "extracted_answer": expected["extracted_answer"]
-            == actual["extracted_answer"],
-            "verifier_input_serialization": expected_serialized == actual_serialized,
-        }
-        if not all(fields.values()):
-            mismatches.append({"candidate_position": position, "matches": fields})
     report = {
         "schema_version": SCHEMA_VERSION,
         "created_at": utc_now(),
-        "status": "PASS" if not mismatches else "FAIL",
-        "diagnostic_duplicate_count": len(repeated),
-        "duplicates_enter_metrics": False,
-        "mismatch_count": len(mismatches),
-        "mismatches": mismatches,
-        "calibration_bank_content_sha256": bank_content_digest(bank),
+        "status": "PASS",
+        "stage": "cap_resolution",
+        "runner_source_sha256": sha256_file(Path(__file__).resolve()),
+        "selected_batch_size": int(probe["batch_size"]),
+        "batch_selection_rule": selection_rule,
+        "probe_artifact_sha256": sha256_bytes(canonical_json_bytes(probe)),
+        "projection": projection,
+        "resolved_counts": {
+            "calibration": calibration_count,
+            "test": test_count,
+            "candidate_denominator": (calibration_count + test_count)
+            * CANDIDATE_COUNT,
+            "test_problem_denominator": test_count,
+        },
+        "prefix_derivation": {
+            "calibration": "first resolved_calibration_count rows of frozen 256-row order",
+            "test": "first resolved_test_count rows of frozen 512-row order",
+            "candidate_count_per_problem": CANDIDATE_COUNT,
+        },
+        "cohort": cohort_evidence,
+        "resolved_schedules": schedule_evidence,
+        "resolved_provenance_slots": slots,
+        "retained_gpu_seconds_before_calibration": assert_retained_gpu_cap(),
+        "manifest_identity_digest": manifest_identity(manifest)[0],
     }
-    atomic_replace_json(REPEAT_DETERMINISM_PATH, report)
-    if mismatches:
-        raise RuntimeError("registered repeat-determinism check failed")
+    write_one_shot_gate(CAP_RESOLUTION_PATH, report)
+    write_one_shot_gate(BATCH_PREFLIGHT_PATH, probe)
+    advance_stage("cap_resolution", "PASS")
     return report
 
 
 def freeze_calibration(bank: Mapping[str, Any]) -> dict[str, Any]:
+    require_stage("calibration")
+    if CALIBRATION_FREEZE_PATH.exists():
+        raise RuntimeError("calibration viability gate is one-shot and already resolved")
     if not bank.get("complete_scoring"):
         raise RuntimeError("calibration bank is not completely scored")
     problems = group_records(bank["records"])
-    if len(problems) != CALIBRATION_COUNT:
+    if len(problems) != int(bank["expected_problem_count"]):
         raise RuntimeError(
             "calibration bank does not contain the resolved problem count"
         )
@@ -3852,14 +4580,10 @@ def freeze_calibration(bank: Mapping[str, Any]) -> dict[str, Any]:
         "selection": selected,
     }
     payload["freeze_sha256"] = sha256_bytes(canonical_json_bytes(payload))
-    if CALIBRATION_FREEZE_PATH.exists():
-        existing = json.loads(CALIBRATION_FREEZE_PATH.read_text(encoding="utf-8"))
-        if existing != payload:
-            raise RuntimeError(
-                "calibration freeze already exists with different content"
-            )
-    else:
-        atomic_replace_json(CALIBRATION_FREEZE_PATH, payload)
+    write_one_shot_gate(CALIBRATION_FREEZE_PATH, payload)
+    advance_stage(
+        "viability", "PASS" if viability["status"] == "PASS" else "STOP"
+    )
     return payload
 
 
@@ -3879,19 +4603,23 @@ def load_calibration_freeze() -> dict[str, Any]:
 def outcome_blind_rescore_calibration(
     calibration_indices: Sequence[int], manifest: Mapping[str, str]
 ) -> dict[str, Any]:
-    bank = json.loads(CALIBRATION_BANK_PATH.read_text(encoding="utf-8"))
-    bank["records"] = load_bank_database_records("calibration")
-    if not bank.get("complete_scoring"):
-        raise RuntimeError("outcome-blind rescore requires a complete scored bank")
-    by_identity = {
-        (int(record["dataset_index"]), int(record["candidate_ordinal"])): record
-        for record in bank["records"]
-    }
+    if RESCORE_TERMINAL_FAILURE_PATH.is_file():
+        controlling = load_rescore_terminal_failure()
+        reconcile_rescore_terminal()
+        raise VoidIntegrityError(str(controlling["reason"]), "rescore")
+    require_stage("viability")
+    rescore_state = _stage_snapshot().get("rescore")
+    if rescore_state == "STARTED":
+        reconciled = reconcile_rescore_started(calibration_indices)
+        if reconciled is None:
+            raise AssertionError("rescore STARTED reconciliation returned no verdict")
+        return reconciled
+    if rescore_state is not None:
+        raise StageTransitionError(f"rescore is already terminal at {rescore_state}")
+    if OUTCOME_BLIND_RESCORE_PATH.exists():
+        raise RuntimeError("outcome-blind rescore gate is one-shot and already resolved")
+    advance_stage("rescore", "STARTED")
     identities = outcome_blind_rescore_identities(calibration_indices)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if device.type != "cuda":
-        raise RuntimeError("outcome-blind scorer rescore requires CUDA")
-    tokenizer, model = load_verifier(manifest, device)
     comparison_fields = (
         "verifier_input_sha256",
         "verifier_token_ids_sha256",
@@ -3900,36 +4628,106 @@ def outcome_blind_rescore_calibration(
         "verifier_score_bf16_bits",
         "verifier_output_digest",
     )
-    mismatches = []
-    for identity in identities:
-        original = by_identity.get(identity)
-        if original is None:
-            raise RuntimeError(f"outcome-blind rescore identity absent: {identity}")
-        blind_record = {
-            "question": original["question"],
-            "scored_response_segment": original["scored_response_segment"],
+    bank: dict[str, Any] | None = None
+    model = None
+    tokenizer = None
+    mismatches: list[dict[str, Any]] = []
+    failure: str | None = None
+    terminal_reason: str | None = None
+    load_seconds = 0.0
+    rescore_seconds = 0.0
+    started = time.perf_counter()
+    try:
+        bank = json.loads(CALIBRATION_BANK_PATH.read_text(encoding="utf-8"))
+        bank["records"] = load_bank_database_records("calibration")
+        if not bank.get("complete_scoring"):
+            raise RuntimeError("outcome-blind rescore requires a complete scored bank")
+        by_identity = {
+            (int(record["dataset_index"]), int(record["candidate_ordinal"])): record
+            for record in bank["records"]
         }
-        rescored = score_one(blind_record, tokenizer, model, device)
-        matches = {
-            field: rescored.get(field) == original.get(field)
-            for field in comparison_fields
-        }
-        if not all(matches.values()):
-            mismatches.append(
-                {
-                    "dataset_index": identity[0],
-                    "candidate_ordinal": identity[1],
-                    "matches": matches,
-                }
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        if device.type != "cuda":
+            raise RuntimeError("outcome-blind scorer rescore requires CUDA")
+        load_started = time.perf_counter()
+        tokenizer, model = load_verifier(manifest, device)
+        load_seconds = time.perf_counter() - load_started
+        rescore_started = time.perf_counter()
+        for identity in identities:
+            original = by_identity.get(identity)
+            if original is None:
+                raise RuntimeError(f"outcome-blind rescore identity absent: {identity}")
+            blind_record = {
+                "question": original["question"],
+                "scored_response_segment": original["scored_response_segment"],
+            }
+            rescored = score_one(blind_record, tokenizer, model, device)
+            matches = {
+                field: rescored.get(field) == original.get(field)
+                for field in comparison_fields
+            }
+            if not all(matches.values()):
+                mismatches.append(
+                    {
+                        "dataset_index": identity[0],
+                        "candidate_ordinal": identity[1],
+                        "matches": matches,
+                    }
+                )
+        rescore_seconds = time.perf_counter() - rescore_started
+        if mismatches:
+            terminal_reason = SCORER_RESCORE_VOID
+    except Exception as error:
+        failure = f"{type(error).__name__}: {error}"
+        terminal_reason = f"VOID_SCORER_RESCORE_INTEGRITY_FAILURE:{type(error).__name__}"
+        rescore_seconds = max(0.0, time.perf_counter() - started - load_seconds)
+    finally:
+        try:
+            if model is not None or tokenizer is not None:
+                del model, tokenizer
+            gc.collect()
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
+        except Exception as error:
+            terminal_reason = (
+                f"VOID_SCORER_RESCORE_CLEANUP_FAILURE:{type(error).__name__}"
             )
-    del model, tokenizer
-    gc.collect()
-    torch.cuda.empty_cache()
-    torch.cuda.ipc_collect()
+            failure = f"{type(error).__name__}: {error}"
+    try:
+        record_retained_gpu_time(
+            "rescore", "outcome_blind_integrity_rescore", load_seconds + rescore_seconds
+        )
+    except Exception as error:
+        terminal_reason = (
+            error.reason
+            if isinstance(error, VoidIntegrityError)
+            else f"VOID_SCORER_RESCORE_GPU_LEDGER_FAILURE:{type(error).__name__}"
+        )
+        failure = f"{type(error).__name__}: {error}"
+    passed = terminal_reason is None
+    try:
+        calibration_digest = bank_content_digest(bank) if bank is not None else None
+    except Exception as error:
+        passed = False
+        terminal_reason = "VOID_SCORER_RESCORE_BANK_DIGEST_FAILURE"
+        failure = f"{type(error).__name__}: {error}"
+    try:
+        cumulative_retained_gpu_seconds: float | str = retained_gpu_seconds()
+    except Exception as error:
+        passed = False
+        terminal_reason = (
+            f"VOID_SCORER_RESCORE_GPU_LEDGER_VALIDATION_FAILURE:{type(error).__name__}"
+        )
+        failure = f"{type(error).__name__}: {error}"
+        cumulative_retained_gpu_seconds = NOT_APPLICABLE
     report = {
         "schema_version": SCHEMA_VERSION,
         "created_at": utc_now(),
-        "status": "PASS" if not mismatches else SCORER_RESCORE_VOID,
+        "status": "PASS" if passed else terminal_reason,
+        "terminal": not passed,
+        "failure": failure,
+        "runner_source_sha256": sha256_file(Path(__file__).resolve()),
+        "calibration_bank_content_sha256": calibration_digest,
         "outcome_blind": True,
         "records_rescored": len(identities),
         "rescore_schedule_sha256": sha256_text(
@@ -3938,14 +4736,144 @@ def outcome_blind_rescore_calibration(
         "comparison_fields": list(comparison_fields),
         "mismatch_count": len(mismatches),
         "mismatches": mismatches,
+        "gpu_time": {
+            "model_load_seconds": load_seconds,
+            "rescore_wall_seconds": rescore_seconds,
+            "delta_gpu_seconds": load_seconds + rescore_seconds,
+            "cumulative_retained_gpu_seconds": cumulative_retained_gpu_seconds,
+        },
         "gold_answers_read": False,
         "correctness_fields_read": False,
         "policy_outputs_read": False,
     }
-    atomic_replace_json(OUTCOME_BLIND_RESCORE_PATH, report)
-    if mismatches:
-        raise RuntimeError(SCORER_RESCORE_VOID)
+    if passed:
+        report["artifact_sha256"] = _rescore_pass_artifact_digest(report)
+    if not passed:
+        controlling = persist_rescore_terminal_failure(
+            str(terminal_reason),
+            failure,
+            details={
+                "rescore_report": report,
+                "outcome_blind_rescore_artifact_written": False,
+            },
+        )
+        try:
+            write_one_shot_gate(OUTCOME_BLIND_RESCORE_PATH, report)
+        except Exception:
+            pass
+        reconcile_rescore_terminal()
+        raise VoidIntegrityError(str(controlling["reason"]), "rescore")
+    try:
+        write_one_shot_gate(OUTCOME_BLIND_RESCORE_PATH, report)
+        advance_stage("rescore", "PASS")
+    except Exception as error:
+        terminalize_rescore(
+            f"VOID_SCORER_RESCORE_PASS_COMMIT_FAILURE:{type(error).__name__}",
+            f"{type(error).__name__}: {error}",
+            details={"rescore_report": report},
+        )
     return report
+
+
+def load_outcome_blind_rescore_pass(
+    calibration_indices: Sequence[int],
+) -> dict[str, Any]:
+    if RESCORE_TERMINAL_FAILURE_PATH.is_file():
+        controlling = load_rescore_terminal_failure()
+        reconcile_rescore_terminal()
+        raise VoidIntegrityError(str(controlling["reason"]), "rescore")
+    if _stage_snapshot().get("rescore") == "STARTED":
+        reconciled = reconcile_rescore_started(calibration_indices)
+        if reconciled is None:
+            raise AssertionError("rescore STARTED reconciliation returned no verdict")
+        return reconciled
+    require_stage("rescore")
+    try:
+        report = validate_rescore_pass_bindings(calibration_indices)
+    except Exception as error:
+        terminalize_rescore(
+            f"VOID_SCORER_RESCORE_BINDING_VALIDATION_FAILURE:{type(error).__name__}",
+            f"{type(error).__name__}: {error}",
+        )
+    return report
+
+
+def validate_rescore_pass_bindings(
+    calibration_indices: Sequence[int],
+    *,
+    pass_path: Path = OUTCOME_BLIND_RESCORE_PATH,
+) -> dict[str, Any]:
+    report = load_rescore_pass_artifact(pass_path)
+    expected_schedule = sha256_text(
+        "\n".join(
+            f"{index},{ordinal}"
+            for index, ordinal in outcome_blind_rescore_identities(calibration_indices)
+        )
+    )
+    current_bank = json.loads(CALIBRATION_BANK_PATH.read_text(encoding="utf-8"))
+    current_bank["records"] = load_bank_database_records("calibration")
+    if (
+        report.get("rescore_schedule_sha256") != expected_schedule
+        or report.get("calibration_bank_content_sha256")
+        != bank_content_digest(current_bank)
+    ):
+        raise VoidIntegrityError("VOID_SCORER_RESCORE_BINDING_MISMATCH", "rescore")
+    return report
+
+
+def reconcile_rescore_started(
+    calibration_indices: Sequence[int],
+    *,
+    failure_path: Path = RESCORE_TERMINAL_FAILURE_PATH,
+    pass_path: Path = OUTCOME_BLIND_RESCORE_PATH,
+    stage_directory: Path = STAGE_LEDGER_DIR,
+    result_path: Path = RESULT_PATH,
+    gpu_time_path: Path = GPU_TIME_LEDGER_PATH,
+    validate_bindings: bool = True,
+) -> dict[str, Any] | None:
+    """Resolve a persisted STARTED state without ever rerunning rescore work."""
+    if _stage_snapshot(stage_directory).get("rescore") != "STARTED":
+        return None
+    if failure_path.is_file():
+        controlling = load_rescore_terminal_failure(failure_path)
+        reconcile_rescore_terminal(
+            failure_path=failure_path,
+            stage_directory=stage_directory,
+            result_path=result_path,
+            gpu_time_path=gpu_time_path,
+        )
+        raise VoidIntegrityError(str(controlling["reason"]), "rescore")
+    if pass_path.is_file():
+        try:
+            report = (
+                validate_rescore_pass_bindings(calibration_indices, pass_path=pass_path)
+                if validate_bindings
+                else load_rescore_pass_artifact(pass_path)
+            )
+        except Exception as error:
+            terminalize_rescore(
+                f"VOID_SCORER_RESCORE_BINDING_VALIDATION_FAILURE:{type(error).__name__}",
+                f"{type(error).__name__}: {error}",
+                failure_path=failure_path,
+                stage_directory=stage_directory,
+                result_path=result_path,
+                gpu_time_path=gpu_time_path,
+            )
+        advance_stage(
+            "rescore",
+            "PASS",
+            directory=stage_directory,
+            gpu_time_path=gpu_time_path,
+        )
+        return report
+    terminalize_rescore(
+        "VOID_SCORER_RESCORE_INTERRUPTED",
+        "rescore STARTED persisted without a PASS artifact or terminal failure record",
+        failure_path=failure_path,
+        stage_directory=stage_directory,
+        result_path=result_path,
+        gpu_time_path=gpu_time_path,
+    )
 
 
 def canonical_evaluate(
@@ -3953,20 +4881,24 @@ def canonical_evaluate(
     cohort_evidence: Mapping[str, Any],
     schedule_evidence: Mapping[str, Any],
 ) -> dict[str, Any]:
+    require_stage("test", "SCORED")
     if RESULT_PATH.exists():
         raise RuntimeError("canonical immutable result already exists")
     review_binding = json.loads(REVIEW_BINDING_PATH.read_text(encoding="utf-8"))
-    if review_binding.get("runner_source_sha256") != slots["runner_source_sha256"]:
-        raise RuntimeError("independent review is not bound to the current runner")
-    repeat_report = json.loads(BATCH_PREFLIGHT_PATH.read_text(encoding="utf-8"))
     if (
-        repeat_report.get("status") != "PASS"
-        or repeat_report.get("batch_size") != RESOLVED_BATCH_SIZE
-        or not repeat_report.get("eligible")
+        review_binding.get("runner_source_sha256")
+        != slots["successor_runner_source_sha256"]
     ):
-        raise RuntimeError("canonical evaluation requires the eligible batch preflight")
+        raise RuntimeError("independent review is not bound to the current runner")
+    cap_resolution = load_cap_resolution()
+    repeat_report = json.loads(BATCH_PREFLIGHT_PATH.read_text(encoding="utf-8"))
     calibration_bank = json.loads(CALIBRATION_BANK_PATH.read_text(encoding="utf-8"))
     calibration_bank["records"] = load_bank_database_records("calibration")
+    calibration_indices = [
+        int(calibration_bank["records"][offset]["dataset_index"])
+        for offset in range(0, len(calibration_bank["records"]), CANDIDATE_COUNT)
+    ]
+    load_outcome_blind_rescore_pass(calibration_indices)
     test_bank = json.loads(TEST_BANK_PATH.read_text(encoding="utf-8"))
     test_bank["records"] = load_bank_database_records("test")
     if not calibration_bank.get("complete_scoring") or not test_bank.get(
@@ -3993,6 +4925,7 @@ def canonical_evaluate(
             "slots": dict(slots),
             "cohort": dict(cohort_evidence),
             "schedules": dict(schedule_evidence),
+            "cap_resolution": cap_resolution,
             "decoding": {
                 "do_sample": True,
                 "temperature": TEMPERATURE,
@@ -4000,7 +4933,7 @@ def canonical_evaluate(
                 "top_k": TOP_K,
                 "repetition_penalty": REPETITION_PENALTY,
                 "max_new_tokens": MAX_NEW_TOKENS,
-                "batch_size": RESOLVED_BATCH_SIZE,
+                "batch_size": int(cap_resolution["selected_batch_size"]),
                 "historical_smoke_excluded": True,
                 "dtype": "bfloat16",
             },
@@ -4008,6 +4941,10 @@ def canonical_evaluate(
             "verifier_aggregation": "minimum_positive_class_probability_over_steps",
             "repeat_determinism": repeat_report,
             "independent_review": review_binding,
+            "outcome_blind_rescore": load_outcome_blind_rescore_pass(
+                calibration_indices
+            ),
+            "stage_ledger_before_landing": _stage_snapshot(),
         },
         "calibration": {"freeze": freeze, "policy_results": calibration_results},
         "candidate_records": [*calibration_bank["records"], *test_bank["records"]],
@@ -4017,8 +4954,11 @@ def canonical_evaluate(
         "compute": {
             "calibration": calibration_bank["telemetry"],
             "test": test_bank["telemetry"],
+            "cumulative_retained_gpu_seconds": retained_gpu_seconds(),
+            "authorizing_ceiling_seconds": CAP_AUTHORIZING_SECONDS,
         },
         "adjudication": decision,
+        "claim_language_contract": _claim_language_contract(),
         "final_token": decision["final_token"],
     }
     validate_result_schema(result)
@@ -4178,6 +5118,75 @@ def self_test_fast() -> dict[str, Any]:
     if (set(cohorts["calibration"]) | set(cohorts["test"])) & original_selected:
         raise AssertionError("successor cohort overlaps original allocation")
     schedules = validate_schedules(cohorts)
+    historical_timing = {
+        "generation": {"wall_seconds": HISTORICAL_SMOKE_GENERATION_WALL_SECONDS},
+        "scoring": {
+            "wall_seconds": HISTORICAL_SMOKE_SCORING_WALL_SECONDS,
+            "model_load_seconds": HISTORICAL_SMOKE_SCORING_LOAD_SECONDS,
+        },
+    }
+    resized_projection = cap_projection_from_batch_preflight(
+        [20.0, 20.0], HISTORICAL_SMOKE_GENERATION_LOAD_SECONDS, historical_timing
+    )
+    if (
+        resized_projection["full_bank_fits"]
+        or not resized_projection["canonical_launch_size_authorized"]
+        or resized_projection["resolved_test_count"] != TEST_COUNT
+        or not 128 <= resized_projection["resolved_calibration_count"] < CALIBRATION_COUNT
+        or resized_projection["resolved_bank_projection_seconds"]
+        > CAP_AUTHORIZING_SECONDS
+    ):
+        raise AssertionError("cap-resize formula did not bind an under-ceiling prefix")
+    stopped_projection = cap_projection_from_batch_preflight(
+        [400.0, 400.0],
+        HISTORICAL_SMOKE_GENERATION_LOAD_SECONDS,
+        historical_timing,
+    )
+    if stopped_projection["canonical_launch_size_authorized"]:
+        raise AssertionError("over-cap projection incorrectly authorized a launch")
+    selected_resize, resize_rule = select_cap_probe(
+        [
+            {
+                "batch_size": 8,
+                "projection": {
+                    "full_bank_fits": False,
+                    "g_b_seconds_per_response": 0.7,
+                },
+            },
+            {
+                "batch_size": 16,
+                "projection": {
+                    "full_bank_fits": False,
+                    "g_b_seconds_per_response": 0.5,
+                },
+            },
+        ]
+    )
+    selected_full, full_rule = select_cap_probe(
+        [
+            {
+                "batch_size": 8,
+                "projection": {
+                    "full_bank_fits": True,
+                    "g_b_seconds_per_response": 0.7,
+                },
+            },
+            {
+                "batch_size": 16,
+                "projection": {
+                    "full_bank_fits": True,
+                    "g_b_seconds_per_response": 0.5,
+                },
+            },
+        ]
+    )
+    if (
+        selected_resize["batch_size"] != 16
+        or resize_rule != "smallest_g_b_among_eligible_resized_batches"
+        or selected_full["batch_size"] != 8
+        or full_rule != "smallest_eligible_batch_fitting_full_bank"
+    ):
+        raise AssertionError("cap probe selection rule drifted")
     problem = [
         synthetic_candidate(
             ordinal,
@@ -4270,6 +5279,215 @@ def self_test_fast() -> dict[str, Any]:
             raise AssertionError("immutable writer allowed an overwrite")
         if final.read_bytes() != immutable_payload:
             raise AssertionError("immutable writer changed the completed artifact")
+        gate = directory_path / "one_shot_gate.json"
+        gate_payload = {"status": "PASS", "terminal": False}
+        write_one_shot_gate(gate, gate_payload)
+        try:
+            write_one_shot_gate(gate, {"status": "FAIL", "terminal": True})
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError("one-shot integrity gate allowed a rerun")
+        if json.loads(gate.read_text(encoding="utf-8")) != gate_payload:
+            raise AssertionError("one-shot integrity gate was clobbered")
+        skipped_ledger = directory_path / "skipped_stage_ledger"
+        try:
+            advance_stage("viability", "PASS", directory=skipped_ledger)
+        except StageTransitionError:
+            pass
+        else:
+            raise AssertionError("stage ledger allowed a predecessor skip")
+        if skipped_ledger.exists() and list(skipped_ledger.iterdir()):
+            raise AssertionError("rejected stage skip mutated the ledger")
+        valid_ledger = directory_path / "valid_stage_ledger"
+        for stage, state in (
+            ("probe", "PASS"),
+            ("cap_resolution", "PASS"),
+            ("calibration", "STARTED"),
+            ("calibration", "PASS"),
+            ("viability", "PASS"),
+            ("rescore", "STARTED"),
+            ("rescore", "PASS"),
+            ("test", "STARTED"),
+            ("test", "SCORED"),
+            ("test", "PASS"),
+        ):
+            advance_stage(stage, state, directory=valid_ledger)
+        if _stage_snapshot(valid_ledger) != {
+            "probe": "PASS",
+            "cap_resolution": "PASS",
+            "calibration": "PASS",
+            "viability": "PASS",
+            "rescore": "PASS",
+            "test": "PASS",
+        }:
+            raise AssertionError("valid stage ledger did not replay exactly")
+        void_fixture = {
+            "schema_version": SCHEMA_VERSION,
+            "experiment_id": EXPERIMENT_ID,
+            "created_at": utc_now(),
+            "protocol": {"failed_stage": "rescore"},
+            "calibration": NOT_APPLICABLE,
+            "candidate_records": NOT_APPLICABLE,
+            "policy_results": NOT_APPLICABLE,
+            "bootstrap": NOT_APPLICABLE,
+            "permutations": NOT_APPLICABLE,
+            "compute": {"retained_gpu_seconds": 1.0},
+            "adjudication": {
+                "final_token": "VOID",
+                "reason": SCORER_RESCORE_VOID,
+                "scientific_adjudication": NOT_APPLICABLE,
+            },
+            "claim_language_contract": _claim_language_contract(),
+            "final_token": "VOID",
+        }
+        validate_result_schema(void_fixture)
+        invalid_void = dict(void_fixture, policy_results={})
+        try:
+            validate_result_schema(invalid_void)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("VOID schema allowed scientific fields without N/A")
+        reconciled_stage_states = []
+        for prior_rescore_state in (None, "PASS"):
+            suffix = "absent" if prior_rescore_state is None else "pass"
+            reconcile_ledger = directory_path / f"reconcile_ledger_{suffix}"
+            reconcile_gpu = directory_path / f"reconcile_gpu_{suffix}.jsonl"
+            reconcile_failure = directory_path / f"reconcile_failure_{suffix}.json"
+            reconcile_result = directory_path / f"reconcile_result_{suffix}.json"
+            for stage, state in (
+                ("probe", "PASS"),
+                ("cap_resolution", "PASS"),
+                ("calibration", "STARTED"),
+                ("calibration", "PASS"),
+                ("viability", "PASS"),
+            ):
+                advance_stage(
+                    stage,
+                    state,
+                    directory=reconcile_ledger,
+                    gpu_time_path=reconcile_gpu,
+                )
+            if prior_rescore_state is not None:
+                advance_stage(
+                    "rescore",
+                    "STARTED",
+                    directory=reconcile_ledger,
+                    gpu_time_path=reconcile_gpu,
+                )
+                advance_stage(
+                    "rescore",
+                    prior_rescore_state,
+                    directory=reconcile_ledger,
+                    gpu_time_path=reconcile_gpu,
+                )
+            reconcile_gpu.write_text("{partial-ledger\n", encoding="utf-8")
+            failure_record = persist_rescore_terminal_failure(
+                "VOID_SELF_TEST_RESCORE_FAILURE",
+                "synthetic crash-window fixture",
+                path=reconcile_failure,
+            )
+            first_void = reconcile_rescore_terminal(
+                failure_path=reconcile_failure,
+                stage_directory=reconcile_ledger,
+                result_path=reconcile_result,
+                gpu_time_path=reconcile_gpu,
+            )
+            first_bytes = reconcile_result.read_bytes()
+            second_void = reconcile_rescore_terminal(
+                failure_path=reconcile_failure,
+                stage_directory=reconcile_ledger,
+                result_path=reconcile_result,
+                gpu_time_path=reconcile_gpu,
+            )
+            if (
+                first_void != second_void
+                or reconcile_result.read_bytes() != first_bytes
+                or _stage_snapshot(reconcile_ledger).get("rescore") != "VOID"
+                or first_void["final_token"] != "VOID"
+                or first_void["compute"]["retained_gpu_seconds"] != NOT_APPLICABLE
+                or first_void["protocol"]["rescore_terminal_failure_sha256"]
+                != failure_record["artifact_sha256"]
+            ):
+                raise AssertionError("rescore terminal reconciliation is not idempotent")
+            reconciled_stage_states.append(suffix)
+        interrupted_ledger = directory_path / "interrupted_rescore_ledger"
+        interrupted_gpu = directory_path / "interrupted_rescore_gpu.jsonl"
+        interrupted_failure = directory_path / "interrupted_rescore_failure.json"
+        interrupted_result = directory_path / "interrupted_rescore_result.json"
+        for stage, state in (
+            ("probe", "PASS"),
+            ("cap_resolution", "PASS"),
+            ("calibration", "STARTED"),
+            ("calibration", "PASS"),
+            ("viability", "PASS"),
+            ("rescore", "STARTED"),
+        ):
+            advance_stage(
+                stage,
+                state,
+                directory=interrupted_ledger,
+                gpu_time_path=interrupted_gpu,
+            )
+        try:
+            reconcile_rescore_started(
+                [],
+                failure_path=interrupted_failure,
+                pass_path=directory_path / "missing_rescore_pass.json",
+                stage_directory=interrupted_ledger,
+                result_path=interrupted_result,
+                gpu_time_path=interrupted_gpu,
+                validate_bindings=False,
+            )
+        except VoidIntegrityError as error:
+            if error.reason != "VOID_SCORER_RESCORE_INTERRUPTED":
+                raise AssertionError("mid-rescore interruption landed the wrong VOID")
+        else:
+            raise AssertionError("mid-rescore interruption was allowed to rerun")
+        if _stage_snapshot(interrupted_ledger).get("rescore") != "VOID":
+            raise AssertionError("mid-rescore interruption did not persist VOID")
+        orphan_pass_ledger = directory_path / "orphan_pass_ledger"
+        orphan_pass_gpu = directory_path / "orphan_pass_gpu.jsonl"
+        orphan_pass_failure = directory_path / "orphan_pass_failure.json"
+        orphan_pass_result = directory_path / "orphan_pass_result.json"
+        orphan_pass_path = directory_path / "orphan_pass.json"
+        for stage, state in (
+            ("probe", "PASS"),
+            ("cap_resolution", "PASS"),
+            ("calibration", "STARTED"),
+            ("calibration", "PASS"),
+            ("viability", "PASS"),
+            ("rescore", "STARTED"),
+        ):
+            advance_stage(
+                stage,
+                state,
+                directory=orphan_pass_ledger,
+                gpu_time_path=orphan_pass_gpu,
+            )
+        orphan_pass = {
+            "schema_version": SCHEMA_VERSION,
+            "status": "PASS",
+            "terminal": False,
+            "runner_source_sha256": sha256_file(Path(__file__).resolve()),
+        }
+        orphan_pass["artifact_sha256"] = _rescore_pass_artifact_digest(orphan_pass)
+        write_one_shot_gate(orphan_pass_path, orphan_pass)
+        reconciled_pass = reconcile_rescore_started(
+            [],
+            failure_path=orphan_pass_failure,
+            pass_path=orphan_pass_path,
+            stage_directory=orphan_pass_ledger,
+            result_path=orphan_pass_result,
+            gpu_time_path=orphan_pass_gpu,
+            validate_bindings=False,
+        )
+        if (
+            reconciled_pass != orphan_pass
+            or _stage_snapshot(orphan_pass_ledger).get("rescore") != "PASS"
+        ):
+            raise AssertionError("orphan PASS artifact did not reconcile without CUDA")
         mutable = directory_path / "bank.json"
         atomic_replace_json(mutable, {"records": [1]})
         atomic_replace_json(mutable, {"records": [1, 2]})
@@ -4300,46 +5518,68 @@ def self_test_fast() -> dict[str, Any]:
         "qualified_parser_replay": replay,
         "frozen_policy_rule_checks": policy_rules,
         "schedules": schedules,
+        "cap_resize_prefix_fixture": resized_projection,
+        "over_cap_stop_fixture": stopped_projection,
+        "cap_probe_choice_rules": "PASS",
         "six_policy_determinism_sha256": first_hash,
         "calibration_code_path_status": calibration["status"],
         "bootstrap_schedule_repeat_match": True,
         "permutation_unique_count": len({tuple(row) for row in permutations}),
         "atomic_resume_and_scavenger": "PASS",
+        "one_shot_gate_rerun_rejected": True,
+        "stage_skip_rejected_without_mutation": True,
+        "forward_only_stage_ledger": "PASS",
+        "rescore_terminal_reconcile_absent_or_pass": reconciled_stage_states,
+        "rescore_terminal_reconcile_corrupt_gpu_ledger": "PASS",
+        "rescore_started_without_artifact_lands_void": "PASS",
+        "rescore_orphan_pass_reconciles_without_cuda": "PASS",
+        "void_na_claim_contract_schema": "PASS",
         "transactional_candidate_resume": "PASS",
     }
 
 
-def require_review_attestation(args: argparse.Namespace) -> None:
-    if not args.review_attestation or not re.fullmatch(
-        r"[0-9a-f]{64}", args.review_attestation
-    ):
+def require_review_attestation(args: argparse.Namespace) -> dict[str, str]:
+    pattern = re.compile(
+        r"FINAL_POST_FIX_RUNNER_SHA256=(?P<runner>[0-9a-f]{64});"
+        r"DELTA_REVIEW_SHA256=(?P<review>[0-9a-f]{64})"
+    )
+    match = pattern.fullmatch(args.review_attestation or "")
+    if match is None:
         raise RuntimeError(
-            "canonical stages require --review-attestation with the independent review SHA-256"
+            "canonical stages require a FINAL_POST_FIX_RUNNER_SHA256/"
+            "DELTA_REVIEW_SHA256 attestation token"
         )
+    values = match.groupdict()
+    current = sha256_file(Path(__file__).resolve())
+    if values["runner"] != current:
+        raise RuntimeError(
+            f"review token names runner {values['runner']}, current runner is {current}"
+        )
+    registered = registered_slot_value("successor_runner_source_sha256")
+    if registered != current:
+        raise RuntimeError("current runner hash is not bound in the canonical registration")
+    return values
 
 
 def bind_review_attestation(
-    attestation_sha256: str,
+    attestation: Mapping[str, str],
     slots: Mapping[str, Any],
-    schedule_evidence: Mapping[str, Any],
 ) -> dict[str, Any]:
     binding = {
         "schema_version": SCHEMA_VERSION,
-        "independent_review_attestation_sha256": attestation_sha256,
+        "delta_review_sha256": attestation["review"],
         "runner_source_sha256": slots["successor_runner_source_sha256"],
         "manifest_identity_digest": slots["successor_manifest_identity_digest"],
-        "mixed_generation_schedule_sha256": schedule_evidence[
-            "mixed_generation_schedule_sha256"
-        ],
-        "batch_seed_schedule_sha256": schedule_evidence["batch_seed_schedule_sha256"],
-        "resolved_batch_size": RESOLVED_BATCH_SIZE,
+        "attestation_format": (
+            "FINAL_POST_FIX_RUNNER_SHA256=<runner>;DELTA_REVIEW_SHA256=<review>"
+        ),
     }
     if REVIEW_BINDING_PATH.is_file():
         existing = json.loads(REVIEW_BINDING_PATH.read_text(encoding="utf-8"))
         if existing != binding:
             raise RuntimeError("independent review binding changed between stages")
     else:
-        atomic_replace_json(REVIEW_BINDING_PATH, binding)
+        write_one_shot_gate(REVIEW_BINDING_PATH, binding)
     return binding
 
 
@@ -4352,9 +5592,9 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     modes.add_argument(
         "--scorer-determinism-worker", action="store_true", help=argparse.SUPPRESS
     )
-    modes.add_argument("--smoke", action="store_true")
     modes.add_argument("--batch-preflight", type=int, choices=ELIGIBLE_BATCH_SIZES)
-    modes.add_argument("--repeat-determinism", action="store_true")
+    modes.add_argument("--resolve-cap", action="store_true")
+    modes.add_argument("--rescore", action="store_true")
     modes.add_argument("--generate", choices=("calibration", "test"))
     modes.add_argument("--score", choices=("calibration", "test"))
     modes.add_argument("--evaluate", choices=("calibration", "full"))
@@ -4378,28 +5618,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.scorer_determinism:
         print(json.dumps(run_scorer_determinism_gate(), indent=2, allow_nan=False))
         return 0
-    if not args.cohort_only:
-        raise RuntimeError(
-            f"line-07 successor is {SUCCESSOR_REVIEW_STATUS}; "
-            "retained generation/scoring/evaluation remains blocked pending "
-            "holistic review"
-        )
-    pilot_test_mode = (
-        args.generate == "test" or args.score == "test" or args.evaluate == "full"
-    )
-    if pilot_test_mode:
-        require_review_attestation(args)
-        pre_access_freeze = load_calibration_freeze()
-        if pre_access_freeze["selection"]["status"] != "PASS":
-            raise RuntimeError(
-                "pilot-test content access blocked by calibration outcome"
-            )
-    expose_pilot_test_content = bool(args.cohort_only or pilot_test_mode)
-    train, cohorts, cohort_evidence = construct_cohorts(
-        expose_pilot_test_content=expose_pilot_test_content
-    )
-    schedule_evidence = validate_schedules(cohorts)
     if args.cohort_only:
+        train, cohorts, cohort_evidence = construct_cohorts(
+            expose_pilot_test_content=True
+        )
+        schedule_evidence = validate_schedules(cohorts)
         slots = provenance_slots(
             train,
             cohorts,
@@ -4418,94 +5641,171 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         )
         return 0
-    if args.smoke:
-        print(
-            json.dumps(
-                smoke_run(train, cohorts, cohort_evidence, schedule_evidence),
-                indent=2,
-                allow_nan=False,
-            )
+    attestation = require_review_attestation(args)
+    if RESCORE_TERMINAL_FAILURE_PATH.is_file():
+        controlling = load_rescore_terminal_failure()
+        reconcile_rescore_terminal()
+        raise VoidIntegrityError(str(controlling["reason"]), "rescore")
+    if args.batch_preflight or args.resolve_cap:
+        train, cohorts, cohort_evidence = construct_cohorts(
+            expose_pilot_test_content=False
         )
-        return 0
-    if args.batch_preflight:
-        print(
-            json.dumps(
-                batch_generation_preflight(
-                    train,
-                    cohorts["calibration"],
-                    parse_manifest(),
-                    args.batch_preflight,
-                ),
-                indent=2,
-                allow_nan=False,
-            )
+        schedule_evidence = validate_schedules(cohorts)
+        slots = provenance_slots(
+            train,
+            cohorts,
+            require_manifest=True,
+            allow_pilot_test_access=False,
         )
+        manifest = parse_manifest()
+        bind_review_attestation(attestation, slots)
+        if args.batch_preflight:
+            print(
+                json.dumps(
+                    batch_generation_preflight(
+                        train,
+                        cohorts["calibration"],
+                        manifest,
+                        args.batch_preflight,
+                    ),
+                    indent=2,
+                    allow_nan=False,
+                )
+            )
+            return 0
+        print(json.dumps(resolve_cap(manifest), indent=2, allow_nan=False))
         return 0
-    require_review_attestation(args)
+
+    cap_resolution = load_cap_resolution()
+    calibration_count = int(cap_resolution["resolved_counts"]["calibration"])
+    test_count = int(cap_resolution["resolved_counts"]["test"])
+    batch_size = int(cap_resolution["selected_batch_size"])
+    if _stage_snapshot().get("rescore") == "STARTED":
+        reconciled_rescore = reconcile_rescore_started(
+            cap_resolution["cohort"]["resolved_ordered_indices"]["calibration"]
+        )
+        if args.rescore and reconciled_rescore is not None:
+            print(json.dumps(reconciled_rescore, indent=2, allow_nan=False))
+            return 0
+    pilot_test_mode = (
+        args.generate == "test" or args.score == "test" or args.evaluate == "full"
+    )
+    if pilot_test_mode:
+        load_calibration_freeze()
+        try:
+            load_outcome_blind_rescore_pass(
+                cap_resolution["cohort"]["resolved_ordered_indices"]["calibration"]
+            )
+        except VoidIntegrityError as error:
+            if not RESULT_PATH.exists():
+                land_void_result(error.reason, error.stage)
+            raise
+    train, cohorts, cohort_evidence = construct_cohorts(
+        expose_pilot_test_content=pilot_test_mode,
+        resolved_calibration_count=calibration_count,
+        resolved_test_count=test_count,
+    )
+    schedule_evidence = validate_schedules(
+        cohorts,
+        batch_size=batch_size,
+        enforce_registered_full_bank=False,
+    )
+    if schedule_evidence != cap_resolution["resolved_schedules"]:
+        raise RuntimeError("cap-resolved schedule binding changed")
     slots = provenance_slots(
         train,
         cohorts,
         require_manifest=True,
-        allow_pilot_test_access=expose_pilot_test_content,
+        allow_pilot_test_access=pilot_test_mode,
     )
     manifest = parse_manifest()
-    bind_review_attestation(args.review_attestation, slots, schedule_evidence)
-    if args.repeat_determinism:
-        print(
-            json.dumps(
-                repeat_determinism_check(
-                    train, cohorts["calibration"], slots, manifest
-                ),
-                indent=2,
-                allow_nan=False,
+    bind_review_attestation(attestation, slots)
+    protocol_for_void = {
+        "slots": dict(slots),
+        "cap_resolution": cap_resolution,
+        "cohort": dict(cohort_evidence),
+        "schedules": dict(schedule_evidence),
+    }
+    try:
+        if args.rescore:
+            print(
+                json.dumps(
+                    outcome_blind_rescore_calibration(
+                        cohorts["calibration"], manifest
+                    ),
+                    indent=2,
+                    allow_nan=False,
+                )
             )
-        )
-        return 0
-    if args.generate:
-        if args.generate == "test":
-            freeze = load_calibration_freeze()
-            if freeze["selection"]["status"] != "PASS":
-                raise RuntimeError("test generation blocked by calibration outcome")
-            repeat_report = json.loads(BATCH_PREFLIGHT_PATH.read_text(encoding="utf-8"))
-            if (
-                repeat_report.get("status") != "PASS"
-                or repeat_report.get("batch_size") != RESOLVED_BATCH_SIZE
-                or not repeat_report.get("projection", {}).get("full_bank_fits")
-            ):
-                raise RuntimeError("test generation blocked by amended batch preflight")
-            outcome_blind_rescore_calibration(cohorts["calibration"], manifest)
-        bank, telemetry = generate_bank_prefix(
-            train, args.generate, cohorts[args.generate], slots, manifest
-        )
-        print(
-            json.dumps(
-                {"record_count": len(bank["records"]), "telemetry": telemetry}, indent=2
+            return 0
+        if args.generate:
+            if args.generate == "calibration":
+                require_stage("cap_resolution")
+                ensure_stage_started("calibration")
+            else:
+                require_stage("rescore")
+                load_outcome_blind_rescore_pass(cohorts["calibration"])
+                ensure_stage_started("test")
+            bank, telemetry = generate_bank_prefix(
+                train,
+                args.generate,
+                cohorts[args.generate],
+                slots,
+                manifest,
+                batch_size=batch_size,
             )
-        )
-        return 0
-    if args.score:
-        bank, telemetry = score_bank_prefix(
-            args.score, cohorts[args.score], slots, manifest
-        )
-        print(
-            json.dumps(
-                {"record_count": len(bank["records"]), "telemetry": telemetry}, indent=2
+            print(
+                json.dumps(
+                    {"record_count": len(bank["records"]), "telemetry": telemetry},
+                    indent=2,
+                )
             )
-        )
-        return 0
-    if args.evaluate == "calibration":
-        bank = load_or_create_bank("calibration", cohorts["calibration"], slots)
-        print(json.dumps(freeze_calibration(bank), indent=2, allow_nan=False))
-        return 0
-    if args.evaluate == "full":
-        result = canonical_evaluate(slots, cohort_evidence, schedule_evidence)
-        print(
-            json.dumps(
-                {"final_token": result["final_token"], "result": str(RESULT_PATH)},
-                indent=2,
+            return 0
+        if args.score:
+            if args.score == "calibration":
+                require_stage("calibration", "STARTED")
+            else:
+                require_stage("test", "STARTED")
+                load_outcome_blind_rescore_pass(cohorts["calibration"])
+            bank, telemetry = score_bank_prefix(
+                args.score, cohorts[args.score], slots, manifest
             )
-        )
-        return 0
+            if args.score == "calibration" and bank.get("complete_scoring"):
+                advance_stage("calibration", "PASS")
+            elif args.score == "test" and bank.get("complete_scoring"):
+                advance_stage("test", "SCORED")
+            print(
+                json.dumps(
+                    {"record_count": len(bank["records"]), "telemetry": telemetry},
+                    indent=2,
+                )
+            )
+            return 0
+        if args.evaluate == "calibration":
+            require_stage("calibration")
+            bank = load_or_create_bank("calibration", cohorts["calibration"], slots)
+            print(json.dumps(freeze_calibration(bank), indent=2, allow_nan=False))
+            return 0
+        if args.evaluate == "full":
+            require_stage("test", "SCORED")
+            load_outcome_blind_rescore_pass(cohorts["calibration"])
+            result = canonical_evaluate(slots, cohort_evidence, schedule_evidence)
+            advance_stage("test", "PASS")
+            print(
+                json.dumps(
+                    {"final_token": result["final_token"], "result": str(RESULT_PATH)},
+                    indent=2,
+                )
+            )
+            return 0
+    except VoidIntegrityError as error:
+        if not RESULT_PATH.exists():
+            land_void_result(
+                error.reason,
+                error.stage,
+                protocol=protocol_for_void,
+            )
+        raise
     raise AssertionError("unreachable mode")
 
 
