@@ -11,6 +11,7 @@ and D40 is the controlling (negative) fixed-point result.
 
 import hashlib
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -31,6 +32,31 @@ def canonical_lf_sha256(path: Path) -> str:
     """Hash Git's canonical LF representation, independent of checkout EOLs."""
     canonical_bytes = path.read_bytes().replace(b"\r\n", b"\n")
     return hashlib.sha256(canonical_bytes).hexdigest()
+
+
+def linear_quantile(values: list[float], quantile: float) -> float:
+    """Recompute the runner's linear-interpolation quantile without torch."""
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * quantile
+    lower_index = math.floor(position)
+    upper_index = math.ceil(position)
+    lower = ordered[lower_index]
+    upper = ordered[upper_index]
+    return lower + (upper - lower) * (position - lower_index)
+
+
+def wilson_95_interval(numerator: int, denominator: int) -> dict[str, float]:
+    """Independently recompute the two-sided 95% Wilson score interval."""
+    z = 1.959963984540054
+    proportion = numerator / denominator
+    z_squared = z * z
+    scale = 1 + z_squared / denominator
+    center = (proportion + z_squared / (2 * denominator)) / scale
+    radius = z * math.sqrt(
+        proportion * (1 - proportion) / denominator
+        + z_squared / (4 * denominator * denominator)
+    ) / scale
+    return {"lower": center - radius, "upper": center + radius}
 
 
 def main():
@@ -1242,8 +1268,20 @@ def main():
     norms = probe["raw_global_preclip_gradient_norms"]
     sorted_norms = sorted(norms)
     probe_median = (sorted_norms[24] + sorted_norms[25]) / 2
+    recomputed_probe_quantiles = {
+        name: linear_quantile(norms, quantile)
+        for name, quantile in (
+            ("p05", 0.05),
+            ("p25", 0.25),
+            ("p75", 0.75),
+            ("p95", 0.95),
+        )
+    }
     mapped_clip = min(16, max(2, int(probe_median + 0.5)))
     smoke = e3_preflight["competence_smoke"]
+    recomputed_wilson = wilson_95_interval(
+        smoke["validation_correct"], smoke["validation_denominator"]
+    )
     check(
         "e3_preflight_probe_and_smoke_terminal_binding",
         e3_sha
@@ -1260,6 +1298,11 @@ def main():
         and all(value > 0 for value in norms)
         and probe["ordinary_median"] == probe_median
         and probe["quantiles"]["median"] == probe_median
+        and {
+            name: probe["quantiles"][name]
+            for name in ("p05", "p25", "p75", "p95")
+        }
+        == recomputed_probe_quantiles
         and mapped_clip == 14
         and probe["derived_controller_gradient_clip_norm"] == mapped_clip
         and not probe["forbidden_metrics_computed"]
@@ -1270,6 +1313,7 @@ def main():
         and smoke["validation_denominator"] == 512
         and smoke["validation_percentage"] == 25.0
         and smoke["pass_correct_minimum"] == 205
+        and smoke["wilson_95_interval"] == recomputed_wilson
         and smoke["intermediate_validation_inspections"] == 0
         and len(smoke["training_curve"]) == 10
         and smoke["training_curve"][-1]["completed_update"] == 500
@@ -1281,8 +1325,10 @@ def main():
         ],
         (
             f"artifact_sha={e3_sha}, token={e3_preflight['final_token']}, "
-            f"probe_n={len(norms)}, median={probe_median}, clip={mapped_clip}, "
-            f"smoke={smoke['validation_correct']}/{smoke['validation_denominator']}"
+            f"probe_n={len(norms)}, quantiles={recomputed_probe_quantiles}, "
+            f"median={probe_median}, clip={mapped_clip}, "
+            f"smoke={smoke['validation_correct']}/{smoke['validation_denominator']}, "
+            f"wilson={recomputed_wilson}"
         ),
     )
 
@@ -1312,8 +1358,15 @@ def main():
         == "PRETRAINED_INTERFACE_COMPETENCE_SMOKE_MISS"
         and e3_metrics.get("hashes", {}).get("artifact_sha256") == e3_sha
         and e3_metrics.get("instrument_probe", {}).get("derived_clip_norm") == 14
+        and {
+            name: e3_metrics.get("instrument_probe", {}).get(name)
+            for name in ("p05", "p25", "p75", "p95")
+        }
+        == recomputed_probe_quantiles
         and e3_metrics.get("competence_smoke", {}).get("validation_correct")
         == {"numerator": 128, "denominator": 512, "rate": 0.25}
+        and e3_metrics.get("competence_smoke", {}).get("wilson_95_interval")
+        == [recomputed_wilson["lower"], recomputed_wilson["upper"]]
         and e3_metrics.get("official_test_rows_inspected") == 0
         and e3_metrics.get("line_07_rows_accessed") == 0
         and not e3_metrics.get("canonical_launch_authorized"),

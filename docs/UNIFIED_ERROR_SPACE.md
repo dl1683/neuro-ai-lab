@@ -444,7 +444,7 @@ The bounded E2-DIAG post-mortem ran **Stage 0 only**. Its first seed-42 invocati
 
 The repaired run was exactly 32/128 correct at the initial evaluation and all 30 registered checkpoints. Full-set mean CE moved from 1.522216796875 to a minimum 1.38671875 at update 2,700—still above `ln(4)`—and ended at 1.388671875. From update 100 onward, every checkpoint assigned all 128 examples to one answer class. That class changed in 21/30 intervals (2,682 example-level flips), so predictions were not frozen even though balanced-label accuracy was. The registered Stage-0 result is **`STOP / FEWER_THAN_122_OF_128_AFTER_3000_UPDATES`** and the frozen route is **`KILL_FROM_SCRATCH_LINE`**; Stage 1 and the optimizer matrix did not launch.
 
-Instrumentation falsifies the specific broken-downstream-gradient suspicion. At every 100-update sample, every tensor in the encoder, controller, plan-slot, prefix-projector, answer-decoder, and readout groups had a nonzero gradient. At update 3,000 their respective pre-clip norms were `1.810e-5`, `0.001126`, `9.392e-10`, `0.022183`, `0.501316`, and `12.546060`; the readout-head weight delta from initialization was `1.925192` L2. There is no `detach` or `no_grad` in the model path from encoded context through plan slots, prefix projector, answer decoder, and choice head. All 3,000/3,000 updates exceeded the clip norm, so optimization saturation is a live post-mortem diagnosis, not a localized wiring bug. This informational diagnosis cannot override the registered line-kill route or authorize an optimizer fork. No model bug was fixed, and no official-test, selector, critic, or latch path was accessed. The original E2 controlling `VOID` and blocked 0.5B launch remain unchanged.
+Instrumentation falsifies the specific broken-downstream-gradient suspicion. At every 100-update sample, every tensor in the encoder, controller, plan-slot, prefix-projector, answer-decoder, and readout groups had a nonzero gradient. At update 3,000 their respective pre-clip norms were `1.810e-5`, `0.001126`, `9.392e-10`, `0.022183`, `0.501316`, and `12.546060`; the readout-head weight delta from initialization was `1.925192` L2. There is no `detach` or `no_grad` in the model path from encoded context through plan slots, prefix projector, answer decoder, and choice head. All 3,000/3,000 updates exceeded the clip norm, so optimization saturation is a bounded post-mortem interpretation, not a localized wiring bug. This informational interpretation cannot override the registered line-kill route or authorize an optimizer fork. No model bug was fixed, and no official-test, selector, critic, or latch path was accessed. The original E2 controlling `VOID` and blocked 0.5B launch remain unchanged.
 
 Three causal hypotheses survive as questions, not conclusions or launch authorizations:
 
@@ -497,15 +497,17 @@ Three causal hypotheses survive as questions, not conclusions or launch authoriz
 
 ## 12. Failure Synthesis Retrospective — 2026-08-10
 
+> **NON-NORMATIVE RETROSPECTIVE.** This section is bounded interpretation and hypothesis-generation only. It does not adjudicate completed branches, authorize work, or constrain successor designs; `STATUS.md` and fresh preregistrations remain controlling.
+
 ### Pattern across failures
 
 - The program repeatedly reached for dynamics or selection conclusions before establishing an informative, competent substrate.
 - Proxy quantities repeatedly separated from semantic correctness: encoder-decodable information was not causal; low residual was not correctness; convergence produced wrong attractors; critic scores over chance states supplied no admissible mechanics evidence.
-- Sparse endpoint supervision plus aggressive anti-shortcut construction removed the learning foothold; the frozen optimizer then compressed the remaining signal through universal clipping.
+- Within the tested E2-DIAG substrate and budget, the observations are consistent with sparse endpoint supervision plus aggressive anti-shortcut construction failing to provide a learning foothold; universal clipping may also have limited the usable optimization signal.
 - The strongest surviving result, D22, concerns transient compute-window robustness—not convergence or semantic latching.
 - Denominator and competence gates have repeatedly done useful work by preventing vacuous successes.
 
-### What the solution space must look like
+### Interpretive constraints suggested for successor designs
 
 - Begin from demonstrated competence, not hoped-for emergence.
 - Treat recurrent computation as a transient resource whose states may be selected, rather than forcing semantic meaning onto convergence.

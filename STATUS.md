@@ -1,6 +1,6 @@
 # Repository Status
 
-Audited snapshot through the terminal base-A/SVAMP adjudication, the single canonical base-B successor-gate `PASS`, the single E2 mechanics-pilot attempt with a controlling post-evidence `VOID`, the completed E2-DIAG Stage-0 `STOP`, the terminal E3 preflight `PREFLIGHT_STOP`, and the preregistered/not-run E3 interface-supervision diagnostic. The base-B artifact is immutable band-placement evidence only; E2, E2-DIAG, E3 preflight, and the new diagnostic are diagnostic/design-gate surfaces only.
+Audited snapshot through the terminal base-A/SVAMP adjudication, the single canonical base-B successor-gate `PASS`, the single E2 mechanics-pilot attempt with a controlling post-evidence `VOID`, the completed E2-DIAG Stage-0 `STOP`, the terminal E3 preflight `PREFLIGHT_STOP`, and the E3 interface-supervision diagnostic with blocking review findings repaired, bindings and projection landed, no cell run, and launch still blocked on independent re-review. The base-B artifact is immutable band-placement evidence only; E2, E2-DIAG, E3 preflight, and the new diagnostic are diagnostic/design-gate surfaces only.
 
 **This file is the sole authority for current state.** Experiment writeups, proofs, and reviews are point-in-time evidence; earlier reviews and evidence gates may contain predictions that later experiments falsified.
 
@@ -115,7 +115,7 @@ The current 0.5B semantic-ratchet program remains **LAUNCH BLOCKED BY E2 VOID**.
 
 The repaired invocation completed 3,000 updates over 2,786,051 non-padding input-plus-answer tokens in 98.873 GPU-seconds, with peak allocated/reserved VRAM of 637,935,104/696,254,464 bytes. The repaired immutable artifact is `experiments/06_uesd/results/exp_e2_diag_stage0_instrumented.json` (canonical-LF SHA-256 `0ad4fc5fafe343b37944b462972d32ff201749280a7bdbb506fa3b62536620d7`). The first operational-VOID artifact remains immutable at `experiments/06_uesd/results/exp_e2_diag.json` (canonical-LF SHA-256 `41c035dd79fe42e9edb891dcc02664077c7d491cd7a2857fe7cc9ae16dc5ab37`). The original E2 controlling `VOID`, blocked 0.5B launch, absence of an automatic Direction 2 route, and line-07 priority remain unchanged.
 
-The dated failure synthesis concludes that successor mechanics work must begin from demonstrated competence, treat recurrent computation as a transient resource, couple supervision and adjudication to correctness, and enforce competence before denominator and provenance claims; see [`Failure Synthesis Retrospective — 2026-08-10`](docs/UNIFIED_ERROR_SPACE.md#12-failure-synthesis-retrospective-2026-08-10).
+See the explicitly non-normative [`Failure Synthesis Retrospective — 2026-08-10`](docs/UNIFIED_ERROR_SPACE.md#12-failure-synthesis-retrospective-2026-08-10) for hypothesis-generation context subordinate to this status.
 
 E3 is **PREFLIGHT STOPPED / CANONICAL NOT RUN**. The outcome-blind instrument probe completed exactly 50 throwaway updates with finite positive global pre-clip norms (median 13.6205, p95 23.4852) and the frozen mapping selected `C=14`. The one permitted exact-architecture smoke then completed exactly 500 updates and scored 128/512 = 25.0% at `T=4` (95% Wilson interval 21.4448%–28.9275%), below the registered 205/512 floor. Its training CE by 50-update window moved from 1.6670 to 1.4062 without above-chance validation competence.
 
