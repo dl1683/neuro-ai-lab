@@ -1269,27 +1269,81 @@ def run_preflight(config_path: Path) -> int:
     if not feature_audit["pass"]:
         raise RuntimeError("latent critic feature boundary audit failed")
 
-    probe, clip, phases = run_gradient_probe(
-        datasets["instrument_probe_train"], config, coordinates, device
-    )
-    smoke, smoke_compute = run_competence_smoke(
-        datasets["competence_smoke_train"],
-        datasets["competence_smoke_validation"],
-        config,
-        coordinates,
-        device,
-        clip,
-    )
-    phases.append(smoke_compute)
-    final_token = str(smoke["outcome"])
-    if final_token == "PASS":
-        reason = "INSTRUMENT_AND_COMPETENCE_SMOKE_PASS"
-        route = "STOP_AT_INDEPENDENT_REVIEW_BOUNDARY"
-        canonical_authorized = False
+    phases: list[dict[str, Any]] = []
+    clip: int | None = None
+    try:
+        probe, clip, phases = run_gradient_probe(
+            datasets["instrument_probe_train"], config, coordinates, device
+        )
+    except Exception as error:
+        # The registration makes any incomplete/invalid instrument observation
+        # terminal. Do not retry, select an alternative clip, or enter smoke.
+        failure_type = type(error).__name__
+        del error
+        release_cuda()
+        probe = {
+            "outcome": "PREFLIGHT_STOP",
+            "reason": "INSTRUMENT_CALIBRATION_INVALID",
+            "completed_updates": None,
+            "raw_global_preclip_gradient_norms": [],
+            "derived_controller_gradient_clip_norm": None,
+            "failure_type": failure_type,
+            "forbidden_metrics_computed": [],
+            "accuracy_computed": False,
+            "prediction_inspected": False,
+            "validation_or_test_consumed": False,
+            "throwaway_state_discarded": True,
+        }
+        smoke = {
+            "outcome": "NOT_RUN",
+            "reason": "BLOCKED_BY_INSTRUMENT_CALIBRATION_INVALID",
+            "completed_optimizer_updates": 0,
+            "validation_inspected": False,
+            "throwaway_state_discarded": True,
+        }
+        final_token = "PREFLIGHT_STOP"
+        reason = "INSTRUMENT_CALIBRATION_INVALID"
+        route = "FRESH_PRE_DATA_AMENDMENT_AND_REVIEW_REQUIRED"
     else:
-        reason = str(smoke["reason"])
-        route = "DRAFT_REGISTER_INTERFACE_SUPERVISION_DIAGNOSTIC_ONLY"
-        canonical_authorized = False
+        smoke_started = time.perf_counter()
+        try:
+            smoke, smoke_compute = run_competence_smoke(
+                datasets["competence_smoke_train"],
+                datasets["competence_smoke_validation"],
+                config,
+                coordinates,
+                device,
+                clip,
+            )
+        except Exception as error:
+            # Hash/accounting/hardware/nonfinite/cache/cap failures have the
+            # frozen operational VOID route and no scientific interpretation.
+            failure_type = type(error).__name__
+            del error
+            release_cuda()
+            smoke = {
+                "outcome": "VOID_NO_ROUTE",
+                "reason": "COMPETENCE_SMOKE_OPERATIONAL_FAILURE",
+                "failure_type": failure_type,
+                "completed_optimizer_updates": None,
+                "validation_inspected": False,
+                "wall_time_seconds": time.perf_counter() - smoke_started,
+                "wall_time_cap_seconds": 900,
+                "throwaway_state_discarded": True,
+            }
+            final_token = "VOID_NO_ROUTE"
+            reason = "COMPETENCE_SMOKE_OPERATIONAL_FAILURE"
+            route = "NO_SCIENTIFIC_INTERPRETATION_NO_SUCCESSOR_ROUTE"
+        else:
+            phases.append(smoke_compute)
+            final_token = str(smoke["outcome"])
+            if final_token == "PASS":
+                reason = "INSTRUMENT_AND_COMPETENCE_SMOKE_PASS"
+                route = "STOP_AT_INDEPENDENT_REVIEW_BOUNDARY"
+            else:
+                reason = str(smoke["reason"])
+                route = "DRAFT_REGISTER_INTERFACE_SUPERVISION_DIAGNOSTIC_ONLY"
+    canonical_authorized = False
     result = {
         "schema_version": "1.0.0",
         "preflight_id": config["preflight_id"],
@@ -1316,12 +1370,17 @@ def run_preflight(config_path: Path) -> int:
             "hardware": "registered_single_RTX_5090_24GB_constraint",
             "phases": phases,
             "peak_vram_allocated_bytes": max(
-                int(phase["peak_vram_allocated_bytes"]) for phase in phases
+                (int(phase["peak_vram_allocated_bytes"]) for phase in phases),
+                default=0,
             ),
             "peak_vram_reserved_bytes": max(
-                int(phase["peak_vram_reserved_bytes"]) for phase in phases
+                (int(phase["peak_vram_reserved_bytes"]) for phase in phases),
+                default=0,
             ),
-            "total_completed_optimizer_updates": 50 + 500,
+            "total_completed_optimizer_updates": (
+                int(probe.get("completed_updates") or 0)
+                + int(smoke.get("completed_optimizer_updates") or 0)
+            ),
             "canonical_retained_updates": 0,
         },
         "state_isolation": {
@@ -1351,7 +1410,19 @@ def run_preflight(config_path: Path) -> int:
     }
     validate_preflight_result(result)
     write_immutable_preflight(result, RESULT_PATH)
-    print(json.dumps({"final_token": final_token, "reason": reason, "clip": clip, "smoke_correct": smoke["validation_correct"], "smoke_denominator": 512, "result": str(RESULT_PATH)}, indent=2))
+    print(
+        json.dumps(
+            {
+                "final_token": final_token,
+                "reason": reason,
+                "clip": clip,
+                "smoke_correct": smoke.get("validation_correct"),
+                "smoke_denominator": smoke.get("validation_denominator"),
+                "result": str(RESULT_PATH),
+            },
+            indent=2,
+        )
+    )
     return 0 if final_token == "PASS" else 2
 
 
