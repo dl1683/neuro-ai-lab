@@ -1389,18 +1389,25 @@ def main():
         Path(__file__).resolve().parent
         / "exp_e3_interface_supervision_diagnostic.py"
     )
+    diagnostic_projection_path = (
+        Path(__file__).resolve().parent
+        / "exp_e3_interface_supervision_diagnostic_projection.json"
+    )
+    diagnostic_projection = json.loads(
+        diagnostic_projection_path.read_text(encoding="utf-8")
+    )
     implementation_entries = [
         entry
         for entry in ledger_entries
         if entry.get("id")
-        == "E3_INTERFACE_SUPERVISION_DIAGNOSTIC_IMPLEMENTED_HASH_BOUND"
+        == "E3_INTERFACE_SUPERVISION_DIAGNOSTIC_BLOCKING_REVIEW_REPAIRED_HASH_BOUND"
     ]
     implementation_entry = (
         implementation_entries[0] if len(implementation_entries) == 1 else {}
     )
     implementation_metrics = implementation_entry.get("metrics", {})
     check(
-        "e3_interface_supervision_implementation_hash_binding",
+        "e3_interface_supervision_repaired_hash_projection_binding",
         len(implementation_entries) == 1
         and implementation_entry.get("status") == "designed"
         and implementation_metrics.get("runner_sha256")
@@ -1412,7 +1419,15 @@ def main():
         and implementation_metrics.get("split_sha256")
         == diagnostic_config["bindings"]["split_sha256"]
         and implementation_metrics.get("fast_self_test_pass")
-        and implementation_metrics.get("full_binding_replay_pass")
+        and diagnostic_projection.get("runner_sha256")
+        == canonical_lf_sha256(diagnostic_runner_path)
+        and diagnostic_projection.get("config_sha256")
+        == canonical_lf_sha256(diagnostic_config_path)
+        and diagnostic_projection.get("projected_cell_wall_seconds")
+        == implementation_metrics.get("projected_cell_wall_seconds")
+        and diagnostic_projection.get("projected_suite_wall_seconds") == 2180.0
+        and diagnostic_projection.get("all_cell_projections_finite_nonnegative_and_within_cap")
+        and diagnostic_projection.get("suite_projection_finite_nonnegative_and_within_cap")
         and implementation_metrics.get("diagnostic_cells_executed") == 0
         and implementation_metrics.get("scientific_metrics_computed") == 0
         and not implementation_metrics.get("result_artifact_exists")

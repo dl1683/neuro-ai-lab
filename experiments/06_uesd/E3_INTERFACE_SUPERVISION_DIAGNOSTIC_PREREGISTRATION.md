@@ -479,6 +479,59 @@ A completed or terminal suite lands in one coherent block:
 A route token authorizes only drafting and steering review of its named
 successor. It never authorizes that successor's implementation or launch.
 
+## Pre-data clarification and blocking-review amendment — 2026-08-11
+
+This amendment resolves the ambiguity between Section 5's general
+name-disjoint language and Section 8.2's I0 shared-vocabulary requirement
+before any diagnostic cell or scientific metric exists.
+
+- For I0 only, `easy_train` and `easy_validation` use the same fixed 32-entity
+  vocabulary in full. They remain exactly prompt-disjoint and use explicit
+  name-free symbolic skeletons that are disjoint across the two splits. The
+  runner independently reconstructs and verifies the single fact, single
+  unary rule, unique one-step proof, unique entailed choice, and label for
+  every easy row before any split hash is computed. Section 5's name-disjoint
+  requirement continues to govern the hard and fact namespaces.
+- I2 matched negatives are assigned jointly at each distance by a deterministic
+  capacity-constrained matching, rather than by lexical first choice. Queried
+  predicate marginals are identical under both labels; every positive/negative
+  pair uses the same queried entity and base answer position; both query words
+  occur in the prompt. The runner asserts and serializes the label contingency
+  tables for queried entity, queried predicate, entity occurrence, lexical
+  occurrence, and answer-position relationship at every distance in both fact
+  splits before hashing.
+- S2 candidates are now genuine groundings of rules registered in the example.
+  Every candidate's premises, types, and arities are reconstructed from its
+  registered rule; all three distractors are inapplicable under the facts
+  available at that step. The runner asserts exactly one valid candidate per
+  row, exact candidate-position/validity counts, and exact 3:1 invalid-to-valid
+  schema, concrete conclusion-entity, and body-predicate marginals within each
+  split and step. It serializes the full split/step/position/validity tables.
+- Cell completion now synchronizes the device and then enforces both the
+  900-second cell cap and 5,400-second suite cap. Result serialization, file
+  fsync, no-clobber link, directory sync where supported, and the final cap
+  check execute inside the suite timer.
+- Launch now requires an ordered six-cell projection whose cell and total
+  values are finite, nonnegative, runner/config hash-bound, individually below
+  900 seconds, sum exactly to the suite projection, and remain below 5,400
+  seconds. The projection is GPU-free and derives its conservative values from
+  the immutable E3 preflight measurement plus the fully generated audited
+  workload; it computes no diagnostic outcome.
+- The fast self-test iterates every miniature easy, fact, hard-process, trace,
+  and candidate record; replays every registered invariant; verifies all probe
+  and controller optimizer boundaries; checks the frozen thresholds; exercises
+  adversarial fixtures for every branch-table route; checks post-sync cap
+  enforcement; and checks atomic no-clobber publication.
+- Each affine head now records exact total/trainable/frozen and optimizer-bound
+  parameter counts and names. The three four-way heads each contain 6,148
+  trainable parameters; the shared binary fact head contains 3,074. Frozen
+  substrate parameters and cached representations remain outside every probe
+  optimizer.
+
+These are pre-data correctness clarifications and contract-strengthening
+changes. They do not reopen E3, authorize I0, issue either launch attestation,
+or alter any scientific threshold or route.
+
 ## Implementation binding attestation
 
 This pre-data slot-filling block records implementation details that were
@@ -494,8 +547,8 @@ line-07/official-test access existed when these slots were filled.
   E3 reusable runner source, template inventory, three prompt/serialization
   templates, proof-replay contract, tokenizer-containing frozen substrate
   digest, and all six ordered split payloads by SHA-256.
-- `E3-interface-diagnostic-runner-sha256`: `a5424d066647af784002655bae3109c48450177519a1257ce3729349ae3aab25`
-- `E3-interface-diagnostic-config-sha256`: `3fdeeb0b4636446f9fb0ca8c8d7c8f87e6c0a12c29d0d89f0e5bee765639301a`
+- `E3-interface-diagnostic-runner-sha256`: `c282538ce28e6373eb8f71e273c4146fbc48db9518cbfdc39d296561bb21a12e`
+- `E3-interface-diagnostic-config-sha256`: `c9695f6a439bd77aa1ba28335071abe1e4828f046fe1d6593f653f0539d1a157`
 - The implementation remains launch-blocked. A separate reviewer must inspect
   the complete pipeline, all blocking findings must be resolved, a reviewed
   non-scientific projection must fit 5,400 seconds, and the clean-launch token

@@ -11,7 +11,7 @@
     "offline_required": true
   },
   "generator": {
-    "version": "typed-datalog-e3-interface-supervision-v1",
+    "version": "typed-datalog-e3-interface-supervision-v2",
     "seed": 20260815,
     "proof_depths": [2, 3, 4, 5],
     "lure_mixture": {"late": 0.5, "direction": 0.25, "clean": 0.25},
@@ -27,6 +27,16 @@
       "gentle", "nimble", "vivid", "steady", "lucid", "brisk"
     ],
     "relation_verbs": ["guides", "follows", "visits"],
+    "easy_entities": [
+      "easy-ada", "easy-bea", "easy-cia", "easy-dia",
+      "easy-eva", "easy-fia", "easy-gia", "easy-hia",
+      "easy-ian", "easy-jon", "easy-kai", "easy-leo",
+      "easy-mia", "easy-noa", "easy-ora", "easy-pia",
+      "easy-qin", "easy-ren", "easy-sol", "easy-tia",
+      "easy-uma", "easy-val", "easy-wes", "easy-xia",
+      "easy-yan", "easy-zia", "easy-aru", "easy-bex",
+      "easy-cam", "easy-dex", "easy-eli", "easy-flo"
+    ],
     "name_syllables": [
       "mira", "tov", "nera", "kel", "savi", "dor", "luma", "fen",
       "ravi", "zen", "kora", "pil", "dara", "vex", "nori", "tal",
@@ -123,34 +133,35 @@
   "review": {
     "required_attestation": "E3_INTERFACE_SUPERVISION_DIAGNOSTIC_FULL_PIPELINE_REVIEW_CLEAN",
     "clean_launch_attestation": "E3_INTERFACE_SUPERVISION_DIAGNOSTIC_CLEAN_LAUNCH",
-    "projection_path": "experiments/06_uesd/checkpoints/exp_e3_interface_supervision_diagnostic/projection.json"
+    "projection_authorization": "E3_DIAGNOSTIC_BLOCKING_REVIEW_PROJECTION_REQUEST",
+    "projection_path": "experiments/06_uesd/exp_e3_interface_supervision_diagnostic_projection.json"
   },
   "result_artifact": {
     "path": "experiments/06_uesd/results/exp_e3_interface_supervision_diagnostic.json",
     "write_mode": "same_directory_fsync_atomic_no_clobber"
   },
   "bindings": {
-    "registration_protocol_sha256": "c21d444fb8687285c1242ad5e605260fb9b4709bb163630c93af34b715df0d84",
+    "registration_protocol_sha256": "507d9cbfa6971fea339e95c6235bae1d0a72e6b6ad5cb91b762fd36db3c660cf",
     "e2_generator_source_sha256": "7ffccdba80ec5fccdd8888c6a07202b06ee62c8402d209b5f3785c5bffa140f7",
     "e3_runner_source_sha256": "93f261ca881efad4d61ae35ce69f30e6c7e64e87b26943525877ef76c2510703",
     "template_inventory_sha256": "cbdab209efe1b91d291d99ec358597c38962024e871a300e555d98854c21bbc2",
     "hard_prompt_sha256": "c793529f5a42467a9daf9df3c61c1c05cfc5545f0a48ad5964c8efd77d48136f",
     "fact_query_suffix_sha256": "7e24b11426babc0433e3dbdd8de40aa3bfe45e86d80f7743767fed38fcad2a35",
     "candidate_application_template_sha256": "a89acf111d295b1437d854d0cfcd768de6b13c207409f2440a138928ab4c3537",
-    "proof_trace_contract_sha256": "caa00647371ff436a47c0d1ea5269a2885bb0d9d2a3357138fc4d74415842458",
+    "proof_trace_contract_sha256": "170c7cbae4ac29c93a1a0fd6877de6f5f5bbf6445a751ca670c1743e7d63a309",
     "substrate_local_content_sha256": "e9ef35702fc422242097e8cbe02e9ace360509fbee4992fd1fcc8c348c296d71",
     "split_sha256": {
-      "easy_train": "19faca230c28b3106324f99948f5f995143bc3162b111cb41c84cf41c2bc537c",
-      "easy_validation": "12a17d283d5cb673c69d4e06301d7c89ad6a3678b99ed3f11feae4d01ab451e5",
-      "hard_train": "6deb6f2efbd46fecc903de90fd16d50715765d8b9ec61bf1c0aef44f6236ecba",
-      "hard_validation": "f56ead8eac55c0755f89d3d01006aa08d76fb3fc9afc3fe6b9cc0881d643557c",
-      "fact_probe_train": "28c8923ad0af9d375b24408de42ea7c62afc5a76b9b32db273b8f0fe06cbf4da",
-      "fact_probe_validation": "30ceee54b686f6bddb1736598696cfdb9695863268474cde992d57e1ca5e7642"
+      "easy_train": "bd23c56225579ed565342792de0669187d10d2605ca01f6c1865c626157cf3c8",
+      "easy_validation": "f2da7d38d30104610b4ecc5d2974e6a3743d571f3bc24003b1accf9a2974032f",
+      "hard_train": "e1837726e78ca292bbf6922d6659a398cc4c383adc3a00021bcaad73ac0e46df",
+      "hard_validation": "44ed60eae68476edc733e3c9c2a7a98db26be52a93b36a8bbce1f8aecc35ba6e",
+      "fact_probe_train": "254cb9cf2deb916fc9bfcb4f8d9d77ab8d11fdcf73a5e61bf4cf09c0cbef3415",
+      "fact_probe_validation": "ed62f3e3784d867def58b391eccf088c26dcf10ba54283645affa3f3db5ec899"
     }
   },
   "self_test": {
     "seed": 20260816,
-    "examples_per_split": 32,
+    "examples_per_split": 256,
     "torch_threads": 2
   }
 }

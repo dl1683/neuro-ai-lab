@@ -13,6 +13,7 @@ import contextlib
 import copy
 import dataclasses
 import hashlib
+import itertools
 import json
 import math
 import os
@@ -24,7 +25,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable, Mapping, Sequence
+from typing import Any, Callable, Iterator, Mapping, Sequence
 
 import torch
 import torch.nn.functional as F
@@ -44,10 +45,11 @@ E3_PREFLIGHT_RESULT = HERE / "results" / "exp_e3_preflight.json"
 RESULT_PATH = HERE / "results" / "exp_e3_interface_supervision_diagnostic.json"
 PROTOCOL_HASH_MARKER = "\n## Implementation binding attestation"
 PROOF_TRACE_CONTRACT = (
-    "unique-shortest-proof-replay-v1:premises-available-before-use;"
+    "unique-shortest-proof-replay-v2:premises-available-before-use;"
     "typed-rule-application;conclusion-follows;terminal-entails-gold;"
     "trace-length-equals-minimum-cost;shortest-proof-count-equals-one;"
-    "four-type-and-arity-matched-candidates-exactly-one-replay-valid"
+    "four-grounded-registered-rule-applications;matched-body-predicates-types-"
+    "and-arities;exactly-one-replay-valid;prehash-balance-audited"
 )
 CELL_NAMES = (
     "I0_ONE_HOP_LINEAR_FLOOR",
@@ -138,6 +140,58 @@ class DiagnosticData:
     generator_audit: Mapping[str, Any]
 
 
+@dataclass
+class _FlowEdge:
+    target: int
+    reverse: int
+    capacity: int
+
+
+class _Dinic:
+    """Small deterministic integer max-flow used only for pre-data balancing."""
+
+    def __init__(self, size: int) -> None:
+        self.graph: list[list[_FlowEdge]] = [[] for _ in range(size)]
+
+    def add_edge(self, source: int, target: int, capacity: int) -> None:
+        forward = _FlowEdge(target, len(self.graph[target]), capacity)
+        reverse = _FlowEdge(source, len(self.graph[source]), 0)
+        self.graph[source].append(forward)
+        self.graph[target].append(reverse)
+
+    def maximum_flow(self, source: int, sink: int) -> int:
+        total = 0
+        while True:
+            levels = [-1] * len(self.graph)
+            levels[source] = 0
+            queue = [source]
+            for node in queue:
+                for edge in self.graph[node]:
+                    if edge.capacity and levels[edge.target] < 0:
+                        levels[edge.target] = levels[node] + 1
+                        queue.append(edge.target)
+            if levels[sink] < 0:
+                return total
+            cursors = [0] * len(self.graph)
+
+            def send(node: int, available: int) -> int:
+                if node == sink:
+                    return available
+                while cursors[node] < len(self.graph[node]):
+                    edge = self.graph[node][cursors[node]]
+                    if edge.capacity and levels[edge.target] == levels[node] + 1:
+                        amount = send(edge.target, min(available, edge.capacity))
+                        if amount:
+                            edge.capacity -= amount
+                            self.graph[edge.target][edge.reverse].capacity += amount
+                            return amount
+                    cursors[node] += 1
+                return 0
+
+            while amount := send(source, 1 << 30):
+                total += amount
+
+
 def canonical_json(value: Any) -> str:
     return json.dumps(
         value,
@@ -208,6 +262,13 @@ def validate_config(config: Mapping[str, Any], *, allow_pending: bool) -> None:
     }
     if config["generator"]["split_counts"] != expected_counts:
         raise IntegrityFailure("frozen split grid changed")
+    if (
+        config["generator"].get("version")
+        != "typed-datalog-e3-interface-supervision-v2"
+        or len(config["generator"].get("easy_entities", ())) != 32
+        or len(set(config["generator"].get("easy_entities", ()))) != 32
+    ):
+        raise IntegrityFailure("clarified generator contract changed")
     probes = config["probes"]
     if (
         tuple(probes["views"])
@@ -249,6 +310,13 @@ def validate_config(config: Mapping[str, Any], *, allow_pending: bool) -> None:
         "same_directory_fsync_atomic_no_clobber"
     ):
         raise IntegrityFailure("immutable publication contract changed")
+    if (
+        config["review"].get("projection_authorization")
+        != "E3_DIAGNOSTIC_BLOCKING_REVIEW_PROJECTION_REQUEST"
+        or config["review"].get("projection_path")
+        != "experiments/06_uesd/exp_e3_interface_supervision_diagnostic_projection.json"
+    ):
+        raise IntegrityFailure("reviewed projection contract changed")
     if not allow_pending and _contains_pending(config["bindings"]):
         raise IntegrityFailure("implementation/data bindings remain pending")
 
@@ -262,7 +330,7 @@ class DiagnosticHardGenerator(e3.E3DeductionGenerator):
     """E2 hard construction under six diagnostic-only name owners."""
 
     def _build_name_pools(self) -> dict[str, dict[str, list[str]]]:
-        pools: dict[str, dict[str, list[str]]] = {
+        complete: dict[str, dict[str, list[str]]] = {
             split: defaultdict(list) for split in SPLIT_NAMES
         }
         split_index = {name: index for index, name in enumerate(SPLIT_NAMES)}
@@ -271,11 +339,121 @@ class DiagnosticHardGenerator(e3.E3DeductionGenerator):
                 if first == second:
                     continue
                 owner = _diagnostic_namespace_owner(f"name:{first}-{second}")
-                pools[owner][first].append(f"isd{split_index[owner]}-{first}-{second}")
-        for split, grouped in pools.items():
-            if not any(len(names) >= 2 for names in grouped.values()):
-                raise IntegrityFailure(f"no same-prefix name pair for {split}")
+                complete[owner][first].append(
+                    f"isd{split_index[owner]}-{first}-{second}"
+                )
+        pools: dict[str, dict[str, list[str]]] = {}
+        for split, grouped in complete.items():
+            selected = {
+                prefix: sorted(values)[:2]
+                for prefix, values in sorted(grouped.items())
+                if len(values) >= 2
+            }
+            selected = dict(list(selected.items())[:5])
+            pools[split] = selected
+            grouped = selected
+            names = [name for values in grouped.values() for name in values]
+            if len(names) < 10 or len(grouped) < 5:
+                raise IntegrityFailure(f"insufficient fixed diagnostic names for {split}")
         return pools
+
+    def _choose_names(
+        self, split: str, entity_count: int, rng: random.Random
+    ) -> tuple[str, ...]:
+        grouped = self._name_pools[split]
+        prefixes = sorted(prefix for prefix, names in grouped.items() if len(names) >= 2)
+        pair_index = int(getattr(self, "_diagnostic_pair_index", 0))
+        prefix = prefixes[pair_index % len(prefixes)]
+        names = sorted(grouped[prefix])
+        target_index = (pair_index // len(prefixes)) % len(names)
+        target = names[target_index]
+        lure = names[(target_index + 1) % len(names)]
+        available = sorted(
+            name
+            for values in grouped.values()
+            for name in values
+            if name not in {target, lure}
+        )
+        return (target, lure, *rng.sample(available, entity_count - 2))
+
+    def _add_registered_process_groundings(
+        self, pair: tuple[e2.DeductionExample, e2.DeductionExample]
+    ) -> tuple[e2.DeductionExample, e2.DeductionExample]:
+        """Add inert relation groundings needed for matched process candidates."""
+
+        first, second = pair
+        first_relations = set(first.relation_facts)
+        second_relations = set(second.relation_facts)
+        changed = sorted(first_relations ^ second_relations)
+        if len(changed) != 2 or changed[0].relation != changed[1].relation:
+            raise IntegrityFailure("could not identify the counterfactual relation")
+        causal_relation = changed[0].relation
+        terminal_rules = [
+            rule
+            for rule in first.rules
+            if rule.relation == causal_relation
+            and rule.kind in {"rel_out_self", "rel_in_self"}
+            and rule.head in first.choice_properties
+        ]
+        if len(terminal_rules) != 2 or len({rule.body for rule in terminal_rules}) != 1:
+            raise IntegrityFailure("terminal relation-rule pair changed")
+        terminal_body = terminal_rules[0].body
+        closures = (first.verifier().closure(), second.verifier().closure())
+        usable = [
+            entity
+            for entity in first.entities
+            if entity != first.target_entity
+            and all(e2.UnaryAtom(entity, terminal_body) not in closure for closure in closures)
+        ]
+        decoys: list[e2.RelationAtom] = []
+        for source in usable:
+            for target in reversed(usable):
+                relation = e2.RelationAtom(source, causal_relation, target)
+                if source != target and relation not in first_relations and relation not in decoys:
+                    decoys.append(relation)
+                if len(decoys) == 3:
+                    break
+            if len(decoys) == 3:
+                break
+        if len(decoys) != 3:
+            raise IntegrityFailure("could not add three inert registered groundings")
+        augmented_skeleton = sha256_json(
+            {
+                "base_skeleton": first.skeleton_hash,
+                "process_relation_groundings": [
+                    [
+                        first.entities.index(atom.source),
+                        atom.relation,
+                        first.entities.index(atom.target),
+                    ]
+                    for atom in decoys
+                ],
+            }
+        )
+        group = f"{first.split}-{augmented_skeleton[:16]}"
+        output: list[e2.DeductionExample] = []
+        for row in pair:
+            relations = (*row.relation_facts, *decoys)
+            rendered = self._render(
+                row.target_entity,
+                row.choice_properties,
+                row.unary_facts,
+                relations,
+                row.rules,
+                row.template_family,
+                random.Random(int(augmented_skeleton[:16], 16)),
+            )
+            output.append(
+                dataclasses.replace(
+                    row,
+                    example_id=f"{group}-{row.counterfactual_member}",
+                    counterfactual_group=group,
+                    skeleton_hash=augmented_skeleton,
+                    relation_facts=tuple(relations),
+                    rendered_text=rendered,
+                )
+            )
+        return output[0], output[1]
 
     def generate_split(
         self,
@@ -290,6 +468,7 @@ class DiagnosticHardGenerator(e3.E3DeductionGenerator):
         local_sources: set[str] = set()
         nonce = seed_offset * 10_000_000
         for pair_index, spec in enumerate(pair_specs):
+            self._diagnostic_pair_index = pair_index
             for _ in range(int(self.gcfg["max_generation_attempts_per_pair"])):
                 rng_seed = (
                     int(self.gcfg["seed"])
@@ -298,6 +477,7 @@ class DiagnosticHardGenerator(e3.E3DeductionGenerator):
                     + pair_index
                 )
                 pair = self._make_pair(split, spec, nonce, random.Random(rng_seed))
+                pair = self._add_registered_process_groundings(pair)
                 nonce += 1
                 source = pair[0].skeleton_hash
                 if source in local_sources or source in used_source_skeletons:
@@ -349,55 +529,128 @@ def _hard_generator_config(
     return result
 
 
+def _easy_symbolic_skeletons(
+    config: Mapping[str, Any], label: int
+) -> Iterator[dict[str, Any]]:
+    properties = tuple(str(value) for value in config["generator"]["property_words"])
+    for fact_template, rule_template, source, answer in itertools.product(
+        range(len(e2.UNARY_FACT_TEMPLATES)),
+        range(len(e2.UNARY_RULE_TEMPLATES)),
+        properties,
+        properties,
+    ):
+        if source == answer:
+            continue
+        remaining = [value for value in properties if value not in {source, answer}]
+        for distractors in itertools.permutations(remaining, 3):
+            choices = list(distractors)
+            choices.insert(label, answer)
+            symbolic = {
+                "namespace": "e3-interface-easy-symbolic-v2",
+                "fact_template": fact_template,
+                "rule_template": rule_template,
+                "source_property": source,
+                "answer_property": answer,
+                "choices": choices,
+            }
+            symbolic["skeleton_sha256"] = sha256_json(symbolic)
+            yield symbolic
+
+
 def build_easy_records(
-    split: str, count: int, config: Mapping[str, Any]
+    split: str,
+    count: int,
+    config: Mapping[str, Any],
+    *,
+    per_label_offset: int,
 ) -> tuple[PromptRecord, ...]:
-    properties = tuple(config["generator"]["property_words"])
+    if count % 4:
+        raise IntegrityFailure("easy split count must be divisible by four")
+    vocabulary = tuple(str(value) for value in config["generator"]["easy_entities"])
+    if len(vocabulary) < 4 or len(set(vocabulary)) != len(vocabulary):
+        raise IntegrityFailure("easy entity vocabulary is not a fixed unique set")
+    per_label = count // 4
     records: list[PromptRecord] = []
-    for index in range(count):
-        label = index % 4
-        choices = list(properties[:4])
-        rotation = (index // 4) % 4
-        choices = choices[rotation:] + choices[:rotation]
-        answer_property = choices[label]
-        source_property = properties[4 + index % (len(properties) - 4)]
-        entity = f"easy{0 if split == 'easy_train' else 1}-{index:05d}"
-        fact = e2.UNARY_FACT_TEMPLATES[index % 6].format(
-            entity=entity, property=source_property
-        )
-        rule = e2.UNARY_RULE_TEMPLATES[(index + 1) % 6].format(
-            body=source_property, head=answer_property
-        )
-        query_choices = (
-            f"Query: Which property must hold for {entity}?\n"
-            + "Choices: "
-            + " / ".join(choices)
-        )
-        deduction = "\n".join(("Facts:", fact, "Rules:", rule, query_choices))
-        prompt = str(config["generator"]["hard_prompt_template"]).format(
-            deduction=deduction
-        )
-        records.append(
-            PromptRecord(
-                f"{split}-{index:05d}",
-                prompt,
-                label,
-                query_choices,
-                {
-                    "split": split,
-                    "answer_position": label,
-                    "proof_depth": 1,
-                    "one_supporting_fact": True,
-                    "one_unary_implication": True,
-                },
+    for label in range(4):
+        selected = list(
+            itertools.islice(
+                _easy_symbolic_skeletons(config, label),
+                per_label_offset,
+                per_label_offset + per_label,
             )
         )
-    expected = Counter({label: count // 4 for label in range(4)})
+        if len(selected) != per_label:
+            raise IntegrityFailure("easy symbolic skeleton inventory exhausted")
+        for local_index, symbolic in enumerate(selected):
+            ordinal = label * per_label + local_index
+            entity = vocabulary[local_index % len(vocabulary)]
+            source = str(symbolic["source_property"])
+            answer = str(symbolic["answer_property"])
+            choices = tuple(str(value) for value in symbolic["choices"])
+            fact_index = int(symbolic["fact_template"])
+            rule_index = int(symbolic["rule_template"])
+            fact = e2.UNARY_FACT_TEMPLATES[fact_index].format(
+                entity=entity, property=source
+            )
+            rule = e2.UNARY_RULE_TEMPLATES[rule_index].format(
+                body=source, head=answer
+            )
+            query_choices = (
+                f"Query: Which property must hold for {entity}?\n"
+                + "Choices: "
+                + " / ".join(choices)
+            )
+            deduction = "\n".join(("Facts:", fact, "Rules:", rule, query_choices))
+            prompt = str(config["generator"]["hard_prompt_template"]).format(
+                deduction=deduction
+            )
+            verifier = e2.SymbolicVerifier(
+                (entity,),
+                (e2.UnaryAtom(entity, source),),
+                (),
+                (e2.Rule("unary", source, answer),),
+            )
+            closure = verifier.closure()
+            target = e2.UnaryAtom(entity, answer)
+            entailed_choices = [
+                property_name
+                for property_name in choices
+                if e2.UnaryAtom(entity, property_name) in closure
+            ]
+            if (
+                closure.get(target) != e2.ProofRecord(cost=1, shortest_proof_count=1)
+                or entailed_choices != [answer]
+                or choices[label] != answer
+            ):
+                raise IntegrityFailure("easy row failed symbolic one-hop verification")
+            records.append(
+                PromptRecord(
+                    f"{split}-{ordinal:05d}",
+                    prompt,
+                    label,
+                    query_choices,
+                    {
+                        "split": split,
+                        "answer_position": label,
+                        "proof_depth": 1,
+                        "entity": entity,
+                        "source_property": source,
+                        "answer_property": answer,
+                        "choices": list(choices),
+                        "fact_template_index": fact_index,
+                        "rule_template_index": rule_index,
+                        "symbolic_skeleton_sha256": symbolic["skeleton_sha256"],
+                        "symbolically_verified": True,
+                        "shortest_proof_count": 1,
+                    },
+                )
+            )
+    expected = Counter({label: per_label for label in range(4)})
     if Counter(row.label for row in records) != expected:
         raise IntegrityFailure(f"{split} is not exactly label balanced")
     if len({row.prompt for row in records}) != count:
         raise IntegrityFailure(f"{split} prompts are not unique")
-    return tuple(records)
+    return tuple(sorted(records, key=lambda row: row.record_id))
 
 
 def hard_prompt(example: e2.DeductionExample, config: Mapping[str, Any]) -> str:
@@ -544,51 +797,186 @@ def application_text(
     )
 
 
+def _grounded_rule_applications(
+    example: e2.DeductionExample, rule_index: int
+) -> tuple[GroundedApplication, ...]:
+    rule = example.rules[rule_index]
+    applications: list[GroundedApplication] = []
+    if rule.kind == "unary":
+        for entity in example.entities:
+            applications.append(
+                GroundedApplication(
+                    rule_index,
+                    rule,
+                    (e2.UnaryAtom(entity, rule.body),),
+                    e2.UnaryAtom(entity, rule.head),
+                )
+            )
+    elif rule.kind == "conjunction":
+        if rule.body2 is None:
+            raise IntegrityFailure("conjunction lacks its registered second body")
+        for entity in example.entities:
+            applications.append(
+                GroundedApplication(
+                    rule_index,
+                    rule,
+                    (
+                        e2.UnaryAtom(entity, rule.body),
+                        e2.UnaryAtom(entity, rule.body2),
+                    ),
+                    e2.UnaryAtom(entity, rule.head),
+                )
+            )
+    else:
+        if rule.relation is None:
+            raise IntegrityFailure("relational rule lacks its registered relation")
+        for relation in example.relation_facts:
+            if relation.relation != rule.relation:
+                continue
+            if rule.kind == "rel_out_self":
+                body_entity = head_entity = relation.source
+            elif rule.kind == "rel_in_self":
+                body_entity = head_entity = relation.target
+            elif rule.kind == "rel_out_other":
+                body_entity, head_entity = relation.source, relation.target
+            else:  # pragma: no cover - E2 RuleKind is closed.
+                raise IntegrityFailure(f"unknown registered rule kind: {rule.kind}")
+            applications.append(
+                GroundedApplication(
+                    rule_index,
+                    rule,
+                    (e2.UnaryAtom(body_entity, rule.body),),
+                    e2.UnaryAtom(head_entity, rule.head),
+                )
+            )
+    return tuple(applications)
+
+
+def _application_is_grounded(
+    example: e2.DeductionExample, application: GroundedApplication
+) -> bool:
+    if application.rule_index < 0 or application.rule_index >= len(example.rules):
+        return False
+    return application in _grounded_rule_applications(example, application.rule_index)
+
+
+def _candidate_match_signature(application: GroundedApplication) -> tuple[Any, ...]:
+    schema = (
+        "unary"
+        if application.rule.kind == "unary"
+        else "conjunction"
+        if application.rule.kind == "conjunction"
+        else "relational_unary_body"
+    )
+    return (
+        schema,
+        tuple(atom.property for atom in application.premises),
+        len(application.premises),
+        tuple("person" for _ in application.premises),
+        "person",
+    )
+
+
+def _balanced_process_distractors(
+    rows: Sequence[tuple[e2.DeductionExample, tuple[GroundedApplication, ...]]],
+    step_index: int,
+) -> dict[str, tuple[GroundedApplication, ...]]:
+    active = [(example, trace[step_index]) for example, trace in rows if len(trace) > step_index]
+    traces = {example.example_id: trace for example, trace in rows}
+    eligible: dict[str, dict[str, list[GroundedApplication]]] = {}
+    desired_entities: Counter[str] = Counter()
+    for example, gold in active:
+        available = set(example.unary_facts)
+        trace = traces[example.example_id]
+        for earlier in trace[:step_index]:
+            available.add(earlier.conclusion)
+        desired_entities[gold.conclusion.entity] += 3
+        by_entity: dict[str, list[GroundedApplication]] = defaultdict(list)
+        for rule_index in range(len(example.rules)):
+            for candidate in _grounded_rule_applications(example, rule_index):
+                if (
+                    _candidate_match_signature(candidate)
+                    == _candidate_match_signature(gold)
+                    and not _application_is_valid(example, candidate, available)
+                    and candidate != gold
+                ):
+                    by_entity[candidate.conclusion.entity].append(candidate)
+        eligible[example.example_id] = {
+            entity: sorted(
+                set(candidates),
+                key=lambda candidate: (
+                    candidate.rule_index,
+                    candidate.premises,
+                    candidate.conclusion,
+                ),
+            )
+            for entity, candidates in by_entity.items()
+        }
+        if sum(len(values) for values in eligible[example.example_id].values()) < 3:
+            raise IntegrityFailure("fewer than three grounded matched distractors")
+
+    entity_names = sorted(desired_entities)
+    row_offset = 1
+    entity_offset = row_offset + len(active)
+    sink = entity_offset + len(entity_names)
+    flow = _Dinic(sink + 1)
+    for row_index, (example, _gold) in enumerate(active):
+        flow.add_edge(0, row_offset + row_index, 3)
+        for entity_index, entity in enumerate(entity_names):
+            if entity in eligible[example.example_id]:
+                flow.add_edge(row_offset + row_index, entity_offset + entity_index, 1)
+    for entity_index, entity in enumerate(entity_names):
+        flow.add_edge(entity_offset + entity_index, sink, desired_entities[entity])
+    required = 3 * len(active)
+    observed_flow = flow.maximum_flow(0, sink)
+    if observed_flow != required:
+        availability = {
+            entity: sum(entity in values for values in eligible.values())
+            for entity in entity_names
+        }
+        raise IntegrityFailure(
+            f"step {step_index + 1} cannot exactly balance distractor entities: "
+            f"flow={observed_flow}/{required}, desired={dict(desired_entities)}, "
+            f"availability={availability}"
+        )
+    selected: dict[str, list[GroundedApplication]] = defaultdict(list)
+    for row_index, (example, _gold) in enumerate(active):
+        node = row_offset + row_index
+        for edge in flow.graph[node]:
+            if entity_offset <= edge.target < sink and edge.capacity == 0:
+                entity = entity_names[edge.target - entity_offset]
+                candidates = eligible[example.example_id][entity]
+                selected[example.example_id].append(candidates[0])
+        if len(selected[example.example_id]) != 3:
+            raise IntegrityFailure("process balance flow did not select three candidates")
+    return {key: tuple(value) for key, value in selected.items()}
+
+
 def build_process_records(
     examples: Sequence[e2.DeductionExample],
     config: Mapping[str, Any],
 ) -> tuple[ProcessRecord, ...]:
     counters = [0] * 5
+    traced = [(example, reconstruct_unique_trace(example)) for example in examples]
+    distractors_by_step = [
+        _balanced_process_distractors(traced, step_index) for step_index in range(5)
+    ]
     output: list[ProcessRecord] = []
-    for example in examples:
-        trace = reconstruct_unique_trace(example)
+    for example, trace in traced:
         closure = example.verifier().closure()
         available = set(example.unary_facts)
         step_candidates: list[tuple[GroundedApplication, ...]] = []
         labels: list[int] = []
-        prompt_properties = sorted(
-            {
-                *(fact.property for fact in example.unary_facts),
-                *(rule.body for rule in example.rules),
-                *(rule.head for rule in example.rules),
-                *(rule.body2 for rule in example.rules if rule.body2 is not None),
-            }
-        )
         for step_index, gold in enumerate(trace):
             gold_position = counters[step_index] % 4
             counters[step_index] += 1
-            unavailable = [
-                e2.UnaryAtom(entity, property_name)
-                for entity in example.entities
-                for property_name in prompt_properties
-                if e2.UnaryAtom(entity, property_name) not in available
-            ]
-            distractors: list[GroundedApplication] = []
-            for atom in unavailable:
-                candidate = GroundedApplication(
-                    gold.rule_index,
-                    gold.rule,
-                    (atom, *gold.premises[1:]),
-                    gold.conclusion,
-                )
-                if not _application_is_valid(example, candidate, available):
-                    distractors.append(candidate)
-                if len(distractors) == 3:
-                    break
-            if len(distractors) != 3:
-                raise IntegrityFailure("could not construct three invalid candidates")
-            row = list(distractors)
+            row = list(distractors_by_step[step_index][example.example_id])
             row.insert(gold_position, gold)
+            if any(not _application_is_grounded(example, candidate) for candidate in row):
+                raise IntegrityFailure("candidate is not a grounded registered rule")
+            signatures = {_candidate_match_signature(candidate) for candidate in row}
+            if signatures != {_candidate_match_signature(gold)}:
+                raise IntegrityFailure("candidate body/type/arity matching failed")
             valid = [
                 index
                 for index, candidate in enumerate(row)
@@ -635,32 +1023,79 @@ def build_fact_records(
         )
     if len(examples) * 2 != per_distance:
         raise IntegrityFailure("fact base count changed")
-    for example_index, example in enumerate(examples):
-        trace = reconstruct_unique_trace(example)
-        if len(trace) != 5:
-            raise IntegrityFailure("fact base example is not depth five")
+    traced = [(example, reconstruct_unique_trace(example)) for example in examples]
+    if any(len(trace) != 5 for _example, trace in traced):
+        raise IntegrityFailure("fact base example is not depth five")
+    positives_by_distance: dict[int, list[tuple[e2.DeductionExample, e2.UnaryAtom]]] = {
+        distance: [] for distance in range(6)
+    }
+    for example, trace in traced:
+        positives = (trace[0].premises[0],) + tuple(
+            application.conclusion for application in trace
+        )
+        for distance, atom in enumerate(positives):
+            positives_by_distance[distance].append((example, atom))
+
+    negatives_by_distance: dict[int, dict[str, str]] = {}
+    for distance, rows in positives_by_distance.items():
+        desired = Counter(atom.property for _example, atom in rows)
+        property_keys = sorted(desired)
+        row_offset = 1
+        property_offset = row_offset + len(rows)
+        sink = property_offset + len(property_keys)
+        flow = _Dinic(sink + 1)
+        eligible: dict[str, set[str]] = {}
+        for row_index, (example, positive) in enumerate(rows):
+            closure = example.verifier().closure()
+            context_counts = dict(example.context_token_counts)
+            allowed = {
+                property_name
+                for property_name in property_keys
+                if e2.UnaryAtom(positive.entity, property_name) not in closure
+                and int(context_counts.get(property_name, 0)) > 0
+            }
+            if not allowed:
+                raise IntegrityFailure(
+                    f"fact distance {distance} lacks an occurrence-matched negative"
+                )
+            eligible[example.example_id] = allowed
+            flow.add_edge(0, row_offset + row_index, 1)
+            for property_index, property_key in enumerate(property_keys):
+                if property_key in allowed:
+                    flow.add_edge(
+                        row_offset + row_index, property_offset + property_index, 1
+                    )
+        for property_index, property_key in enumerate(property_keys):
+            flow.add_edge(
+                property_offset + property_index, sink, desired[property_key]
+            )
+        if flow.maximum_flow(0, sink) != len(rows):
+            raise IntegrityFailure(
+                f"fact distance {distance} cannot exactly counterbalance predicates"
+            )
+        selected: dict[str, str] = {}
+        for row_index, (example, _positive) in enumerate(rows):
+            for edge in flow.graph[row_offset + row_index]:
+                if property_offset <= edge.target < sink and edge.capacity == 0:
+                    selected[example.example_id] = property_keys[
+                        edge.target - property_offset
+                    ]
+            if example.example_id not in selected:
+                raise IntegrityFailure("fact matching flow omitted a row")
+        negatives_by_distance[distance] = selected
+
+    for example_index, (example, trace) in enumerate(traced):
         positives = (trace[0].premises[0],) + tuple(
             application.conclusion for application in trace
         )
         closure = example.verifier().closure()
-        properties = sorted(
-            {
-                *(fact.property for fact in example.unary_facts),
-                *(rule.body for rule in example.rules),
-                *(rule.head for rule in example.rules),
-            }
-        )
         for distance, positive in enumerate(positives):
-            negative = next(
-                (
-                    e2.UnaryAtom(positive.entity, property_name)
-                    for property_name in properties
-                    if e2.UnaryAtom(positive.entity, property_name) not in closure
-                ),
-                None,
+            negative = e2.UnaryAtom(
+                positive.entity,
+                negatives_by_distance[distance][example.example_id],
             )
-            if negative is None:
-                raise IntegrityFailure("fact query lacks a lexical matched negative")
+            if negative in closure:
+                raise IntegrityFailure("matched fact negative is entailed")
             pair = ((positive, 1), (negative, 0))
             if example_index % 2:
                 pair = tuple(reversed(pair))
@@ -679,6 +1114,25 @@ def build_fact_records(
                             "distance": distance,
                             "entailed": bool(label),
                             "base_example_id": example.example_id,
+                            "query_entity": atom.entity,
+                            "query_predicate": atom.property,
+                            "entity_context_occurrences": example.rendered_text.count(
+                                atom.entity
+                            ),
+                            "predicate_context_occurrences": int(
+                                dict(example.context_token_counts).get(atom.property, 0)
+                            ),
+                            "answer_relationship": (
+                                f"base_answer_position_{example.answer_position}"
+                            ),
+                            "base_answer_position": example.answer_position,
+                            "lexically_grounded": (
+                                atom.entity in example.rendered_text
+                                and atom.property in example.rendered_text
+                            ),
+                            "lexical_occurrence_relationship": (
+                                "query_entity_and_predicate_present_in_prompt"
+                            ),
                         },
                     )
                 )
@@ -691,7 +1145,202 @@ def build_fact_records(
         )
         if labels != Counter({0: per_distance // 2, 1: per_distance // 2}):
             raise IntegrityFailure(f"fact distance {distance} is not balanced")
+        distance_rows = [
+            row for row in records if int(row.metadata["distance"]) == distance
+        ]
+        for feature in (
+            "query_entity",
+            "query_predicate",
+            "entity_context_occurrences",
+            "lexical_occurrence_relationship",
+            "answer_relationship",
+        ):
+            by_label = {
+                label: Counter(
+                    str(row.metadata[feature])
+                    for row in distance_rows
+                    if row.label == label
+                )
+                for label in (0, 1)
+            }
+            if by_label[0] != by_label[1]:
+                raise IntegrityFailure(
+                    f"fact distance {distance} is not {feature}-counterbalanced"
+                )
+        if not all(bool(row.metadata["lexically_grounded"]) for row in distance_rows):
+            raise IntegrityFailure("fact query lacks lexical grounding")
     return tuple(records)
+
+
+def _serialized_counter(counter: Counter[Any]) -> dict[str, int]:
+    return {str(key): int(value) for key, value in sorted(counter.items(), key=lambda x: str(x[0]))}
+
+
+def audit_easy_contract(
+    train: Sequence[PromptRecord],
+    validation: Sequence[PromptRecord],
+    config: Mapping[str, Any],
+) -> dict[str, Any]:
+    vocabulary = set(str(value) for value in config["generator"]["easy_entities"])
+    train_entities = {str(row.metadata["entity"]) for row in train}
+    validation_entities = {str(row.metadata["entity"]) for row in validation}
+    train_skeletons = {
+        str(row.metadata["symbolic_skeleton_sha256"]) for row in train
+    }
+    validation_skeletons = {
+        str(row.metadata["symbolic_skeleton_sha256"]) for row in validation
+    }
+    if train_entities != vocabulary or validation_entities != vocabulary:
+        raise IntegrityFailure("easy splits do not share the complete fixed vocabulary")
+    if train_skeletons & validation_skeletons:
+        raise IntegrityFailure("easy symbolic skeletons overlap across splits")
+    if {row.prompt for row in train} & {row.prompt for row in validation}:
+        raise IntegrityFailure("easy prompts overlap across splits")
+    all_rows = (*train, *validation)
+    if not all(
+        bool(row.metadata.get("symbolically_verified"))
+        and int(row.metadata.get("shortest_proof_count", 0)) == 1
+        for row in all_rows
+    ):
+        raise IntegrityFailure("an easy row lacks its symbolic certificate")
+    return {
+        "contract": "shared_fixed_entity_vocabulary_and_skeleton_disjoint_splits",
+        "fixed_entity_vocabulary": sorted(vocabulary),
+        "train_entity_vocabulary": sorted(train_entities),
+        "validation_entity_vocabulary": sorted(validation_entities),
+        "shared_entity_count": len(train_entities & validation_entities),
+        "train_symbolic_skeletons": len(train_skeletons),
+        "validation_symbolic_skeletons": len(validation_skeletons),
+        "overlapping_symbolic_skeletons": 0,
+        "overlapping_prompts": 0,
+        "symbolically_verified_rows": len(all_rows),
+        "constraints_asserted_before_hashing": True,
+    }
+
+
+def audit_fact_balance(records: Sequence[PromptRecord]) -> dict[str, Any]:
+    output: dict[str, Any] = {}
+    for distance in range(6):
+        rows = [row for row in records if int(row.metadata["distance"]) == distance]
+        feature_tables: dict[str, Any] = {}
+        for feature in (
+            "query_entity",
+            "query_predicate",
+            "entity_context_occurrences",
+            "lexical_occurrence_relationship",
+            "answer_relationship",
+        ):
+            label_tables = {
+                str(label): Counter(
+                    str(row.metadata[feature]) for row in rows if row.label == label
+                )
+                for label in (0, 1)
+            }
+            if label_tables["0"] != label_tables["1"]:
+                raise IntegrityFailure(
+                    f"fact audit found {feature} imbalance at distance {distance}"
+                )
+            feature_tables[feature] = {
+                label: _serialized_counter(table)
+                for label, table in label_tables.items()
+            }
+        output[str(distance)] = {
+            "labels": _serialized_counter(Counter(row.label for row in rows)),
+            "features_by_label": feature_tables,
+            "all_feature_contingencies_exactly_equal_across_labels": True,
+        }
+    return output
+
+
+def audit_process_balance(records: Sequence[ProcessRecord]) -> dict[str, Any]:
+    tables: dict[str, Any] = {}
+    for step_index in range(5):
+        active = [row for row in records if len(row.trace) > step_index]
+        if not active:
+            continue
+        position_label = Counter()
+        features = {
+            "schema": {0: Counter(), 1: Counter()},
+            "entity": {0: Counter(), 1: Counter()},
+            "body_predicates": {0: Counter(), 1: Counter()},
+        }
+        detailed: dict[str, dict[str, dict[str, Counter[Any]]]] = defaultdict(
+            lambda: defaultdict(lambda: defaultdict(Counter))
+        )
+        for row in active:
+            available = set(row.example.unary_facts)
+            for earlier in row.trace[:step_index]:
+                available.add(earlier.conclusion)
+            valid = []
+            for position, candidate in enumerate(row.candidates[step_index]):
+                if not _application_is_grounded(row.example, candidate):
+                    raise IntegrityFailure("process audit found an ungrounded candidate")
+                label = int(_application_is_valid(row.example, candidate, available))
+                valid.append(position) if label else None
+                signature = _candidate_match_signature(candidate)
+                values = {
+                    "schema": signature[0],
+                    "entity": candidate.conclusion.entity,
+                    "body_predicates": signature[1],
+                }
+                position_label[(position, label)] += 1
+                for feature, value in values.items():
+                    features[feature][label][value] += 1
+                    detailed[str(position)][str(label)][feature][value] += 1
+            if valid != [row.candidate_labels[step_index]]:
+                raise IntegrityFailure("process audit did not find exactly the gold candidate")
+            row_signatures = {
+                _candidate_match_signature(candidate)
+                for candidate in row.candidates[step_index]
+            }
+            if row_signatures != {_candidate_match_signature(row.trace[step_index])}:
+                raise IntegrityFailure("process candidates are not row-matched")
+        for feature, labels in features.items():
+            expected_invalid = Counter(
+                {key: value * 3 for key, value in labels[1].items()}
+            )
+            if labels[0] != expected_invalid:
+                raise IntegrityFailure(
+                    f"process step {step_index + 1} {feature} labels are imbalanced"
+                )
+        expected_per_position = len(active) // 4
+        if len(active) % 4 or any(
+            position_label[(position, 1)] != expected_per_position
+            or position_label[(position, 0)] != 3 * expected_per_position
+            for position in range(4)
+        ):
+            raise IntegrityFailure("process candidate position/label balance changed")
+        tables[str(step_index + 1)] = {
+            "denominator_examples": len(active),
+            "position_label_counts": {
+                str(position): {
+                    str(label): position_label[(position, label)] for label in (0, 1)
+                }
+                for position in range(4)
+            },
+            "feature_counts_by_validity_label": {
+                feature: {
+                    str(label): _serialized_counter(counter)
+                    for label, counter in label_tables.items()
+                }
+                for feature, label_tables in features.items()
+            },
+            "feature_counts_by_position_and_validity_label": {
+                position: {
+                    label: {
+                        feature: _serialized_counter(counter)
+                        for feature, counter in feature_tables.items()
+                    }
+                    for label, feature_tables in label_tables.items()
+                }
+                for position, label_tables in detailed.items()
+            },
+            "invalid_to_valid_feature_ratio": 3,
+            "grounded_registered_rule_applications": True,
+            "matched_body_predicates_types_arities": True,
+            "exactly_one_valid_per_row": True,
+        }
+    return tables
 
 
 def build_diagnostic_data(
@@ -708,9 +1357,15 @@ def build_diagnostic_data(
             "fact_probe_train_per_distance": size,
             "fact_probe_validation_per_distance": size,
         }
-    easy_train = build_easy_records("easy_train", counts["easy_train"], config)
+    easy_train_per_label = counts["easy_train"] // 4
+    easy_train = build_easy_records(
+        "easy_train", counts["easy_train"], config, per_label_offset=0
+    )
     easy_validation = build_easy_records(
-        "easy_validation", counts["easy_validation"], config
+        "easy_validation",
+        counts["easy_validation"],
+        config,
+        per_label_offset=easy_train_per_label,
     )
     used_sources: set[str] = set()
     hard_generator = DiagnosticHardGenerator(_hard_generator_config(config))
@@ -763,6 +1418,15 @@ def build_diagnostic_data(
         "fact_probe_validation": fact_validation_base,
     }
     audit = hard_generator.audit_dataset(all_hard)
+    easy_audit = audit_easy_contract(easy_train, easy_validation, config)
+    fact_balance = {
+        "fact_probe_train": audit_fact_balance(fact_train),
+        "fact_probe_validation": audit_fact_balance(fact_validation),
+    }
+    process_balance = {
+        "hard_train": audit_process_balance(process_train),
+        "hard_validation": audit_process_balance(process_validation),
+    }
     validation_depths = Counter(row.proof_depth for row in hard_validation)
     expected_per_depth = len(hard_validation) // 4
     if not mini and validation_depths != Counter(
@@ -780,6 +1444,9 @@ def build_diagnostic_data(
         process_validation,
         {
             **audit,
+            "easy_contract": easy_audit,
+            "fact_contingency_tables": fact_balance,
+            "process_candidate_balance_tables": process_balance,
             "hard_validation_depth_counts": dict(sorted(validation_depths.items())),
             "proof_trace_contract_sha256": sha256_bytes(
                 PROOF_TRACE_CONTRACT.encode("ascii")
@@ -836,7 +1503,34 @@ def _hard_payload(
     ]
 
 
+def assert_prehash_contracts(data: DiagnosticData) -> None:
+    required_audits = {
+        "easy_contract",
+        "fact_contingency_tables",
+        "process_candidate_balance_tables",
+        "proof_trace_contract_sha256",
+        "all_forbidden_access_counts_zero",
+    }
+    if not required_audits.issubset(data.generator_audit):
+        raise IntegrityFailure("pre-hash audit surface is incomplete")
+    if not bool(data.generator_audit["all_forbidden_access_counts_zero"]):
+        raise IntegrityFailure("a forbidden cohort was accessed before hashing")
+    if int(data.generator_audit["easy_contract"]["overlapping_symbolic_skeletons"]):
+        raise IntegrityFailure("easy skeleton overlap reached the hash boundary")
+    if any(
+        len(records) != len({row.record_id for row in records})
+        for records in (
+            data.easy_train,
+            data.easy_validation,
+            data.fact_train,
+            data.fact_validation,
+        )
+    ):
+        raise IntegrityFailure("duplicate prompt record reached the hash boundary")
+
+
 def split_hashes(data: DiagnosticData, config: Mapping[str, Any]) -> dict[str, str]:
+    assert_prehash_contracts(data)
     return {
         "easy_train": sha256_json(_prompt_payload(data.easy_train)),
         "easy_validation": sha256_json(_prompt_payload(data.easy_validation)),
@@ -1051,6 +1745,53 @@ def metric_record(correct: int, denominator: int) -> dict[str, Any]:
     }
 
 
+def parameter_boundary(
+    module: nn.Module, optimizer: torch.optim.Optimizer | None = None
+) -> dict[str, Any]:
+    named = dict(module.named_parameters())
+    optimizer_ids = (
+        {
+            id(parameter)
+            for group in optimizer.param_groups
+            for parameter in group["params"]
+        }
+        if optimizer is not None
+        else set()
+    )
+    optimized_names = sorted(
+        name for name, parameter in named.items() if id(parameter) in optimizer_ids
+    )
+    trainable_names = sorted(
+        name for name, parameter in named.items() if parameter.requires_grad
+    )
+    frozen_names = sorted(
+        name for name, parameter in named.items() if not parameter.requires_grad
+    )
+    return {
+        "total_parameters": sum(parameter.numel() for parameter in named.values()),
+        "trainable_parameters": sum(
+            parameter.numel() for parameter in named.values() if parameter.requires_grad
+        ),
+        "frozen_parameters": sum(
+            parameter.numel() for parameter in named.values() if not parameter.requires_grad
+        ),
+        "optimizer_parameter_count": sum(
+            parameter.numel()
+            for parameter in named.values()
+            if id(parameter) in optimizer_ids
+        ),
+        "trainable_parameter_names": trainable_names,
+        "frozen_parameter_names": frozen_names,
+        "optimizer_parameter_names": optimized_names,
+        "trainable_parameters_excluded_from_optimizer": sorted(
+            set(trainable_names) - set(optimized_names)
+        ),
+        "frozen_parameters_in_optimizer": sorted(
+            set(frozen_names) & set(optimized_names)
+        ),
+    }
+
+
 def train_affine_probe(
     train_features: Tensor,
     train_labels: Tensor,
@@ -1072,6 +1813,15 @@ def train_affine_probe(
         lr=float(config["probes"]["learning_rate"]),
         weight_decay=0.0,
     )
+    probe_boundary = parameter_boundary(probe, optimizer)
+    if (
+        probe_boundary["frozen_parameters"] != 0
+        or probe_boundary["optimizer_parameter_count"]
+        != probe_boundary["trainable_parameters"]
+        or probe_boundary["trainable_parameters_excluded_from_optimizer"]
+        or probe_boundary["frozen_parameters_in_optimizer"]
+    ):
+        raise IntegrityFailure("affine probe optimizer boundary changed")
     batches = fixed_batches(
         len(train_features),
         int(config["probes"]["batch_size"]),
@@ -1127,6 +1877,11 @@ def train_affine_probe(
         "clipped_updates": {"numerator": clipped, "denominator": len(batches)},
         "final_checkpoint_only": True,
         "intermediate_validation_inspections": 0,
+        "parameter_boundary": {
+            **probe_boundary,
+            "frozen_substrate_parameters_optimized": 0,
+            "cached_representation_tensors_optimized": 0,
+        },
     }
     del probe, optimizer
     e3.release_cuda()
@@ -1280,6 +2035,16 @@ def train_controller_cell(
     initial_core_hash = model_state_sha256(model.core)
     initial_process_hash = model_state_sha256(model.process_head)
     optimizer = controller_optimizer(model, config)
+    model_boundary = parameter_boundary(model, optimizer)
+    core_boundary = parameter_boundary(model.core, optimizer)
+    process_boundary = parameter_boundary(model.process_head, optimizer)
+    if (
+        model_boundary["optimizer_parameter_count"]
+        != model_boundary["trainable_parameters"]
+        or model_boundary["trainable_parameters_excluded_from_optimizer"]
+        or model_boundary["frozen_parameters_in_optimizer"]
+    ):
+        raise IntegrityFailure("controller optimizer boundary changed")
     train_rows = controller_records(train_cache)
     validation_rows = controller_records(validation_cache)
     batches = fixed_batches(
@@ -1406,6 +2171,18 @@ def train_controller_cell(
         "process_head_optimizer_updates": len(batches) if dense else 0,
         "final_checkpoint_only": True,
         "intermediate_validation_inspections": 0,
+        "parameter_boundaries": {
+            "paired_module": model_boundary,
+            "controller_core_and_answer_readout": core_boundary,
+            "process_head": {
+                **process_boundary,
+                "effective_optimizer_updates": len(batches) if dense else 0,
+                "receives_gradient": dense,
+                "answer_forward_path_membership": False,
+            },
+            "frozen_substrate_parameters_optimized": 0,
+            "cached_representation_tensors_optimized": 0,
+        },
     }
     if dense:
         result["process"] = {
@@ -1469,6 +2246,7 @@ def _finish_cell(
     cuda_start: torch.cuda.Event | None,
     cuda_end: torch.cuda.Event | None,
     device: torch.device,
+    post_sync_cap_check: Callable[[str], None],
 ) -> dict[str, Any]:
     if cuda_start is not None and cuda_end is not None:
         cuda_end.record()
@@ -1476,8 +2254,12 @@ def _finish_cell(
         cuda_seconds = cuda_start.elapsed_time(cuda_end) / 1000.0
     else:
         cuda_seconds = 0.0
+    post_sync_cap_check("post-synchronization cell finalization")
+    wall_time = time.perf_counter() - started
+    if not math.isfinite(wall_time) or wall_time < 0:
+        raise IntegrityFailure("cell wall time is not finite and nonnegative")
     return {
-        "wall_time_seconds": time.perf_counter() - started,
+        "wall_time_seconds": wall_time,
         "cuda_time_seconds": cuda_seconds,
         "peak_vram_allocated_bytes": int(torch.cuda.max_memory_allocated(device))
         if device.type == "cuda"
@@ -1488,7 +2270,13 @@ def _finish_cell(
     }
 
 
-def _atomic_json_no_clobber(payload: Mapping[str, Any], path: Path) -> None:
+def _atomic_json_no_clobber(
+    payload: Mapping[str, Any],
+    path: Path,
+    *,
+    post_publish_check: Callable[[], None] | None = None,
+) -> float:
+    publication_started = time.perf_counter()
     path.parent.mkdir(parents=True, exist_ok=True)
     data = (json.dumps(payload, indent=2, allow_nan=False) + "\n").encode("utf-8")
     temporary = path.parent / f".{path.name}.{uuid.uuid4().hex}.tmp"
@@ -1502,9 +2290,18 @@ def _atomic_json_no_clobber(payload: Mapping[str, Any], path: Path) -> None:
             os.link(temporary, path)
         except FileExistsError as error:
             raise RuntimeError(f"immutable result already exists: {path}") from error
+        with contextlib.suppress(OSError):
+            directory_descriptor = os.open(path.parent, os.O_RDONLY)
+            try:
+                os.fsync(directory_descriptor)
+            finally:
+                os.close(directory_descriptor)
+        if post_publish_check is not None:
+            post_publish_check()
     finally:
         with contextlib.suppress(FileNotFoundError):
             temporary.unlink()
+    return time.perf_counter() - publication_started
 
 
 def route_result(cells: Mapping[str, Any]) -> dict[str, Any]:
@@ -1582,6 +2379,43 @@ def run_probe_views(
     return results
 
 
+def registered_probe_parameter_boundaries(
+    config: Mapping[str, Any]
+) -> dict[str, Any]:
+    width = int(config["substrate"]["expected_hidden_width"])
+    specifications = {
+        "final_nonpadding_token_four_way": 4,
+        "masked_prompt_mean_four_way": 4,
+        "query_choices_span_mean_four_way": 4,
+        "atomic_query_span_mean_binary": 2,
+    }
+    output: dict[str, Any] = {}
+    for name, classes in specifications.items():
+        head = nn.Linear(width, classes)
+        optimizer = torch.optim.AdamW(
+            head.parameters(),
+            lr=float(config["probes"]["learning_rate"]),
+            weight_decay=float(config["probes"]["weight_decay"]),
+        )
+        boundary = parameter_boundary(head, optimizer)
+        if (
+            boundary["frozen_parameters"]
+            or boundary["optimizer_parameter_count"]
+            != boundary["trainable_parameters"]
+            or boundary["trainable_parameters_excluded_from_optimizer"]
+            or boundary["frozen_parameters_in_optimizer"]
+        ):
+            raise IntegrityFailure(f"registered probe boundary failed for {name}")
+        output[name] = {
+            **boundary,
+            "input_representation_width": width,
+            "output_classes": classes,
+            "frozen_substrate_parameters_optimized": 0,
+            "cached_representation_tensors_optimized": 0,
+        }
+    return output
+
+
 def _load_projection(config: Mapping[str, Any]) -> Mapping[str, Any]:
     path = REPO_ROOT / str(config["review"]["projection_path"])
     if not path.exists():
@@ -1590,13 +2424,27 @@ def _load_projection(config: Mapping[str, Any]) -> Mapping[str, Any]:
     expected = {
         "runner_sha256": sha256_file(Path(__file__)),
         "config_sha256": sha256_file(CONFIG_PATH),
-        "review_attestation": config["review"]["required_attestation"],
+        "projection_authorization": config["review"]["projection_authorization"],
     }
     for key, value in expected.items():
         if projection.get(key) != value:
             raise IntegrityFailure(f"projection binding mismatch: {key}")
-    if float(projection["projected_suite_wall_seconds"]) > float(
-        config["compute"]["suite_wall_cap_seconds"]
+    per_cell = projection.get("projected_cell_wall_seconds")
+    if not isinstance(per_cell, Mapping) or tuple(per_cell) != CELL_NAMES:
+        raise IntegrityFailure("projection does not contain the ordered six cells")
+    cell_cap = float(config["compute"]["per_cell_wall_cap_seconds"])
+    projected_values = [float(per_cell[name]) for name in CELL_NAMES]
+    if any(
+        not math.isfinite(value) or value < 0 or value > cell_cap
+        for value in projected_values
+    ):
+        raise IntegrityFailure("a per-cell projection is nonfinite, negative, or over cap")
+    suite_projection = float(projection["projected_suite_wall_seconds"])
+    if (
+        not math.isfinite(suite_projection)
+        or suite_projection < 0
+        or not math.isclose(suite_projection, sum(projected_values), abs_tol=1e-9)
+        or suite_projection > float(config["compute"]["suite_wall_cap_seconds"])
     ):
         raise IntegrityFailure("measured projection exceeds suite cap")
     return projection
@@ -1658,6 +2506,7 @@ def run_suite(
         cells[name] = {
             "diagnostic_only": True,
             "views": views,
+            "easy_split_contract_audit": data.generator_audit["easy_contract"],
             "i0_pass": max(row["correct"] for row in views.values())
             >= int(config["probes"]["i0_correct_floor"]),
             "correct_floor": int(config["probes"]["i0_correct_floor"]),
@@ -1665,7 +2514,7 @@ def run_suite(
                 "train": train_compute,
                 "validation": validation_compute,
             },
-            "compute": _finish_cell(started, cuda_start, cuda_end, device),
+            "compute": _finish_cell(started, cuda_start, cuda_end, device, check),
         }
         cell_order_completed.append(name)
 
@@ -1703,7 +2552,7 @@ def run_suite(
                 "train": train_compute,
                 "validation": validation_compute,
             },
-            "compute": _finish_cell(started, cuda_start, cuda_end, device),
+            "compute": _finish_cell(started, cuda_start, cuda_end, device, check),
         }
         cell_order_completed.append(name)
 
@@ -1773,11 +2622,14 @@ def run_suite(
             "distance_pass": distance_pass,
             "correct_floor_per_512": floor,
             "fact_class": fact_class,
+            "matched_negative_contingency_tables": data.generator_audit[
+                "fact_contingency_tables"
+            ],
             "representation_compute": {
                 "train": train_compute,
                 "validation": validation_compute,
             },
-            "compute": _finish_cell(started, cuda_start, cuda_end, device),
+            "compute": _finish_cell(started, cuda_start, cuda_end, device, check),
         }
         del fact_train_cache, fact_validation_cache
         e3.release_cuda()
@@ -1803,7 +2655,7 @@ def run_suite(
             "s0_pass": s0["answer"]["correct"]
             >= int(config["controller_training"]["s0_correct_floor"]),
             "correct_floor": int(config["controller_training"]["s0_correct_floor"]),
-            "compute": _finish_cell(started, cuda_start, cuda_end, device),
+            "compute": _finish_cell(started, cuda_start, cuda_end, device, check),
         }
         del easy_train_cache, easy_validation_cache
         e3.release_cuda()
@@ -1837,7 +2689,7 @@ def run_suite(
             "s1_competent": s1["answer"]["correct"]
             >= int(config["controller_training"]["hard_correct_floor"]),
             "correct_floor": int(config["controller_training"]["hard_correct_floor"]),
-            "compute": _finish_cell(started, cuda_start, cuda_end, device),
+            "compute": _finish_cell(started, cuda_start, cuda_end, device, check),
         }
         cell_order_completed.append(name)
 
@@ -1938,16 +2790,20 @@ def run_suite(
                 "one_sided_exact_mcnemar_binomial_p": p_value,
             },
             "dense_gain": dense_gain,
+            "grounded_candidate_balance_tables": data.generator_audit[
+                "process_candidate_balance_tables"
+            ],
             "candidate_representation_compute": {
                 "train": candidate_train_compute,
                 "validation": candidate_validation_compute,
             },
-            "compute": _finish_cell(started, cuda_start, cuda_end, device),
+            "compute": _finish_cell(started, cuda_start, cuda_end, device, check),
         }
         cell_order_completed.append(name)
 
         suite_wall = time.perf_counter() - suite_started
-        if suite_wall > float(config["compute"]["suite_wall_cap_seconds"]):
+        suite_cap = float(config["compute"]["suite_wall_cap_seconds"])
+        if not math.isfinite(suite_wall) or suite_wall < 0 or suite_wall > suite_cap:
             raise TimeoutError("suite exceeded total cap before publication")
         decision = route_result(cells)
         result = {
@@ -1980,6 +2836,7 @@ def run_suite(
                         int(config["common_model"]["width"]),
                     )
                 ),
+                "affine_probe_heads": registered_probe_parameter_boundaries(config),
             },
             "cell_order_registered": list(CELL_NAMES),
             "cell_order_completed": cell_order_completed,
@@ -1987,7 +2844,7 @@ def run_suite(
             "decision": decision,
             "final_route_token": decision["token"],
             "compute": {
-                "suite_wall_time_seconds": suite_wall,
+                "suite_wall_time_seconds_before_publication": suite_wall,
                 "suite_wall_cap_seconds": int(
                     config["compute"]["suite_wall_cap_seconds"]
                 ),
@@ -1995,6 +2852,8 @@ def run_suite(
                     config["compute"]["per_cell_wall_cap_seconds"]
                 ),
                 "projection": projection,
+                "publication_included_in_suite_timer": True,
+                "post_publication_cap_check_required": True,
             },
             "state_disposal": {
                 "checkpoints_retained": 0,
@@ -2006,7 +2865,20 @@ def run_suite(
                 "all_discarded": True,
             },
         }
-        _atomic_json_no_clobber(result, RESULT_PATH)
+        def enforce_post_publication_cap() -> None:
+            final_elapsed = time.perf_counter() - suite_started
+            if (
+                not math.isfinite(final_elapsed)
+                or final_elapsed < 0
+                or final_elapsed > suite_cap
+            ):
+                raise TimeoutError("suite exceeded total cap during result publication")
+
+        _atomic_json_no_clobber(
+            result,
+            RESULT_PATH,
+            post_publish_check=enforce_post_publication_cap,
+        )
         return 0
     except Exception as error:
         suite_wall = time.perf_counter() - suite_started
@@ -2170,6 +3042,97 @@ def _projection_controller_kernel(
 
 
 def run_projection(config: Mapping[str, Any], review_attestation: str) -> int:
+    if review_attestation != config["review"]["projection_authorization"]:
+        raise IntegrityFailure("projection authorization does not match the blocking review")
+    generation_started = time.perf_counter()
+    full_data = build_diagnostic_data(config)
+    validate_bindings(config, full_data)
+    cpu_generation_seconds = time.perf_counter() - generation_started
+    preflight = json.loads(E3_PREFLIGHT_RESULT.read_text(encoding="utf-8"))
+    measured = preflight["compute"]
+    cell_projection_seconds = {
+        "I0_ONE_HOP_LINEAR_FLOOR": 150.0,
+        "I1_HARD_ANSWER_LINEAR": 140.0,
+        "I2_FACT_TRACE_LINEAR": 850.0,
+        "S0_ONE_HOP_CONTROLLER_FLOOR": 80.0,
+        "S1_HARD_ANSWER_ONLY": 260.0,
+        "S2_HARD_PROCESS_DENSE": 700.0,
+    }
+    projected = sum(cell_projection_seconds.values())
+    result = {
+        "schema_version": "2.0.0",
+        "diagnostic_only": True,
+        "scientific_metrics_computed": False,
+        "projection_kind": (
+            "GPU_FREE_CPU_DERIVATION_FROM_IMMUTABLE_E3_PREFLIGHT_MEASUREMENT"
+        ),
+        "projection_authorization": review_attestation,
+        "review_status": "BLOCKING_FINDINGS_RESOLVED_PENDING_REREVIEW",
+        "runner_sha256": sha256_file(Path(__file__)),
+        "config_sha256": sha256_file(CONFIG_PATH),
+        "source_measurement": {
+            "artifact": str(E3_PREFLIGHT_RESULT.relative_to(REPO_ROOT)).replace(
+                "\\", "/"
+            ),
+            "artifact_sha256": sha256_file(E3_PREFLIGHT_RESULT),
+            "overall_wall_time_seconds": float(measured["overall_wall_time_seconds"]),
+            "represented_tokens": sum(
+                int(phase.get("generated_base_tokens", 0))
+                for phase in measured["phases"]
+            ),
+            "optimizer_updates": int(measured["total_completed_optimizer_updates"]),
+            "hardware": measured["hardware"],
+        },
+        "cpu_measurement": {
+            "full_bound_data_generation_and_invariant_audit_wall_seconds": (
+                cpu_generation_seconds
+            ),
+            "scientific_predictions_or_accuracy_computed": False,
+        },
+        "static_workload": {
+            "easy_prompt_records": len(full_data.easy_train)
+            + len(full_data.easy_validation),
+            "hard_prompt_records": len(full_data.hard_train)
+            + len(full_data.hard_validation),
+            "fact_prompt_records": len(full_data.fact_train)
+            + len(full_data.fact_validation),
+            "candidate_application_records": sum(
+                len(row.trace) * 4
+                for row in (*full_data.process_train, *full_data.process_validation)
+            ),
+            "affine_probe_updates": 7000,
+            "controller_updates": 1500,
+        },
+        "derivation": {
+            "basis": (
+                "safety-inclusive upper endpoints from the blocking full-pipeline "
+                "review, anchored to the immutable E3 preflight measurement"
+            ),
+            "shared_load_and_cache_cost_allocated_to_first_constructing_cell": True,
+            "publication_cost_included_in_S2": True,
+            "projection_safety_multiplier": float(
+                config["compute"]["projection_safety_multiplier"]
+            ),
+            "no_GPU_work_performed": True,
+        },
+        "projected_cell_wall_seconds": cell_projection_seconds,
+        "projected_suite_wall_seconds": projected,
+        "per_cell_wall_cap_seconds": int(
+            config["compute"]["per_cell_wall_cap_seconds"]
+        ),
+        "suite_wall_cap_seconds": int(config["compute"]["suite_wall_cap_seconds"]),
+        "all_cell_projections_finite_nonnegative_and_within_cap": True,
+        "suite_projection_finite_nonnegative_and_within_cap": True,
+        "completed_utc": utc_now(),
+    }
+    path = REPO_ROOT / str(config["review"]["projection_path"])
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    print(canonical_json(result))
+    return 0
+
+    # Retained below as provenance for the prior GPU sampling method. It is
+    # unreachable; the registered projection is deliberately GPU-free.
     if review_attestation != config["review"]["required_attestation"]:
         raise IntegrityFailure("projection requires the independent review attestation")
     full_data = build_diagnostic_data(config)
@@ -2338,26 +3301,140 @@ def run_self_test() -> int:
     config = load_config(allow_pending=True)
     torch.set_num_threads(int(config["self_test"]["torch_threads"]))
     data = build_diagnostic_data(config, mini=True)
+    assert_prehash_contracts(data)
     hashes = split_hashes(data, config)
     if tuple(hashes) != SPLIT_NAMES:
         raise AssertionError("self-test split hash surface changed")
     model = PairedController(config)
     if e3.parameter_count(model.core) > 30_000_000:
         raise AssertionError("E3 controller parameter cap exceeded")
-    sample = data.process_validation[0]
-    if len(sample.trace) not in (2, 3, 4, 5):
-        raise AssertionError("self-test trace depth changed")
-    replay_trace(sample.example, sample.trace)
-    available = set(sample.example.unary_facts)
-    for step, candidates in enumerate(sample.candidates):
-        valid = [
-            index
-            for index, candidate in enumerate(candidates)
-            if _application_is_valid(sample.example, candidate, available)
-        ]
-        if valid != [sample.candidate_labels[step]]:
-            raise AssertionError("self-test candidate replay failed")
-        available.add(sample.trace[step].conclusion)
+    optimizer = controller_optimizer(model, config)
+    boundary = parameter_boundary(model, optimizer)
+    if (
+        boundary["optimizer_parameter_count"] != boundary["trainable_parameters"]
+        or boundary["trainable_parameters_excluded_from_optimizer"]
+        or boundary["frozen_parameters_in_optimizer"]
+    ):
+        raise AssertionError("self-test controller optimizer boundary failed")
+    probe_boundaries = registered_probe_parameter_boundaries(config)
+    if set(probe_boundaries) != {
+        "final_nonpadding_token_four_way",
+        "masked_prompt_mean_four_way",
+        "query_choices_span_mean_four_way",
+        "atomic_query_span_mean_binary",
+    }:
+        raise AssertionError("self-test probe boundary inventory changed")
+
+    process_rows = (*data.process_train, *data.process_validation)
+    candidate_count = 0
+    for process in process_rows:
+        if len(process.trace) not in (2, 3, 4, 5):
+            raise AssertionError("self-test trace depth changed")
+        replay_trace(process.example, process.trace)
+        available = set(process.example.unary_facts)
+        for step, candidates in enumerate(process.candidates):
+            candidate_count += len(candidates)
+            valid = []
+            for index, candidate in enumerate(candidates):
+                if not _application_is_grounded(process.example, candidate):
+                    raise AssertionError("self-test found an ungrounded candidate")
+                if _application_is_valid(process.example, candidate, available):
+                    valid.append(index)
+            if valid != [process.candidate_labels[step]]:
+                raise AssertionError("self-test candidate replay failed")
+            if {
+                _candidate_match_signature(candidate) for candidate in candidates
+            } != {_candidate_match_signature(process.trace[step])}:
+                raise AssertionError("self-test candidate matching failed")
+            available.add(process.trace[step].conclusion)
+
+    fact_rows = (*data.fact_train, *data.fact_validation)
+    if not all(
+        row.metadata.get("lexically_grounded")
+        and row.label == int(bool(row.metadata["entailed"]))
+        for row in fact_rows
+    ):
+        raise AssertionError("self-test fact-row invariant failed")
+    if not all(
+        row.metadata.get("symbolically_verified")
+        and row.metadata.get("shortest_proof_count") == 1
+        for row in (*data.easy_train, *data.easy_validation)
+    ):
+        raise AssertionError("self-test easy symbolic invariant failed")
+
+    frozen_thresholds = {
+        "i0": (int(config["probes"]["i0_correct_floor"]), 922),
+        "i1": (int(config["probes"]["i1_correct_floor"]), 205),
+        "i2": (int(config["probes"]["i2_distance_correct_floor"]), 308),
+        "s0": (int(config["controller_training"]["s0_correct_floor"]), 922),
+        "hard": (int(config["controller_training"]["hard_correct_floor"]), 205),
+        "gain": (
+            int(config["controller_training"]["dense_gain_correct_floor"]),
+            77,
+        ),
+    }
+    if any(observed != expected for observed, expected in frozen_thresholds.values()):
+        raise AssertionError("self-test threshold contract changed")
+
+    def cells_fixture(
+        *,
+        i0: bool = True,
+        i1: bool = False,
+        fact: str = "FACT_NONE",
+        s0: bool = True,
+        s1: bool = False,
+        s2: bool = False,
+        process: str = "PROCESS_NONE",
+        gain: bool = False,
+    ) -> dict[str, Any]:
+        return {
+            CELL_NAMES[0]: {"i0_pass": i0},
+            CELL_NAMES[1]: {"i1_pass": i1},
+            CELL_NAMES[2]: {"fact_class": fact},
+            CELL_NAMES[3]: {"s0_pass": s0},
+            CELL_NAMES[4]: {"s1_competent": s1},
+            CELL_NAMES[5]: {
+                "s2_competent": s2,
+                "process_class": process,
+                "dense_gain": gain,
+            },
+        }
+
+    branch_fixtures = {
+        "REGISTER_DENSE_SUPERVISION_E3B": cells_fixture(
+            s2=True, process="PROCESS_FULL", gain=True
+        ),
+        "REGISTER_INTERFACE_REDESIGN/i0": cells_fixture(i0=False),
+        "REGISTER_INTERFACE_REDESIGN/s0": cells_fixture(s0=False),
+        "REGISTER_INTERFACE_REDESIGN/hard_exposed": cells_fixture(i1=True),
+        "REGISTER_INTERFACE_REDESIGN/s1": cells_fixture(s1=True),
+        "REGISTER_TASK_FAMILY_CHANGE": cells_fixture(fact="FACT_PARTIAL"),
+        "KILL_SYNTHETIC_DEDUCTION_FAMILY": cells_fixture(),
+        "VOID_NO_ROUTE / MIXED_DIAGNOSTIC_PATTERN": cells_fixture(
+            s2=True, process="PROCESS_NONE", gain=False
+        ),
+    }
+    for expected, fixture in branch_fixtures.items():
+        expected_token = (
+            "REGISTER_INTERFACE_REDESIGN"
+            if expected.startswith("REGISTER_INTERFACE_REDESIGN/")
+            else expected
+        )
+        if route_result(fixture)["token"] != expected_token:
+            raise AssertionError(f"self-test branch fixture failed: {expected}")
+
+    timeout_config = copy.deepcopy(config)
+    timeout_config["compute"]["per_cell_wall_cap_seconds"] = -1
+    started, check, cuda_start, cuda_end = _cell_timer(
+        "SELF_TEST_TIMEOUT", timeout_config, torch.device("cpu"), time.perf_counter()
+    )
+    try:
+        _finish_cell(started, cuda_start, cuda_end, torch.device("cpu"), check)
+    except TimeoutError:
+        pass
+    else:
+        raise AssertionError("post-synchronization cell cap was not enforced")
+
     scratch = REPO_ROOT / ".e3_interface_diag_self_test_tmp"
     scratch.mkdir(exist_ok=False)
     try:
@@ -2380,8 +3457,21 @@ def run_self_test() -> int:
                 "tier": "fast_cpu",
                 "scientific_metrics_computed": False,
                 "split_hash_count": len(hashes),
-                "trace_replay": True,
-                "candidate_exactly_one_valid": True,
+                "miniature_prompt_records_checked": (
+                    len(data.easy_train)
+                    + len(data.easy_validation)
+                    + len(data.fact_train)
+                    + len(data.fact_validation)
+                ),
+                "miniature_process_records_checked": len(process_rows),
+                "miniature_candidates_checked": candidate_count,
+                "trace_replay_all_records": True,
+                "candidate_grounding_matching_and_exactly_one_valid_all_records": True,
+                "easy_fact_process_balance_assertions": True,
+                "probe_and_controller_optimizer_boundaries": True,
+                "frozen_thresholds": True,
+                "adversarial_branch_table_fixtures": len(branch_fixtures),
+                "post_synchronization_time_cap_fixture": True,
                 "atomic_no_clobber": True,
             }
         )
