@@ -1,6 +1,6 @@
 # Frozen Best-of-N Safe Selection Pilot Preregistration
 
-Status: **PREREGISTERED / NOT YET RUN / LAUNCH BLOCKED ON HASH SLOTS, MANIFEST IDENTITIES, RUNNER BUILD, AND INDEPENDENT REVIEW**
+Status: **FRESHLY PREREGISTERED SUCCESSOR / ORIGINAL ATTEMPT TERMINAL PREFLIGHT STOP / NOT YET RUN**
 
 This is the single canonical preregistration for the frozen best-of-\(N\) safe-selection pilot. It tests an inference-layer selection law over independent stochastic samples. It is not a UESD-lineage experiment, does not reopen the D38–D40 fixed-point arc, and cannot alter, rescue, delay, reinterpret, or adjudicate E2 or the preregistered 0.5B semantic-ratchet experiment. No result is claimed here.
 
@@ -8,7 +8,11 @@ This is the single canonical preregistration for the frozen best-of-\(N\) safe-s
 
 ### Hypothesis
 
-For a frozen generator–verifier pair, sequential incumbent-based selection with a calibration-frozen, multiplicity-aware replacement margin can use a larger independent candidate bank while reducing verifier-induced harmful replacement, retaining at least 90% of the beneficial acquisitions supplied by ordinary verifier argmax, and improving selected exact-answer accuracy.
+For the frozen generator paired with the exact revision-bound `verifier-V / maintained-eager-BF16-v1` operational scorer contract, sequential incumbent-based selection with a calibration-frozen, multiplicity-aware replacement margin can use a larger independent candidate bank while reducing verifier-induced harmful replacement, retaining at least 90% of the beneficial acquisitions supplied by ordinary verifier argmax, and improving selected exact-answer accuracy.
+
+This preserves the generator, verifier checkpoint, tokenizer, backbone tensors,
+and reward-head tensors. It does not claim implementation equivalence to the
+verifier's published golden values.
 
 ### Law being tested: safe acquisition under candidate expansion
 
@@ -1341,3 +1345,243 @@ preflight outcome, not a scientific KILL or evidence about safe selection.
 The runner fails closed for GPU/execution modes. A new compatibility attempt,
 verifier swap, or scientific continuation requires round-2 steering and a
 fresh pre-data registration where the protocol boundary changes.
+
+## Fresh Option-A successor registration — 2026-08-11
+
+Status: **`FRESHLY PREREGISTERED SUCCESSOR / ORIGINAL ATTEMPT TERMINAL PREFLIGHT STOP / NOT YET RUN`**
+
+### Evidence boundary and successor identity
+
+This is a fresh prospective successor experiment. It is not a continuation,
+repair, replay, or retrospective admission of the original attempt. The
+original attempt remains permanently closed at
+`PREFLIGHT_STOP_IMPLEMENTATION_DISCREPANCY`; its published-vector tolerance was
+not relaxed and its terminal record above remains controlling for that
+attempt. No successor calibration or test response, score, label-derived
+quantity, threshold, policy outcome, or result exists at registration time.
+
+The successor tests the same paired six-policy law under the exact
+revision-bound `verifier-V / maintained-eager-BF16-v1` operational scorer
+contract. The original aggregation, six policies, parameter grids,
+CONFIRM/KILL conditions, acquisition-retention threshold, effect-size
+thresholds, 10,000 paired bootstrap replicates, and 1,000 candidate-order
+permutations remain unchanged. No alternative scorer path or aggregation may
+be selected after successor data begin.
+
+### Frozen operational scorer contract
+
+Before any new retained generation, the implementation and private manifest
+must bind all of the following:
+
+- the exact `verifier-V` and tokenizer revisions, snapshot contents, and file
+  maps through public pseudonymous identity-bundle digests and the complete
+  private-manifest identity digest;
+- the exact maintained-backbone wrapper source and SHA-256;
+- an exhaustive load report showing that every checkpoint backbone and
+  reward-head tensor was consumed with no missing, unexpected, or mismatched
+  tensor; the operational wrapper has no language-model head, and that unused
+  head is intentionally omitted;
+- Python `3.13.7`, Transformers `5.12.1`, Torch `2.11.0+cu128`, CUDA runtime
+  `12.8`, driver `595.79`, tokenizers `0.22.2`, huggingface-hub `1.20.1`, and
+  safetensors `0.8.0` on `NVIDIA GeForce RTX 5090 Laptop GPU`;
+- BF16 backbone, BF16 reward head, and native BF16 softmax;
+- eager attention only, `use_cache=False`, batch size 1, evaluation mode,
+  deterministic algorithms, deterministic cuDNN, TF32 disabled, and
+  `CUBLAS_WORKSPACE_CONFIG=:4096:8`;
+- the exact 454-token fixture serialization, marker positions, and input
+  SHA-256
+  `e14ec22c375a3dbc31596964e53fe1a59b4f7264b4c73f5dcd80a1bbb3f52741`;
+- minimum positive-class probability over reasoning steps as the only
+  candidate-score aggregation.
+
+The scorer's internal operational reference vector is frozen as:
+
+```text
+[1.0, 0.1923828125, 0.98046875, 1.0]
+```
+
+This is an operational-contract vector, not the published target. No
+alternative precision, attention backend, cache mode, aggregation, score
+transformation, implementation fallback, tolerance, or majority vote is
+permitted.
+
+### Exact determinism gates
+
+Before retained generation, run exactly three clean scorer loads across two
+fresh Python processes: two sequential clean loads in the first process and
+one clean load in the second. Require exact equality across all three loads
+for:
+
+- serialized UTF-8 bytes and complete token-ID sequence;
+- step-marker positions;
+- BF16 per-step positive-probability bit patterns;
+- the BF16 minimum aggregate-score bit pattern;
+- the complete canonical output digest.
+
+Each load must also match the internal operational reference vector bit for
+bit. Any mismatch stops before retained generation at
+`PREFLIGHT_STOP_SCORER_NONDETERMINISM`. There is no tolerance, retry, majority
+vote, or fallback path.
+
+Before test generation, load the frozen scorer cleanly and exactly rescore an
+outcome-blind subset of 64 records from the complete new calibration bank.
+Construct that subset from all 4,096 calibration candidate identities using:
+
+```text
+bon-safe-selection-successor-a-outcome-blind-rescore-v1-2026-08-11
+```
+
+For each `(dataset_index, candidate_ordinal)`, rank the raw digest:
+
+```text
+SHA256(
+  dataset_revision + "\n" +
+  rescore_selection_string + "\n" +
+  decimal(dataset_index) + "\n" +
+  decimal(candidate_ordinal)
+)
+```
+
+ascending, breaking ties by dataset index and then candidate ordinal. Bind the
+first 64 identities before either model loads. The rescore reads no gold
+answer, correctness field, extraction outcome, policy output, or threshold.
+Serialized bytes, token IDs, marker positions, BF16 step-score bits, BF16
+aggregate bits, and complete output digests must match their first-pass stored
+values exactly. Any mismatch is `VOID_SCORER_RESCORE_MISMATCH`, an integrity
+failure that voids the successor before test generation.
+
+### Preserved calibration non-degeneracy gate
+
+Before test generation, the complete resolved calibration bank must contain:
+
+- at least 40 correct and at least 40 incorrect candidates, with both
+  numerators over the complete calibration-candidate denominator;
+- at least 20 Policy-0 beneficial acquisitions at `N=16`, with the observed
+  numerator and eligible-challenge denominator reported;
+- at least 20 resolved calibration problems with a Policy-0 harmful switch at
+  `N=16`, with the numerator over the resolved calibration-problem denominator
+  reported;
+- at least two distinct finite aggregate candidate scores.
+
+This is only a non-degeneracy and selection-headroom gate. It is not proof
+that the verifier is accurate, calibrated, semantically valid, or capable of
+supporting the registered law. Missing any floor stops before test generation
+at `PREFLIGHT_STOP_INSUFFICIENT_CALIBRATION_HEADROOM`; it does not authorize a
+new scorer, aggregation, threshold, cohort, or retry.
+
+### Fresh successor cohorts and historical-smoke disposition
+
+The original 256 calibration and 512 pilot-test rows are excluded in full,
+including the two rows used by the retained smoke. Their combined ordered
+index SHA-256 remains
+`727debb0c35837935e4686ce6ba30051f5826bca8eef2963b7acbae47953fa2f`.
+The successor source pool is exactly the 6,700 rows previously allocated to
+neither original cohort, with sorted-index SHA-256
+`aa28e47af683f7fe65dd2cc78eaf29030c55d7de9127fe4995af844f1d31b44c`.
+
+Use the new calibration selection string:
+
+```text
+bon-safe-selection-successor-a-base-c-gsm8k-train-calibration-v1-2026-08-11
+```
+
+Rank the 6,700-row source pool by the existing revision-plus-selection-string
+digest construction. The first 256 rows form the new calibration cohort. From
+the remaining 6,444 rows, use the new test selection string:
+
+```text
+bon-safe-selection-successor-a-base-c-gsm8k-train-test-v1-2026-08-11
+```
+
+and the same construction to select the first 512 rows as the new test cohort.
+The remaining 5,932 rows stay unallocated. Cohort indices, exact row contents,
+prompt serializations, generation seeds, batch seeds, bootstrap schedule,
+permutation schedule, and outcome-blind rescore identities must all be
+hash-bound before either model loads. Neither row contents nor labels may be
+inspected when choosing the strings or cohort sizes.
+
+The successor randomization strings are:
+
+```text
+bon-safe-selection-successor-a-base-c-generation-seeds-v1-2026-08-11
+bon-safe-selection-successor-a-batched-generation-v1-2026-08-11
+bon-safe-selection-successor-a-paired-bootstrap-v1-2026-08-11
+bon-safe-selection-successor-a-order-permutations-v1-2026-08-11
+```
+
+The existing 32-response smoke and ignored database remain immutable. They
+are historical, non-evidentiary successor-design data. None of their
+responses, labels, scores, AUROCs, score ranges, step counts, or policy
+behavior may enter successor viability, calibration, threshold fitting,
+bootstrap, permutation, or test metrics. Their timing and VRAM measurements
+may inform only the preregistered compute projection. Minimum-over-steps
+remains frozen; the historical product-AUROC observation cannot reopen
+aggregation selection.
+
+### Successor precommitted binding slots
+
+All slots below are launch-blocking until a pre-data slot-filling amendment
+records measured values. The tracked values expose only public pseudonyms and
+digests; raw checkpoint identities remain private in the gitignored manifest.
+
+| Slot | Frozen value before generation |
+|---|---|
+| `successor_source_pool_sorted_indices_sha256` | `aa28e47af683f7fe65dd2cc78eaf29030c55d7de9127fe4995af844f1d31b44c` |
+| `successor_original_excluded_ordered_indices_sha256` | `727debb0c35837935e4686ce6ba30051f5826bca8eef2963b7acbae47953fa2f` |
+| `successor_calibration_ordered_indices_sha256` | `UNFILLED — launch blocking` |
+| `successor_calibration_sorted_indices_sha256` | `UNFILLED — launch blocking` |
+| `successor_calibration_row_content_sha256` | `UNFILLED — launch blocking` |
+| `successor_test_pool_sorted_indices_sha256` | `UNFILLED — launch blocking` |
+| `successor_test_ordered_indices_sha256` | `UNFILLED — launch blocking` |
+| `successor_test_sorted_indices_sha256` | `UNFILLED — launch blocking` |
+| `successor_test_row_content_sha256` | `UNFILLED — launch blocking` |
+| `successor_calibration_then_test_ordered_indices_sha256` | `UNFILLED — launch blocking` |
+| `successor_remaining_unallocated_sorted_indices_sha256` | `UNFILLED — launch blocking` |
+| `successor_remaining_unallocated_row_content_sha256` | `UNFILLED — launch blocking` |
+| `successor_prompt_serialization_sha256` | `UNFILLED — launch blocking` |
+| `successor_generation_seed_schedule_sha256` | `UNFILLED — launch blocking` |
+| `successor_batch_seed_schedule_sha256` | `UNFILLED — launch blocking` |
+| `successor_bootstrap_schedule_sha256` | `UNFILLED — launch blocking` |
+| `successor_permutation_schedule_sha256` | `UNFILLED — launch blocking` |
+| `successor_outcome_blind_rescore_schedule_sha256` | `UNFILLED — launch blocking` |
+| `successor_verifier_identity_bundle_sha256` | `UNFILLED — launch blocking` |
+| `successor_tokenizer_identity_bundle_sha256` | `UNFILLED — launch blocking` |
+| `successor_manifest_identity_digest` | `UNFILLED — launch blocking` |
+| `successor_maintained_scorer_source_sha256` | `UNFILLED — launch blocking` |
+| `successor_checkpoint_tensor_identity_sha256` | `UNFILLED — launch blocking` |
+| `successor_runner_source_sha256` | `UNFILLED — launch blocking` |
+
+### Outcome-informedness disclosure
+
+The successor design had access to 32 responses across two original
+calibration problems: 26 correct and 6 incorrect candidates, their step
+scores, score range, step counts, and four diagnostic aggregation summaries;
+runtime, token, VRAM, and cap-projection measurements; and the published
+fixture outcomes from every tested compatibility path.
+
+That information changed compute scheduling, the already-recorded
+non-degeneracy/headroom gate, and the decision to define one hash-bound
+operational scorer. It did not change the minimum-over-steps aggregation, any
+of the six policies, any parameter grid, any CONFIRM/KILL threshold, any
+effect-size requirement, the bootstrap protocol, or the permutation protocol.
+The scorer choice is engineering-outcome-informed by an external fixture that
+contains no cohort label or policy outcome; it is not outcome-blind scorer
+selection.
+
+### Required compatibility disclosure
+
+> The published fixture reports `[1.0, 0.1904296875, 0.9765625, 1.0]`. No tested build reproduced that vector within the original 0.002 BF16 tolerance. Under the modern Transformers 5.12.1 revision-pinned custom remote-code path, the recorded scores were approximately `[0.272025, 0.255715, 0.235460, 0.224735]`. Under the modern maintained-backbone BF16 eager path, the scores were `[1.0, 0.1923828125, 0.98046875, 1.0]`, with maximum absolute deviation `0.00390625`. Under isolated Transformers 4.47.1 and 4.48.0 stacks, both produced `[1.0, 0.154296875, 0.97265625, 1.0]`, with maximum deviation `0.0361328125`. The original 0.002 gate therefore failed everywhere and was not relaxed. The successor experiment does not claim reproduction of the published implementation; it adjudicates only the exact hash-bound maintained-eager scorer defined above.
+
+This disclosure names software stacks and versions but no checkpoint identity.
+
+### Review and launch boundary
+
+Implementation, the three-load/two-process scorer determinism gate, CPU-only
+cohort construction, hash derivation, and the fast self-test are authorized.
+No retained generation is authorized before a holistic independent review of
+the complete successor runner and all filled bindings. Canonical generation,
+bank scoring, calibration evaluation, the outcome-blind rescore gate, and test
+access remain fail-closed until that review resolves every blocking finding
+and its attestation is registered. A scorer determinism failure routes only to
+Option B through fresh steering; a calibration-headroom miss remains a stop,
+not permission to change scorers.

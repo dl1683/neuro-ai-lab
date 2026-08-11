@@ -21,7 +21,16 @@ Suite aggregate: `results/pilot_suite_summary.json`.
 
 ## 07: Best-of-N Safe Selection
 
-### Frozen safe-selection pilot (PREFLIGHT IMPLEMENTATION-DISCREPANCY STOP / CANONICAL NOT RUN)
+### Option-A successor (FRESHLY PREREGISTERED / ORIGINAL ATTEMPT TERMINAL PREFLIGHT STOP / NOT YET RUN)
+
+- **Successor event:** Round-2 steering prospectively registered a fresh successor around the exact hash-bound `verifier-V / maintained-eager-BF16-v1` operational scorer. The original attempt remains terminal at `PREFLIGHT_STOP_IMPLEMENTATION_DISCREPANCY`; its 0.002 published-vector gate was not relaxed or retrospectively passed.
+- **Preserved scientific protocol:** The generator, verifier checkpoint, tokenizer, backbone and reward-head tensors, minimum-over-steps aggregation, six policies, parameter grids, CONFIRM/KILL conditions, acquisition-retention and effect-size thresholds, paired bootstrap, and order-permutation protocol remain unchanged. The successor does not claim reproduction of the verifier's published implementation.
+- **Fresh cohort disposition:** All 768 original calibration/test rows are excluded. The new 256-calibration and 512-test cohorts are deterministically selected under new frozen strings from the 6,700 rows previously allocated to neither original cohort. Indices, contents, prompts, seed schedules, and cohort hashes remain launch-blocking slots until the CPU-only construction pass lands.
+- **Smoke disposition and disclosure:** The immutable 32-response smoke is historical, non-evidentiary successor-design data. Its responses, labels, scores, AUROCs, and policy behavior cannot enter successor metrics; only timing and VRAM may inform compute projection. The registration discloses that the observed smoke and all compatibility-path fixture outcomes informed compute scheduling, the existing headroom gate, and the decision to freeze one operational scorer.
+- **Successor gates:** Before retained generation, the scorer must reproduce its internal BF16 vector bit-exactly across three clean loads and two fresh processes or stop at `PREFLIGHT_STOP_SCORER_NONDETERMINISM`. Before test generation, the preserved non-accuracy calibration-headroom gate and an exact outcome-blind 64-record calibration rescore must pass. A rescore mismatch voids the successor.
+- **Current authority:** Implementation, exact scorer determinism, CPU-only cohort construction, and the fast self-test are authorized. No retained generation, successor-bank scoring, calibration adjudication, or test access is authorized until all pre-data bindings are filled and a holistic independent review is clean.
+
+### Original safe-selection attempt (PREFLIGHT IMPLEMENTATION-DISCREPANCY STOP / CANONICAL NOT RUN)
 
 - **Event:** The independent-sampling safe-selection pilot was preregistered on 2026-08-10. No model was loaded, no response was generated, and no metric or result artifact exists.
 - **Canonical protocol:** `experiments/07_safe_selection/PREREGISTRATION.md`.
