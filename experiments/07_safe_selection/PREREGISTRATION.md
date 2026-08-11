@@ -1816,3 +1816,53 @@ skeleton may be landed with new runner-hash and review-hash slots; no owner cap
 exception is necessary. If equivalence or the 1.67x batch-8 threshold fails,
 this performance fork closes without retained data and the owner's Branch-1
 decision remains the only path to the registered adjudication.
+
+### Pre-launch hardening and exact adjudication
+
+The terminal batch-8 and batch-16 reports are identity-bound at SHA-256
+`0f184c0c9876938dedc50a146d36804afb9c71e9f88274b641e21879702ca66c`
+and `840fe2dbc6bec1c6793eeda93b73dcfa28f01cdbd693fa259927257132fa78c0`.
+Those reports do not contain candidate token streams. Therefore the two
+"immutable local probe banks" in this fork mean two newly captured,
+outcome-blind reference artifacts: one for batch 8 and one for batch 16. Each
+contains the old implementation's two fixed-seed executions of 32 candidates,
+or 64 streams per bank. Both artifacts must be written no-clobber and read back
+from disk before the old/new replay; together they provide the preregistered
+128-stream denominator. They remain gitignored throwaway engineering artifacts
+and never enter a retained bank or scientific metric.
+
+The one-shot fork durably writes `STARTED` after validating the exact runner,
+clean pre-launch review, terminal report hashes, and frozen generator/tokenizer
+snapshot, but before dataset or model loading. Any exception after `STARTED`
+lands `CLOSED_INTERRUPTED_BRANCH_1_GOVERNS`; after an external interruption,
+the next invocation must land that same terminal close without GPU work. No
+timing retry is permitted. Partial local bank artifacts cannot authorize a
+rerun or successor.
+
+Timing uses two executions per implementation with fixed seeds and balanced
+order `old,new` then `new,old`. The adjudicating batch-8 speedup is exactly:
+
+```text
+min(old batch-8 wall seconds) / max(new batch-8 wall seconds)
+```
+
+Median ratios and all batch-16 ratios are informational. The 1.67x gate passes
+only when the adjudicating ratio is at least 1.67. As a registered consistency
+check on the ruling's derivation, the new batch-8 maximum must also produce
+`H_8(768) <= 8,100s` under the existing projection formula; disagreement closes
+the fork rather than overriding the ceiling.
+
+Technical eligibility is also launch-blocking: both repeats of both
+implementations at batches 8 and 16 must be internally deterministic, remain
+within 20 GiB peak reserved VRAM, exercise at least one early-completed row,
+leave only registered padding/EOS after every completed row, and show no CUDA
+error, process leak, or checkpoint inconsistency. These are integrity gates,
+not additional scientific criteria.
+
+The exact pre-review runner SHA-256 is
+`07d23d8cc15de79e6e33b9780d2a1e3ee9bc0c0d8a88db86c84211dad9667a98`.
+Launch remains blocked until a clean read-only pre-launch review fills the
+second slot and the invocation supplies both values exactly.
+
+- `performance_fork_runner_source_sha256`: `07d23d8cc15de79e6e33b9780d2a1e3ee9bc0c0d8a88db86c84211dad9667a98`
+- `performance_fork_prelaunch_review_sha256`: `6e23e774524684908a6a57053cf87204b691761a9c81824b721848727eab1bc5`

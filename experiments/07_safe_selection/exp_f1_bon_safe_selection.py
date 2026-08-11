@@ -26,6 +26,7 @@ pattern.
 from __future__ import annotations
 
 import argparse
+import codecs
 import contextlib
 import gc
 import hashlib
@@ -208,6 +209,20 @@ LOCAL_MANIFEST = HERE / "_local_manifest.md"
 E1_RUNNER = HERE.parent / "06_uesd" / "exp_e1_task_band.py"
 RESULT_PATH = HERE / "results" / "exp_bon_safe_selection.json"
 WORK_ROOT = HF_HOME / "line07_safe_selection_successor_a"
+PERFORMANCE_FORK_ROOT = HF_HOME / "line07_safe_selection_performance_fork"
+PERFORMANCE_FORK_STARTED_PATH = PERFORMANCE_FORK_ROOT / "started.json"
+PERFORMANCE_FORK_REPORT_PATH = (
+    HERE / "results" / "exp_bon_safe_selection_performance_fork.json"
+)
+PERFORMANCE_FORK_BANK_PATHS = {
+    batch_size: PERFORMANCE_FORK_ROOT / f"old_probe_bank_batch_{batch_size}.json"
+    for batch_size in ELIGIBLE_BATCH_SIZES
+}
+PERFORMANCE_SPEEDUP_TARGET = 1.67
+TERMINAL_PROBE_ARTIFACT_SHA256 = {
+    8: "0f184c0c9876938dedc50a146d36804afb9c71e9f88274b641e21879702ca66c",
+    16: "840fe2dbc6bec1c6793eeda93b73dcfa28f01cdbd693fa259927257132fa78c0",
+}
 CALIBRATION_BANK_PATH = WORK_ROOT / "calibration_bank.json"
 TEST_BANK_PATH = WORK_ROOT / "test_bank.json"
 CALIBRATION_FREEZE_PATH = WORK_ROOT / "calibration_freeze.json"
@@ -909,6 +924,33 @@ def manifest_identity(entries: Mapping[str, str]) -> tuple[str, dict[str, Any]]:
     return sha256_bytes(canonical_json_bytes(payload)), payload
 
 
+def validate_public_snapshot_identity(
+    entries: Mapping[str, str], public: str
+) -> dict[str, Any]:
+    """Validate one frozen local snapshot against its private manifest digests."""
+
+    path = Path(entries[f"{public}-resolved-path"])
+    if not path.is_dir():
+        raise RuntimeError(f"{public} resolved snapshot is absent")
+    digest, files = snapshot_content_digest(path)
+    files_map_sha256 = sha256_bytes(canonical_json_bytes(files))
+    if digest != entries[f"{public}-local-content-sha256"]:
+        raise RuntimeError(f"{public} local snapshot digest changed")
+    if files_map_sha256 != entries[f"{public}-files-map-sha256"]:
+        raise RuntimeError(f"{public} file-map digest changed")
+    payload = {
+        "public_identity": public,
+        "revision": entries[f"{public}-revision"],
+        "tokenizer_revision": entries[f"{public}-tokenizer-revision"],
+        "local_content_sha256": digest,
+        "files_map_sha256": files_map_sha256,
+    }
+    return {
+        **payload,
+        "identity_sha256": sha256_bytes(canonical_json_bytes(payload)),
+    }
+
+
 def prompt_serialization_hash(
     train: Dataset,
     cohorts: Mapping[str, Sequence[int]],
@@ -1399,8 +1441,8 @@ def _stop_metadata(
     return count, count, reason
 
 
-class PerRowNewQuestionBoundaryCriteria(StoppingCriteria):
-    """Sticky, row-local boundary stops with auditable mixed-state history."""
+class FullPrefixNewQuestionBoundaryCriteria(StoppingCriteria):
+    """Frozen O(BT^2) stopping implementation retained for equivalence replay."""
 
     def __init__(self, tokenizer, generation_start: int, batch_size: int) -> None:
         self.tokenizer = tokenizer
@@ -1436,9 +1478,161 @@ class PerRowNewQuestionBoundaryCriteria(StoppingCriteria):
         return stopped
 
 
+def _byte_level_decoder() -> dict[str, int]:
+    """Return the inverse of the GPT-2/Qwen reversible byte alphabet."""
+
+    values = [*range(ord("!"), ord("~") + 1)]
+    values += [*range(ord("¡"), ord("¬") + 1)]
+    values += [*range(ord("®"), ord("ÿ") + 1)]
+    characters = list(values)
+    extra = 0
+    for value in range(256):
+        if value not in values:
+            values.append(value)
+            characters.append(256 + extra)
+            extra += 1
+    return {chr(character): value for value, character in zip(values, characters)}
+
+
+BYTE_LEVEL_DECODER = _byte_level_decoder()
+
+
+class _NewQuestionBoundaryAutomaton:
+    r"""Incremental NFA for ``(?m)^\s*Question\s*:`` over decoded text."""
+
+    _MARKER = "Question"
+    _LEADING = 0
+    _TRAILING = len(_MARKER) + 1
+
+    def __init__(self) -> None:
+        self.states = {self._LEADING}
+        self.matched = False
+
+    def feed(self, text: str) -> bool:
+        for character in text:
+            next_states: set[int] = set()
+            for state in self.states:
+                if state == self._LEADING:
+                    if character.isspace():
+                        next_states.add(self._LEADING)
+                    elif character == self._MARKER[0]:
+                        next_states.add(1)
+                elif 1 <= state < len(self._MARKER):
+                    if character == self._MARKER[state]:
+                        next_states.add(state + 1)
+                elif state == len(self._MARKER):
+                    if character.isspace():
+                        next_states.add(self._TRAILING)
+                    elif character == ":":
+                        self.matched = True
+                elif state == self._TRAILING:
+                    if character.isspace():
+                        next_states.add(self._TRAILING)
+                    elif character == ":":
+                        self.matched = True
+            if character == "\n":
+                next_states.add(self._LEADING)
+            self.states = next_states
+            if self.matched:
+                return True
+        return False
+
+
+class PerRowNewQuestionBoundaryCriteria(StoppingCriteria):
+    """Exact incremental byte-level boundary stops with one device read per step."""
+
+    def __init__(self, tokenizer, generation_start: int, batch_size: int) -> None:
+        if tokenizer.clean_up_tokenization_spaces:
+            raise RuntimeError("incremental stopping requires cleanup-disabled decoding")
+        decoder_name = type(tokenizer.backend_tokenizer.decoder).__name__
+        if decoder_name != "ByteLevel":
+            raise RuntimeError(
+                f"incremental stopping requires a ByteLevel decoder, got {decoder_name}"
+            )
+        self.tokenizer = tokenizer
+        self.generation_start = generation_start
+        self.boundary_token_counts: list[int | None] = [None] * batch_size
+        self.sticky_stop_checks = [0] * batch_size
+        self.mixed_state_call_count = 0
+        self._automata = [_NewQuestionBoundaryAutomaton() for _ in range(batch_size)]
+        self._utf8_decoders = [
+            codecs.getincrementaldecoder("utf-8")(errors="replace")
+            for _ in range(batch_size)
+        ]
+        self._special_ids = {int(value) for value in tokenizer.all_special_ids}
+        self._token_bytes_cache: dict[int, bytes] = {}
+        self._processed_length = generation_start
+
+    def _token_bytes(self, token_id: int) -> bytes:
+        if token_id in self._special_ids:
+            return b""
+        cached = self._token_bytes_cache.get(token_id)
+        if cached is not None:
+            return cached
+        token = self.tokenizer.convert_ids_to_tokens(token_id)
+        if not isinstance(token, str):
+            raise RuntimeError(f"token id {token_id} has no string representation")
+        try:
+            payload = bytes(BYTE_LEVEL_DECODER[character] for character in token)
+        except KeyError as error:
+            raise RuntimeError(
+                f"token id {token_id} is outside the frozen ByteLevel alphabet"
+            ) from error
+        self._token_bytes_cache[token_id] = payload
+        return payload
+
+    def __call__(
+        self,
+        input_ids: torch.LongTensor,
+        scores: torch.FloatTensor,
+        **kwargs: Any,
+    ) -> torch.BoolTensor:
+        del scores, kwargs
+        current_length = int(input_ids.shape[1])
+        if current_length < self._processed_length:
+            raise RuntimeError("generation sequence length moved backwards")
+        new_width = current_length - self._processed_length
+        if new_width:
+            # One bounded transfer and synchronization per generation step.
+            new_token_rows = (
+                input_ids[:, self._processed_length : current_length]
+                .detach()
+                .to(device="cpu")
+                .tolist()
+            )
+            for row_index, row_tokens in enumerate(new_token_rows):
+                if self.boundary_token_counts[row_index] is not None:
+                    continue
+                for offset, raw_token_id in enumerate(row_tokens, start=1):
+                    token_id = int(raw_token_id)
+                    decoded = self._utf8_decoders[row_index].decode(
+                        self._token_bytes(token_id), final=False
+                    )
+                    if self._automata[row_index].feed(decoded):
+                        self.boundary_token_counts[row_index] = (
+                            self._processed_length
+                            - self.generation_start
+                            + offset
+                        )
+                        break
+            self._processed_length = current_length
+
+        stopped_flags = [count is not None for count in self.boundary_token_counts]
+        for row_index, stopped in enumerate(stopped_flags):
+            if stopped and self.boundary_token_counts[row_index] is not None:
+                boundary_length = self.generation_start + int(
+                    self.boundary_token_counts[row_index]
+                )
+                if current_length > boundary_length:
+                    self.sticky_stop_checks[row_index] += 1
+        if any(stopped_flags) and not all(stopped_flags):
+            self.mixed_state_call_count += 1
+        return torch.tensor(stopped_flags, dtype=torch.bool, device=input_ids.device)
+
+
 def _per_row_stop_audit(
     generated_rows: torch.Tensor,
-    criteria: PerRowNewQuestionBoundaryCriteria,
+    criteria: Any,
     tokenizer,
 ) -> dict[str, Any]:
     allowed_padding = {int(tokenizer.pad_token_id)}
@@ -4396,6 +4590,657 @@ def batch_generation_preflight(
     return report
 
 
+def _replay_stopping_stream(
+    token_ids: Sequence[int], tokenizer, criteria_type: type[StoppingCriteria]
+) -> dict[str, Any]:
+    criteria = criteria_type(tokenizer, generation_start=0, batch_size=1)
+    first_true_position = None
+    for position in range(1, len(token_ids) + 1):
+        prefix = torch.tensor([token_ids[:position]], dtype=torch.long)
+        stopped = criteria(prefix, torch.empty(0))
+        if first_true_position is None and bool(stopped[0].item()):
+            first_true_position = position
+    generated = torch.tensor(token_ids, dtype=torch.long)
+    generated_count, content_count, reason = _stop_metadata(
+        generated, criteria, tokenizer
+    )
+    return {
+        "criterion_first_true_position": first_true_position,
+        "stop_position": generated_count,
+        "content_token_count": content_count,
+        "stop_reason": reason,
+        "boundary_token_count": criteria.boundary_token_counts[0],
+    }
+
+
+def stopping_automaton_property_tests(tokenizer) -> dict[str, Any]:
+    """Compare old/new semantics on adversarial marker, UTF-8, and cap cases."""
+
+    vocab = tokenizer.get_vocab()
+    byte_encoder = {value: character for character, value in BYTE_LEVEL_DECODER.items()}
+    special_ids = {int(value) for value in tokenizer.all_special_ids}
+    outside_byte_alphabet = [
+        token_id
+        for token_id in range(len(tokenizer))
+        if token_id not in special_ids
+        and any(
+            character not in BYTE_LEVEL_DECODER
+            for character in str(tokenizer.convert_ids_to_tokens(token_id))
+        )
+    ]
+
+    def byte_token_ids(payload: bytes) -> list[int]:
+        try:
+            return [int(vocab[byte_encoder[value]]) for value in payload]
+        except KeyError as error:
+            raise RuntimeError("frozen tokenizer lacks a base byte token") from error
+
+    def encoded(text: str) -> list[int]:
+        return [int(value) for value in tokenizer.encode(text, add_special_tokens=False)]
+
+    marker = encoded("Question:")
+    character_split_marker = [
+        token_id
+        for character in "Question:"
+        for token_id in encoded(character)
+    ]
+    em_space_split = byte_token_ids("\u2003".encode("utf-8"))
+    filler = encoded("\n")
+    if len(filler) != 1:
+        raise RuntimeError("property-test filler no longer maps to one token")
+    eos_id = int(tokenizer.eos_token_id)
+    non_eos_special_id = next(
+        int(value)
+        for value in tokenizer.all_special_ids
+        if int(value) not in {eos_id, int(tokenizer.pad_token_id)}
+    )
+    cases = [
+        ("marker_at_stream_start", marker, len(marker), "new_question_boundary"),
+        (
+            "marker_after_newline_and_whitespace",
+            encoded("prefix\n \tQuestion :"),
+            len(encoded("prefix\n \tQuestion :")),
+            "new_question_boundary",
+        ),
+        (
+            "marker_split_across_single_character_tokens",
+            character_split_marker,
+            len(character_split_marker),
+            "new_question_boundary",
+        ),
+        (
+            "marker_after_split_multibyte_whitespace",
+            [*em_space_split, *marker],
+            len(em_space_split) + len(marker),
+            "new_question_boundary",
+        ),
+        (
+            "marker_after_skipped_special_token",
+            [*encoded("Question"), non_eos_special_id, *encoded(":")],
+            len(encoded("Question")) + 1 + len(encoded(":")),
+            "new_question_boundary",
+        ),
+        (
+            "non_boundary_inline_marker",
+            encoded("prefix Question:"),
+            len(encoded("prefix Question:")),
+            "generation_stopped_other",
+        ),
+        (
+            "carriage_return_is_not_multiline_anchor",
+            encoded("prefix\rQuestion:"),
+            len(encoded("prefix\rQuestion:")),
+            "generation_stopped_other",
+        ),
+        (
+            "eos_precedes_marker",
+            [*encoded("x"), eos_id, *marker],
+            len(encoded("x")) + 1,
+            "end_of_message",
+        ),
+        (
+            "boundary_exactly_at_token_cap",
+            [filler[0]] * (MAX_NEW_TOKENS - len(marker)) + marker,
+            MAX_NEW_TOKENS,
+            "new_question_boundary",
+        ),
+        (
+            "unfinished_marker_at_token_cap",
+            [filler[0]] * (MAX_NEW_TOKENS - len(encoded("Question")))
+            + encoded("Question"),
+            MAX_NEW_TOKENS,
+            "max_new_tokens",
+        ),
+        (
+            "no_marker_at_token_cap",
+            [filler[0]] * MAX_NEW_TOKENS,
+            MAX_NEW_TOKENS,
+            "max_new_tokens",
+        ),
+    ]
+    results = []
+    for name, token_ids, expected_position, expected_reason in cases:
+        old = _replay_stopping_stream(
+            token_ids, tokenizer, FullPrefixNewQuestionBoundaryCriteria
+        )
+        new = _replay_stopping_stream(
+            token_ids, tokenizer, PerRowNewQuestionBoundaryCriteria
+        )
+        passed = (
+            old == new
+            and old["stop_position"] == expected_position
+            and old["stop_reason"] == expected_reason
+        )
+        results.append(
+            {
+                "name": name,
+                "token_count": len(token_ids),
+                "expected_stop_position": expected_position,
+                "expected_stop_reason": expected_reason,
+                "old": old,
+                "new": new,
+                "pass": passed,
+            }
+        )
+    tokenizer_contract_pass = (
+        not tokenizer.clean_up_tokenization_spaces
+        and type(tokenizer.backend_tokenizer.decoder).__name__ == "ByteLevel"
+        and not outside_byte_alphabet
+    )
+    return {
+        "status": (
+            "PASS"
+            if tokenizer_contract_pass and all(result["pass"] for result in results)
+            else "FAIL"
+        ),
+        "tokenizer_contract": {
+            "status": "PASS" if tokenizer_contract_pass else "FAIL",
+            "decoder": type(tokenizer.backend_tokenizer.decoder).__name__,
+            "cleanup_enabled": bool(tokenizer.clean_up_tokenization_spaces),
+            "non_special_token_count": len(tokenizer) - len(special_ids),
+            "outside_byte_alphabet_count": len(outside_byte_alphabet),
+            "outside_byte_alphabet_ids": outside_byte_alphabet,
+        },
+        "passed": sum(bool(result["pass"]) for result in results),
+        "total": len(results),
+        "cases": results,
+    }
+
+
+def _performance_probe_rows() -> tuple[Dataset, list[int]]:
+    """Resolve only the two registered diagnostic rows without reading outcomes."""
+
+    dataset = load_dataset(
+        DATASET_ID,
+        DATASET_CONFIG,
+        revision=DATASET_REVISION,
+        cache_dir=str(HF_HOME / "datasets"),
+    )
+    train = dataset[DATASET_SPLIT]
+    if len(train) != EXPECTED_SPLIT_SIZE or train._fingerprint != EXPECTED_SPLIT_FINGERPRINT:
+        raise RuntimeError("revision-pinned performance-probe dataset drift")
+    original_pool = list(range(5, EXPECTED_SPLIT_SIZE))
+    original_calibration = ranked_indices(
+        original_pool, ORIGINAL_CALIBRATION_SELECTION_STRING, CALIBRATION_COUNT
+    )
+    original_test_pool = [
+        index for index in original_pool if index not in set(original_calibration)
+    ]
+    original_test = ranked_indices(
+        original_test_pool, ORIGINAL_TEST_SELECTION_STRING, TEST_COUNT
+    )
+    excluded = set(original_calibration) | set(original_test)
+    successor_pool = [index for index in original_pool if index not in excluded]
+    probe_rows = ranked_indices(
+        successor_pool, CALIBRATION_SELECTION_STRING, CALIBRATION_COUNT
+    )[:HISTORICAL_SMOKE_PROBLEM_COUNT]
+    if probe_rows != [3290, 77]:
+        raise RuntimeError("registered performance-probe row identities drifted")
+    return train, probe_rows
+
+
+def _generate_performance_probe_batch(
+    train: Dataset,
+    dataset_index: int,
+    first_ordinal: int,
+    batch_size: int,
+    tokenizer,
+    model,
+    device: torch.device,
+    criteria_type: type[StoppingCriteria],
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    messages = build_five_shot_messages(train, str(train[dataset_index]["question"]))
+    serialized_prompt = tokenizer.apply_chat_template(
+        messages, tokenize=False, add_generation_prompt=True
+    )
+    encoded = tokenizer(
+        [serialized_prompt] * batch_size,
+        add_special_tokens=False,
+        padding=True,
+        return_tensors="pt",
+    )
+    input_ids = encoded["input_ids"].to(device)
+    attention_mask = encoded["attention_mask"].to(device)
+    generation_start = int(input_ids.shape[1])
+    criteria = criteria_type(tokenizer, generation_start, batch_size)
+    seed, payload_sha256 = batch_seed(
+        "calibration", dataset_index, first_ordinal, batch_size
+    )
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.cuda.synchronize(device)
+    with torch.inference_mode():
+        outputs = model.generate(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            do_sample=True,
+            temperature=TEMPERATURE,
+            top_p=TOP_P,
+            top_k=TOP_K,
+            repetition_penalty=REPETITION_PENALTY,
+            num_return_sequences=1,
+            max_new_tokens=MAX_NEW_TOKENS,
+            pad_token_id=tokenizer.pad_token_id,
+            eos_token_id=tokenizer.eos_token_id,
+            stopping_criteria=StoppingCriteriaList([criteria]),
+        )
+    torch.cuda.synchronize(device)
+    generated_rows = outputs[:, generation_start:].detach().to(device="cpu")
+    stop_audit = _per_row_stop_audit(generated_rows, criteria, tokenizer)
+    streams = []
+    for batch_row, generated in enumerate(generated_rows):
+        generated_count, content_count, stop_reason = _stop_metadata(
+            generated, criteria, tokenizer, batch_row
+        )
+        streams.append(
+            {
+                "dataset_index": int(dataset_index),
+                "candidate_ordinal": first_ordinal + batch_row,
+                "batch_seed": seed,
+                "batch_payload_sha256": payload_sha256,
+                "batch_row": batch_row,
+                "token_ids": [int(value) for value in generated.tolist()],
+                "generated_tokens": generated_count,
+                "content_tokens": content_count,
+                "stop_reason": stop_reason,
+            }
+        )
+    return streams, stop_audit
+
+
+def _performance_probe_execution(
+    train: Dataset,
+    probe_rows: Sequence[int],
+    batch_size: int,
+    tokenizer,
+    model,
+    device: torch.device,
+    criteria_type: type[StoppingCriteria],
+    execution_index: int,
+) -> dict[str, Any]:
+    torch.cuda.empty_cache()
+    torch.cuda.reset_peak_memory_stats()
+    streams: list[dict[str, Any]] = []
+    stop_audits = []
+    started = time.perf_counter()
+    with PowerSampler.create() as power:
+        for dataset_index in probe_rows:
+            for first_ordinal in range(1, CANDIDATE_COUNT + 1, batch_size):
+                batch_streams, stop_audit = _generate_performance_probe_batch(
+                    train,
+                    int(dataset_index),
+                    first_ordinal,
+                    batch_size,
+                    tokenizer,
+                    model,
+                    device,
+                    criteria_type,
+                )
+                streams.extend(batch_streams)
+                stop_audits.append(stop_audit)
+    wall_seconds = time.perf_counter() - started
+    if len(streams) != HISTORICAL_SMOKE_CANDIDATE_COUNT:
+        raise RuntimeError("performance probe did not produce exactly 32 streams")
+    return {
+        "execution_index": execution_index,
+        "wall_seconds": wall_seconds,
+        "seconds_per_response": wall_seconds / HISTORICAL_SMOKE_CANDIDATE_COUNT,
+        "peak_reserved_bytes": int(torch.cuda.max_memory_reserved()),
+        "peak_allocated_bytes": int(torch.cuda.max_memory_allocated()),
+        "rows_completed_before_batch_end": sum(
+            int(audit["rows_completed_before_batch_end"]) for audit in stop_audits
+        ),
+        "mixed_row_state_call_count": sum(
+            int(audit["mixed_row_state_call_count"]) for audit in stop_audits
+        ),
+        "post_completion_suffix_padding_only": all(
+            bool(audit["post_completion_suffix_padding_only"]) for audit in stop_audits
+        ),
+        "stream_sha256": sha256_bytes(canonical_json_bytes(streams)),
+        "power": power.summary(wall_seconds),
+        "streams": streams,
+    }
+
+
+def _execution_summary(execution: Mapping[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in execution.items() if key != "streams"}
+
+
+def _replay_probe_banks(
+    banks: Sequence[Mapping[str, Any]], tokenizer
+) -> dict[str, Any]:
+    mismatches = []
+    checked = 0
+    reason_counts: Counter[str] = Counter()
+    for bank in banks:
+        for execution in bank["executions"]:
+            for stream in execution["streams"]:
+                old = _replay_stopping_stream(
+                    stream["token_ids"], tokenizer, FullPrefixNewQuestionBoundaryCriteria
+                )
+                new = _replay_stopping_stream(
+                    stream["token_ids"], tokenizer, PerRowNewQuestionBoundaryCriteria
+                )
+                checked += 1
+                reason_counts[old["stop_reason"]] += 1
+                if old != new:
+                    mismatches.append(
+                        {
+                            "batch_size": bank["batch_size"],
+                            "execution_index": execution["execution_index"],
+                            "dataset_index": stream["dataset_index"],
+                            "candidate_ordinal": stream["candidate_ordinal"],
+                            "old": old,
+                            "new": new,
+                        }
+                    )
+    return {
+        "status": "PASS" if checked == 128 and not mismatches else "FAIL",
+        "identical_stop_positions_and_reasons": {
+            "numerator": checked - len(mismatches),
+            "denominator": checked,
+        },
+        "old_reason_counts": dict(sorted(reason_counts.items())),
+        "mismatches": mismatches,
+    }
+
+
+def _land_interrupted_performance_fork() -> dict[str, Any]:
+    started = json.loads(PERFORMANCE_FORK_STARTED_PATH.read_text(encoding="utf-8"))
+    report = {
+        "schema_version": SCHEMA_VERSION,
+        "created_at": utc_now(),
+        "experiment_id": "exp_bon_safe_selection_performance_fork",
+        "status": "CLOSED_INTERRUPTED_BRANCH_1_GOVERNS",
+        "reason": "INTERRUPTED_AFTER_DURABLE_START",
+        "pre_data_engineering_only": True,
+        "retained_responses_or_scores": 0,
+        "calibration_or_test_outcomes_accessed": False,
+        "scientific_protocol_changed": False,
+        "started": started,
+        "local_bank_artifacts_present": {
+            f"batch_{batch_size}": path.is_file()
+            for batch_size, path in PERFORMANCE_FORK_BANK_PATHS.items()
+        },
+        "authorization": {
+            "fresh_cap_compliant_successor_registration_authorized": False,
+            "owner_exception_necessary": True,
+        },
+    }
+    write_one_shot_gate(PERFORMANCE_FORK_REPORT_PATH, report)
+    return report
+
+
+def run_stopping_performance_fork(
+    attestation: Mapping[str, str]
+) -> dict[str, Any]:
+    """Run the one-shot pre-data old/new equivalence and timing fork."""
+
+    if PERFORMANCE_FORK_REPORT_PATH.exists():
+        raise RuntimeError("the one-shot stopping performance fork is already resolved")
+    if PERFORMANCE_FORK_STARTED_PATH.exists():
+        return _land_interrupted_performance_fork()
+    if any(path.exists() for path in PERFORMANCE_FORK_BANK_PATHS.values()):
+        raise RuntimeError("orphan performance-fork bank exists without durable STARTED")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if device.type != "cuda":
+        raise RuntimeError("stopping performance fork requires CUDA")
+    manifest = parse_manifest()
+    manifest_identity_digest, _ = manifest_identity(manifest)
+    registered_manifest_identity_digest = registered_slot_value(
+        "successor_manifest_identity_digest"
+    )
+    if manifest_identity_digest != registered_manifest_identity_digest:
+        raise RuntimeError(
+            "live manifest identity does not match the preregistered frozen digest"
+        )
+    generator_identity = validate_public_snapshot_identity(manifest, PUBLIC_GENERATOR)
+    terminal_probe_hashes = {
+        batch_size: sha256_file(WORK_ROOT / f"batch_preflight_{batch_size}.json")
+        for batch_size in ELIGIBLE_BATCH_SIZES
+    }
+    if terminal_probe_hashes != TERMINAL_PROBE_ARTIFACT_SHA256:
+        raise RuntimeError("terminal probe artifact identity changed")
+    started = {
+        "schema_version": SCHEMA_VERSION,
+        "created_at": utc_now(),
+        "status": "STARTED",
+        "runner_source_sha256": sha256_file(Path(__file__).resolve()),
+        "prelaunch_review_sha256": attestation["review"],
+        "manifest_identity_digest": manifest_identity_digest,
+        "generator_identity": generator_identity,
+        "terminal_probe_artifact_sha256": {
+            f"batch_{key}": value for key, value in terminal_probe_hashes.items()
+        },
+        "retained_generation_authorized": False,
+    }
+    write_one_shot_gate(PERFORMANCE_FORK_STARTED_PATH, started)
+    child_pids_before = sorted(child.pid for child in multiprocessing.active_children())
+    train, probe_rows = _performance_probe_rows()
+    load_started = time.perf_counter()
+    tokenizer, model = load_generator(manifest, device)
+    generation_load_seconds = time.perf_counter() - load_started
+    properties = stopping_automaton_property_tests(tokenizer)
+    executions: dict[int, dict[str, list[dict[str, Any]]]] = {
+        batch_size: {"old": [], "new": []} for batch_size in ELIGIBLE_BATCH_SIZES
+    }
+    execution_orders = (
+        ("old", FullPrefixNewQuestionBoundaryCriteria),
+        ("new", PerRowNewQuestionBoundaryCriteria),
+    )
+    reverse_orders = tuple(reversed(execution_orders))
+    for batch_size in ELIGIBLE_BATCH_SIZES:
+        for execution_index, order in enumerate(
+            (execution_orders, reverse_orders), start=1
+        ):
+            for label, criteria_type in order:
+                executions[batch_size][label].append(
+                    _performance_probe_execution(
+                        train,
+                        probe_rows,
+                        batch_size,
+                        tokenizer,
+                        model,
+                        device,
+                        criteria_type,
+                        execution_index,
+                    )
+                )
+
+    old_banks = []
+    generated_stream_matches = 0
+    generated_stream_denominator = 0
+    timing: dict[str, Any] = {}
+    original_preflight = {
+        "generation": {
+            "model_load_seconds": HISTORICAL_SMOKE_GENERATION_LOAD_SECONDS,
+            "wall_seconds": HISTORICAL_SMOKE_GENERATION_WALL_SECONDS,
+        },
+        "scoring": {
+            "model_load_seconds": HISTORICAL_SMOKE_SCORING_LOAD_SECONDS,
+            "wall_seconds": HISTORICAL_SMOKE_SCORING_WALL_SECONDS,
+        },
+    }
+    for batch_size in ELIGIBLE_BATCH_SIZES:
+        old_executions = executions[batch_size]["old"]
+        new_executions = executions[batch_size]["new"]
+        bank = {
+            "schema_version": SCHEMA_VERSION,
+            "created_at": utc_now(),
+            "mode": "throwaway_old_stopping_probe_bank",
+            "batch_size": batch_size,
+            "diagnostic_rows": [int(value) for value in probe_rows],
+            "outcomes_or_scores_accessed": False,
+            "retained_bank_members": 0,
+            "executions": old_executions,
+        }
+        old_banks.append(bank)
+        for old_execution, new_execution in zip(
+            old_executions, new_executions, strict=True
+        ):
+            old_streams = old_execution["streams"]
+            new_streams = new_execution["streams"]
+            generated_stream_denominator += len(old_streams)
+            generated_stream_matches += sum(
+                old_stream == new_stream
+                for old_stream, new_stream in zip(
+                    old_streams, new_streams, strict=True
+                )
+            )
+        old_walls = [float(item["wall_seconds"]) for item in old_executions]
+        new_walls = [float(item["wall_seconds"]) for item in new_executions]
+        lower_bound_speedup = min(old_walls) / max(new_walls)
+        timing[f"batch_{batch_size}"] = {
+            "old": [_execution_summary(item) for item in old_executions],
+            "new": [_execution_summary(item) for item in new_executions],
+            "adjudicating_lower_bound_speedup_min_old_over_max_new": (
+                lower_bound_speedup
+            ),
+            "median_speedup_ratio": statistics.median(old_walls)
+            / statistics.median(new_walls),
+            "new_projection": cap_projection_from_batch_preflight(
+                new_walls, generation_load_seconds, original_preflight
+            ),
+        }
+
+    bank_hashes = {}
+    for bank in old_banks:
+        path = PERFORMANCE_FORK_BANK_PATHS[int(bank["batch_size"])]
+        write_one_shot_gate(path, bank)
+        bank_hashes[f"batch_{bank['batch_size']}"] = sha256_file(path)
+    immutable_old_banks = [
+        json.loads(PERFORMANCE_FORK_BANK_PATHS[batch_size].read_text(encoding="utf-8"))
+        for batch_size in ELIGIBLE_BATCH_SIZES
+    ]
+    replay = _replay_probe_banks(immutable_old_banks, tokenizer)
+    stream_match = {
+        "status": (
+            "PASS"
+            if generated_stream_matches == generated_stream_denominator == 128
+            else "FAIL"
+        ),
+        "identical_generated_streams": {
+            "numerator": generated_stream_matches,
+            "denominator": generated_stream_denominator,
+        },
+    }
+    del model, tokenizer
+    gc.collect()
+    torch.cuda.empty_cache()
+    torch.cuda.ipc_collect()
+    child_pids_after = sorted(child.pid for child in multiprocessing.active_children())
+    process_leak = child_pids_after != child_pids_before
+    all_vram_checks_pass = all(
+        execution["peak_reserved_bytes"] <= MAX_PREFLIGHT_RESERVED_BYTES
+        for by_implementation in executions.values()
+        for implementation in by_implementation.values()
+        for execution in implementation
+    )
+    all_stopping_checks_pass = all(
+        execution["rows_completed_before_batch_end"] > 0
+        and execution["post_completion_suffix_padding_only"]
+        for by_implementation in executions.values()
+        for implementation in by_implementation.values()
+        for execution in implementation
+    )
+    repeat_determinism_pass = all(
+        implementation[0]["stream_sha256"] == implementation[1]["stream_sha256"]
+        for by_implementation in executions.values()
+        for implementation in by_implementation.values()
+    )
+    batch8 = timing["batch_8"]
+    speedup_pass = (
+        float(batch8["adjudicating_lower_bound_speedup_min_old_over_max_new"])
+        >= PERFORMANCE_SPEEDUP_TARGET
+    )
+    projection_pass = bool(batch8["new_projection"]["full_bank_fits"])
+    equivalence_pass = (
+        properties["status"] == "PASS"
+        and replay["status"] == "PASS"
+        and stream_match["status"] == "PASS"
+    )
+    technical_eligibility = (
+        all_vram_checks_pass
+        and all_stopping_checks_pass
+        and repeat_determinism_pass
+        and not process_leak
+    )
+    ready = (
+        equivalence_pass
+        and speedup_pass
+        and projection_pass
+        and technical_eligibility
+    )
+    report = {
+        "schema_version": SCHEMA_VERSION,
+        "created_at": utc_now(),
+        "experiment_id": "exp_bon_safe_selection_performance_fork",
+        "status": "READY" if ready else "CLOSED_BRANCH_1_GOVERNS",
+        "pre_data_engineering_only": True,
+        "retained_responses_or_scores": 0,
+        "calibration_or_test_outcomes_accessed": False,
+        "scientific_protocol_changed": False,
+        "diagnostic_rows": [int(value) for value in probe_rows],
+        "candidate_streams_checked": 128,
+        "generation_model_load_seconds": generation_load_seconds,
+        "speedup_target": PERFORMANCE_SPEEDUP_TARGET,
+        "equivalence": {
+            "pass": equivalence_pass,
+            "probe_bank_replay": replay,
+            "adversarial_properties": properties,
+            "fresh_old_new_generation": stream_match,
+        },
+        "timing": timing,
+        "technical_telemetry": {
+            "vram_limit_bytes": MAX_PREFLIGHT_RESERVED_BYTES,
+            "all_vram_checks_pass": all_vram_checks_pass,
+            "all_stopping_checks_pass": all_stopping_checks_pass,
+            "repeat_determinism_pass": repeat_determinism_pass,
+            "nan_or_cuda_error": False,
+            "process_leak": process_leak,
+            "checkpoint_inconsistency": False,
+            "generator_identity": generator_identity,
+            "technical_eligibility": technical_eligibility,
+        },
+        "authorization": {
+            "equivalence_pass": equivalence_pass,
+            "batch_8_speedup_pass": speedup_pass,
+            "batch_8_full_bank_projection_consistency_pass": projection_pass,
+            "technical_eligibility_pass": technical_eligibility,
+            "fresh_cap_compliant_successor_registration_authorized": ready,
+            "owner_exception_necessary": not ready,
+        },
+        "local_throwaway_probe_bank_sha256": bank_hashes,
+        "source_terminal_probe_artifact_sha256": {
+            f"batch_{key}": value for key, value in terminal_probe_hashes.items()
+        },
+        "durable_start": started,
+        "runner_source_sha256": sha256_file(Path(__file__).resolve()),
+    }
+    write_one_shot_gate(PERFORMANCE_FORK_REPORT_PATH, report)
+    return report
+
+
 def load_cap_resolution() -> dict[str, Any]:
     require_stage("cap_resolution")
     report = json.loads(CAP_RESOLUTION_PATH.read_text(encoding="utf-8"))
@@ -5583,11 +6428,39 @@ def bind_review_attestation(
     return binding
 
 
+def require_performance_fork_attestation(
+    args: argparse.Namespace,
+) -> dict[str, str]:
+    pattern = re.compile(
+        r"PERFORMANCE_FORK_RUNNER_SHA256=(?P<runner>[0-9a-f]{64});"
+        r"PRELAUNCH_REVIEW_SHA256=(?P<review>[0-9a-f]{64})"
+    )
+    match = pattern.fullmatch(args.performance_attestation or "")
+    if match is None:
+        raise RuntimeError(
+            "performance fork requires an exact runner/prelaunch-review attestation"
+        )
+    values = match.groupdict()
+    current = sha256_file(Path(__file__).resolve())
+    if values["runner"] != current:
+        raise RuntimeError("performance-fork attestation names a different runner")
+    if registered_slot_value("performance_fork_runner_source_sha256") != current:
+        raise RuntimeError("performance-fork runner hash is not preregistered")
+    if (
+        registered_slot_value("performance_fork_prelaunch_review_sha256")
+        != values["review"]
+    ):
+        raise RuntimeError("performance-fork review hash is not preregistered")
+    return values
+
+
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     modes = parser.add_mutually_exclusive_group(required=True)
     modes.add_argument("--cohort-only", action="store_true")
     modes.add_argument("--self-test-fast", action="store_true")
+    modes.add_argument("--stopping-self-test", action="store_true")
+    modes.add_argument("--performance-fork", action="store_true")
     modes.add_argument("--scorer-determinism", action="store_true")
     modes.add_argument(
         "--scorer-determinism-worker", action="store_true", help=argparse.SUPPRESS
@@ -5599,6 +6472,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     modes.add_argument("--score", choices=("calibration", "test"))
     modes.add_argument("--evaluate", choices=("calibration", "full"))
     parser.add_argument("--review-attestation")
+    parser.add_argument("--performance-attestation")
     return parser.parse_args(argv)
 
 
@@ -5608,6 +6482,35 @@ def main(argv: Sequence[str] | None = None) -> int:
     scavenge_stale_immutable_temps(RESULT_PATH.parent, RESULT_PATH)
     if args.self_test_fast:
         print(json.dumps(self_test_fast(), indent=2, allow_nan=False))
+        return 0
+    if args.stopping_self_test:
+        manifest = parse_manifest()
+        tokenizer = AutoTokenizer.from_pretrained(
+            manifest[f"{PUBLIC_GENERATOR}-repo-id"],
+            revision=manifest[f"{PUBLIC_GENERATOR}-tokenizer-revision"],
+            local_files_only=True,
+            trust_remote_code=False,
+        )
+        print(
+            json.dumps(
+                stopping_automaton_property_tests(tokenizer),
+                indent=2,
+                allow_nan=False,
+            )
+        )
+        return 0
+    if args.performance_fork:
+        performance_attestation = require_performance_fork_attestation(args)
+        try:
+            report = run_stopping_performance_fork(performance_attestation)
+        except Exception:
+            if (
+                PERFORMANCE_FORK_STARTED_PATH.is_file()
+                and not PERFORMANCE_FORK_REPORT_PATH.exists()
+            ):
+                _land_interrupted_performance_fork()
+            raise
+        print(json.dumps(report, indent=2, allow_nan=False))
         return 0
     if args.scorer_determinism_worker:
         report = successor_scorer_fixture_load(
