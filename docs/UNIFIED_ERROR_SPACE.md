@@ -538,7 +538,17 @@ hard-answer linear exposure, localize atomic entailment across proof distances
 supervision with the frozen substrate, controller core, hard examples,
 initialization, order, optimizer, and answer loss held fixed.
 
+The 2026-08-11 pre-data blocking-review repair makes the diagnostic inputs
+route-safe before re-review: I0 now uses a shared fixed entity vocabulary with
+symbolically verified skeleton-disjoint splits; I2 serializes exact matched
+entity/predicate/lexical/answer-position contingencies under both labels; and
+S2 uses only grounded registered-rule applications with exact asserted
+validity-label feature balances. The all-record CPU self-test passes, and the
+GPU-free conservative cell projection is `150/140/850/80/260/700` seconds for
+I0/I1/I2/S0/S1/S2, or 2,180 seconds total against the 5,400-second cap.
+
 This is a diagnostic question only. No cell or result exists yet, E3 remains
 stopped, official tests and line 07 remain inaccessible, and neither canonical
-E3/E3b nor the 0.5B program is authorized. The complete invocation is separately
-review-gated because its registered cap is 5,400 seconds.
+E3/E3b nor the 0.5B program is authorized. Independent re-review and an explicit
+clean-launch attestation still precede I0; the executor repair does not claim a
+clean-review token.
