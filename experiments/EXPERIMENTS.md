@@ -37,6 +37,17 @@ Suite aggregate: `results/pilot_suite_summary.json`.
 
 Framework where AI generation happens in continuous embedding space via iterative dynamics, with no softmax collapse. Tests whether self-consistency energy E(s) = ||F_theta(s,c)||^2 produces correct, stable attractors.
 
+### E3 Interface-Supervision Diagnostic (PREREGISTERED / NOT RUN)
+
+- **Event:** The six-cell interface-supervision diagnostic was preregistered on 2026-08-10 before any diagnostic runner outcome, cell execution, metric, or result artifact existed.
+- **Canonical protocol:** `experiments/06_uesd/E3_INTERFACE_SUPERVISION_DIAGNOSTIC_PREREGISTRATION.md`.
+- **Question:** Holding the frozen `base-B` substrate fixed, separate whether answer-relevant information is exposed at the registered final-layer interface from whether verified dense rule-application supervision creates a discrimination foothold that sparse answer-only CE does not.
+- **Frozen grid:** `I0_ONE_HOP_LINEAR_FLOOR`, `I1_HARD_ANSWER_LINEAR`, `I2_FACT_TRACE_LINEAR`, `S0_ONE_HOP_CONTROLLER_FLOOR`, `S1_HARD_ANSWER_ONLY`, and paired `S2_HARD_PROCESS_DENSE`, in that order without between-cell scientific inspection.
+- **Compute and launch boundary:** Each cell is capped at 900 GPU-wall seconds and the single complete invocation at 5,400 seconds including loading, caches, evaluation, and publication. Build is authorized. Launch is blocked pending implementation and SHA-256 bindings, separate full-pipeline review, measured completion projection within cap, resolution of all blocking findings, and explicit clean-launch attestation.
+- **Claim and access boundary:** This is diagnostic only. It cannot rescue the E3 preflight, establish mechanics, authorize canonical E3/E3b or the 0.5B program, inspect official tests, modify line 07, or consume any line-07 cohort. Any routed token authorizes only successor drafting and steering review.
+
+---
+
 ### E3 Pretrained-Substrate Latch-Mechanics Preflight (PREFLIGHT STOP)
 
 - **Scope and artifact:** The single registered preflight invocation ran the 50-update outcome-blind gradient probe and, after its `PASS`, the one 500-update exact-architecture competence smoke. The immutable artifact is `experiments/06_uesd/results/exp_e3_preflight.json` (SHA-256 `51b7e565fe13967948017c88b7df2ea4738cb35fdc2dba92a402673698130c9a`). The runner/config hashes were `93f261ca881efad4d61ae35ce69f30e6c7e64e87b26943525877ef76c2510703` and `ad2ec74d569df2311cb9c017f1526e5a52a1096da66c41e12280b155be055447`.
