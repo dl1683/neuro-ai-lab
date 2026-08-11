@@ -54,6 +54,9 @@ def main():
     e2 = json.loads(
         (RESULTS / "exp_e2_latch_mechanics.json").read_text(encoding="utf-8")
     )
+    e2_diag = json.loads(
+        (RESULTS / "exp_e2_diag.json").read_text(encoding="utf-8")
+    )
     ledger_entries = [
         json.loads(line)
         for line in LEDGER.read_text(encoding="utf-8").splitlines()
@@ -908,6 +911,164 @@ def main():
             f"token={adjudication_metrics.get('controlling_final_token')}, "
             f"floor={adjudication_metrics.get('matched_pair_floor')}, "
             f"provenance_ok={adjudication_provenance_ok}"
+        ),
+    )
+
+    # 28. Bind the immutable E2-DIAG artifact to its terminal operational VOID.
+    #     This is explicitly not an adjudicated Stage-0 STOP or scientific miss.
+    e2_diag_path = RESULTS / "exp_e2_diag.json"
+    e2_diag_sha = canonical_lf_sha256(e2_diag_path)
+    e2_diag_stage0 = e2_diag["stages"]["stage_0"]
+    e2_diag_access = e2_diag["access_confirmation"]
+    check(
+        "e2_diag_terminal_operational_void_binding",
+        e2_diag_sha
+        == "41c035dd79fe42e9edb891dcc02664077c7d491cd7a2857fe7cc9ae16dc5ab37"
+        and e2_diag["schema_version"] == "1.0.0"
+        and e2_diag["experiment_id"] == "exp_e2_diag"
+        and e2_diag["diagnostic_only"]
+        and not e2_diag["adjudicates_semantic_ratchet"]
+        and e2_diag["suite_status"] == "TERMINAL_OPERATIONAL_VOID"
+        and e2_diag["final_route_token"] == "VOID_NO_ROUTE"
+        and e2_diag_stage0["status"] == "VOID"
+        and e2_diag_stage0["reason"]
+        == "POST_ENDPOINT_RESULT_SERIALIZATION_FAILURE"
+        and e2_diag["stages"]["stage_1"]["status"] == "NOT_RUN"
+        and e2_diag["stages"]["stage_2"]["status"] == "NOT_RUN"
+        and e2_diag["stages"]["stage_3"]["status"] == "NOT_RUN"
+        and not any(e2_diag_access.values()),
+        (
+            f"sha={e2_diag_sha}, status={e2_diag_stage0['status']}, "
+            f"route={e2_diag['final_route_token']}, access={e2_diag_access}"
+        ),
+    )
+
+    # 29. Preserve the observed endpoint as non-adjudicating execution evidence,
+    #     with every unavailable post-crash quantity represented as unavailable.
+    e2_diag_training = e2_diag_stage0["training"]
+    e2_diag_endpoint = e2_diag_stage0["registered_endpoint_observation"]
+    e2_diag_curve = e2_diag_stage0["training_curve"]["observations"]
+    check(
+        "e2_diag_stage0_observation_and_unavailable_metrics",
+        e2_diag_endpoint["update"] == 3000
+        and e2_diag_endpoint["training_accuracy"]
+        == {"numerator": 32, "denominator": 128, "rate": 0.25}
+        and e2_diag_endpoint["cross_entropy_mean_stdout_rounded"] == 1.388611
+        and not e2_diag_endpoint["scientific_gate_adjudicated"]
+        and e2_diag_endpoint["reason"] == "OPERATIONAL_VOID_PRECEDENCE"
+        and len(e2_diag_curve) == 30
+        and [row["update"] for row in e2_diag_curve] == list(range(100, 3001, 100))
+        and all(
+            row["correct_numerator"] == 32
+            and row["training_example_denominator"] == 128
+            for row in e2_diag_curve
+        )
+        and min(row["cross_entropy_mean_stdout_rounded"] for row in e2_diag_curve)
+        == 1.384766
+        and max(row["cross_entropy_mean_stdout_rounded"] for row in e2_diag_curve)
+        == 1.52124
+        and e2_diag_training["completed_updates"] == 3000
+        and e2_diag_training["processed_tokens"] == 2786051
+        and e2_diag_training["processed_examples"] == 11998
+        and e2_diag_training["pre_clip_gradient_norm"]["status"] == "unavailable"
+        and e2_diag_training["clipped_updates"]
+        == {
+            "numerator": None,
+            "denominator": 3000,
+            "rate": None,
+            "status": "unavailable",
+        }
+        and e2_diag_stage0["compute"]["status"] == "unavailable"
+        and e2_diag["hashes"]["checkpoints"]["status"] == "unavailable"
+        and e2_diag["protocol_deviations"][0]["scientific_miss_counted"] is False
+        and e2_diag["protocol_deviations"][0]["repeat_permitted"] is False,
+        (
+            f"endpoint={e2_diag_endpoint}, updates={e2_diag_training['completed_updates']}, "
+            f"tokens={e2_diag_training['processed_tokens']}"
+        ),
+    )
+
+    # 30. Bind the reconstruction hashes, model/data integrity, and live landing
+    #     code. The launch hash is historical because the dtype fix landed only
+    #     after the one permitted process exited.
+    e2_diag_runner_path = Path(__file__).resolve().parent / "exp_e2_diag.py"
+    e2_diag_live_code_sha = hashlib.sha256(e2_diag_runner_path.read_bytes()).hexdigest()
+    e2_diag_config_path = Path(__file__).resolve().parent / (
+        "exp_e2_latch_mechanics_config.json"
+    )
+    e2_diag_live_config_sha = hashlib.sha256(
+        e2_diag_config_path.read_bytes()
+    ).hexdigest()
+    e2_diag_hashes = e2_diag["hashes"]
+    check(
+        "e2_diag_hash_and_integrity_binding",
+        e2_diag_hashes["launch_code_sha256"]
+        == "d1648e7a6a1563e89b8cc3d0119902eefcef49ea588923f2656a1835751eaca2"
+        and e2_diag_hashes["operational_landing_code_sha256"]
+        == "6782e8c976697d2c4ea1c10aa30848a8c4c6fa0e99dfa11f2d09641cef7952c7"
+        and e2_diag_live_code_sha
+        == e2_diag_hashes["operational_landing_code_sha256"]
+        and e2_diag_live_config_sha == e2_diag_hashes["e2_config_sha256"]
+        and e2_diag_hashes["stage_0_ordered_set_sha256"]
+        == "7d28ffe443047ce49a2fbacf4d7b78f93000eb30c0f74db28e89232877e39e7b"
+        and e2_diag_hashes["stdout_recovery_sha256"]
+        == "5d64c739c0c147116b75b9a090421e74c5f33723202958677ea725626ecdca14"
+        and e2_diag["model"]["seed"] == 42
+        and e2_diag["model"]["trainable_parameter_count"] == 29509636
+        and e2_diag["integrity"]["controller_train_examples"] == 8192
+        and e2_diag["integrity"]["controller_train_label_counts"]
+        == {"0": 2048, "1": 2048, "2": 2048, "3": 2048}
+        and e2_diag["integrity"]["memorization_examples"] == 128
+        and e2_diag["integrity"]["memorization_label_counts"]
+        == {"0": 32, "1": 32, "2": 32, "3": 32}
+        and not e2_diag["integrity"]["pass"]
+        and e2_diag["integrity"]["post_endpoint_result_publication"]
+        == {"pass": False, "reason": "GRADIENT_QUANTILE_Q_DTYPE_MISMATCH"},
+        (
+            f"live_code={e2_diag_live_code_sha}, "
+            f"landing_code={e2_diag_hashes['operational_landing_code_sha256']}, "
+            f"live_config={e2_diag_live_config_sha}"
+        ),
+    )
+
+    # 31. Bind the append-only chronology to the immutable artifact and its
+    #     non-adjudication/no-route language.
+    e2_diag_entries = [
+        entry
+        for entry in ledger_entries
+        if entry.get("id") == "uesd-e2-diag-stage0-operational-void"
+    ]
+    e2_diag_entry = e2_diag_entries[0] if len(e2_diag_entries) == 1 else {}
+    e2_diag_metrics = e2_diag_entry.get("metrics", {})
+    check(
+        "e2_diag_ledger_binding",
+        len(e2_diag_entries) == 1
+        and e2_diag_entry.get("status") == "void"
+        and e2_diag_entry.get("artifacts")
+        == ["experiments/06_uesd/results/exp_e2_diag.json"]
+        and e2_diag_metrics.get("artifact_sha256") == e2_diag_sha
+        and e2_diag_metrics.get("suite_status") == "TERMINAL_OPERATIONAL_VOID"
+        and e2_diag_metrics.get("final_route_token") == "VOID_NO_ROUTE"
+        and e2_diag_metrics.get("reason")
+        == "POST_ENDPOINT_RESULT_SERIALIZATION_FAILURE"
+        and e2_diag_metrics.get("registered_endpoint_observation", {}).get(
+            "training_accuracy"
+        )
+        == {"numerator": 32, "denominator": 128, "rate": 0.25}
+        and not e2_diag_metrics.get("registered_endpoint_observation", {}).get(
+            "scientific_gate_adjudicated"
+        )
+        and e2_diag_metrics.get("gpu_wall_time_seconds") is None
+        and not e2_diag_metrics.get("official_test_inspected")
+        and not e2_diag_metrics.get("selector_path_accessed")
+        and e2_diag_metrics.get("launch_code_sha256")
+        == e2_diag_hashes["launch_code_sha256"]
+        and e2_diag_metrics.get("operational_landing_code_sha256")
+        == e2_diag_hashes["operational_landing_code_sha256"],
+        (
+            f"entry_count={len(e2_diag_entries)}, "
+            f"route={e2_diag_metrics.get('final_route_token')}, "
+            f"artifact_sha={e2_diag_metrics.get('artifact_sha256')}"
         ),
     )
 

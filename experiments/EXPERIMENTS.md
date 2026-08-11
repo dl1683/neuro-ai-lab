@@ -37,7 +37,17 @@ Suite aggregate: `results/pilot_suite_summary.json`.
 
 Framework where AI generation happens in continuous embedding space via iterative dynamics, with no softmax collapse. Tests whether self-consistency energy E(s) = ||F_theta(s,c)||^2 produces correct, stable attractors.
 
-### E2-DIAG Competence and Learnability Diagnostic (PREREGISTERED / NOT RUN)
+### E2-DIAG Stage 0 (TERMINAL OPERATIONAL VOID / DIAGNOSTIC ONLY)
+
+- **Scope and artifact:** Only the preregistered 128-example full-hard memorization gate ran. The immutable suite artifact is `experiments/06_uesd/results/exp_e2_diag.json` (canonical-LF SHA-256 `41c035dd79fe42e9edb891dcc02664077c7d491cd7a2857fe7cc9ae16dc5ab37`). No Stage 1, optimizer-matrix, or continuation run launched.
+- **Observed endpoint, not an adjudicated miss:** The process completed all 3,000 optimizer updates and printed 32/128 correct (25% training accuracy) at every registered 100-update observation from update 100 through update 3,000. The stdout-rounded T=4 training CE ranged from 1.384766 to 1.521240 and ended at 1.388611. The run processed 2,786,051 non-padding input-plus-answer tokens over 11,998 repeated example presentations. These observations are retained as execution evidence, but the frozen operational precedence prevents a Stage-0 `STOP` adjudication.
+- **Operational failure:** After the update-3,000 endpoint printed, result construction crashed because `torch.quantile` received a float32 quantile tensor for float64 gradient-norm input. The process exited before publishing the registered gradient-norm distribution, clipped-update numerator, recovery checkpoint, exact GPU wall time, or peak VRAM. Those quantities are `unavailable`, not zero. The dtype bug was corrected for code hygiene after the process exited; no training was repeated or resumed.
+- **Controlling route:** **`VOID_NO_ROUTE / POST_ENDPOINT_RESULT_SERIALIZATION_FAILURE`**. Under the frozen branch table, the incomplete result selects no scientific branch: it does not advance to Stage 1, does not assign `KILL_FROM_SCRATCH_LINE`, and cannot be interpreted as evidence for an optimizer, staircase, pretrained-substrate, E2b, or line-kill route. The 0.5B launch remains blocked.
+- **Boundaries:** The selected tiny set was exactly 32 examples per answer position (ordered-set SHA-256 `7d28ffe443047ce49a2fbacf4d7b78f93000eb30c0f74db28e89232877e39e7b`). The original E2 official test, GSM8K/SVAMP official tests, selectors, critic, and latch paths were not accessed. This is one-seed diagnostic execution evidence only and adjudicates nothing about semantic-ratchet mechanics.
+
+---
+
+### E2-DIAG Competence and Learnability Diagnostic (PREREGISTRATION EVENT — HISTORICAL)
 
 - **Event:** The bounded E2-DIAG post-mortem program was preregistered on 2026-08-10 before any diagnostic runner, launch, result, or metric existed.
 - **Canonical protocol:** `experiments/06_uesd/E2_DIAG_PREREGISTRATION.md`.
