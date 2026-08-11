@@ -1783,3 +1783,36 @@ Current boundary: **`TERMINAL PREFLIGHT STOP / COMPUTE CAP / NO RETAINED DATA /
 NO SCIENTIFIC OUTCOME`**. No probe retry, cap resolution, calibration stage,
 resize below the registered minimum, or later stage is authorized by this
 attempt.
+
+## Pre-data amendment 2026-08-11 — stopping-criterion performance fork
+
+This fresh engineering fork targets only the stopping-criterion implementation.
+The terminal cap stop and its evidence remain immutable. The scientific
+protocol, generator and tokenizer identities, prompts, candidate identities,
+seeds, sampling configuration, token cap, six policies, scorer, calibration and
+test cohorts, grids, statistics, thresholds, and claim rules are unchanged. No
+retained response, score, calibration/test outcome, or policy result may be
+created or inspected by this fork.
+
+Boundary semantics must be preserved exactly: for an identical token stream,
+the replacement incremental token/byte automaton must make the same row-local
+stop decision at the same generated-token position and report the same stop
+reason as the frozen full-prefix decode/regex implementation. Authorization
+requires both:
+
+1. a machine-checked replay of the two immutable local probe banks through the
+   old and new stopping logic, with identical stop positions and reasons for all
+   128 candidate streams, plus passing adversarial property tests covering
+   marker boundaries, multi-byte splits, and token-cap edges; and
+2. an outcome-blind, fixed-seed old-versus-new timing probe on throwaway
+   duplicates of the same two probe problems at batch 8, using the registered
+   telemetry discipline, that demonstrates a speedup of at least **1.67x**.
+   The new implementation must also be retested at batch 16 and reported, but
+   batch 16 does not replace the batch-8 authorization threshold.
+
+If both gates pass, the unchanged 768-problem bank is treated as fitting the
+strict 8,100-second ceiling and a fresh cap-compliant successor registration
+skeleton may be landed with new runner-hash and review-hash slots; no owner cap
+exception is necessary. If equivalence or the 1.67x batch-8 threshold fails,
+this performance fork closes without retained data and the owner's Branch-1
+decision remains the only path to the registered adjudication.
