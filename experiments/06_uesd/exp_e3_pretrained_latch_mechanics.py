@@ -20,6 +20,7 @@ import json
 import math
 import os
 import random
+import re
 import shutil
 import statistics
 import time
@@ -337,6 +338,40 @@ def resolve_and_validate_substrate(config: Mapping[str, Any]) -> dict[str, Any]:
         "content_digest": content_digest,
         "snapshot": snapshot,
     }
+
+
+def validate_pending_manifest_slot(
+    config_path: Path, config: Mapping[str, Any]
+) -> dict[str, str]:
+    text = LOCAL_MANIFEST_PATH.read_text(encoding="utf-8")
+
+    def value(key: str) -> str:
+        matches = re.findall(
+            rf"^-\s*`{re.escape(key)}`:\s*`([^`]+)`\s*$",
+            text,
+            flags=re.MULTILINE,
+        )
+        if len(matches) != 1:
+            raise RuntimeError(f"local manifest requires exactly one {key} slot")
+        return matches[0]
+
+    observed = {
+        "runner_sha256": value("E3-runner-sha256"),
+        "config_sha256": value("E3-config-sha256"),
+        "controller_gradient_clip_norm": value(
+            "E3-controller-gradient-clip-norm"
+        ),
+        "clip_mapping": value("E3-clip-mapping"),
+    }
+    expected = {
+        "runner_sha256": sha256_file(Path(__file__).resolve()),
+        "config_sha256": sha256_file(config_path),
+        "controller_gradient_clip_norm": "PENDING_INSTRUMENT_PROBE",
+        "clip_mapping": str(config["instrument_probe"]["mapping"]),
+    }
+    if observed != expected:
+        raise RuntimeError("E3 pending manifest slot does not match runner/config/mapping")
+    return observed
 
 
 def load_frozen_substrate(coordinates: Mapping[str, Any], device: torch.device):
@@ -1056,6 +1091,7 @@ def hash_bindings(
     datasets: Mapping[str, Sequence[DeductionExample]],
     coordinates: Mapping[str, Any],
 ) -> dict[str, Any]:
+    manifest_slot = validate_pending_manifest_slot(config_path, config)
     model = E3RecurrentController(config)
     critic = E3LatentProgressCritic(config)
     control = E3NonRecurrentControl(config)
@@ -1086,7 +1122,11 @@ def hash_bindings(
         "trainable_parameter_boundary_sha256": boundary["sha256"],
     }
     del model, critic, control
-    return {"hashes": hashes, "parameter_counts": parameters}
+    return {
+        "hashes": hashes,
+        "parameter_counts": parameters,
+        "pending_manifest_slot": manifest_slot,
+    }
 
 
 def feature_boundary_audit(config: Mapping[str, Any]) -> dict[str, Any]:
@@ -1119,6 +1159,7 @@ def validate_preflight_result(result: Mapping[str, Any]) -> None:
         "preregistration",
         "hashes",
         "parameter_counts",
+        "pending_manifest_slot",
         "feature_boundary_audit",
         "generator_audit",
         "cohort_isolation",
@@ -1484,6 +1525,12 @@ def run_self_test_fast(config_path: Path) -> int:
             "preregistration": config["preregistration"],
             "hashes": {"self_test": True},
             "parameter_counts": counts,
+            "pending_manifest_slot": {
+                "runner_sha256": "self-test",
+                "config_sha256": "self-test",
+                "controller_gradient_clip_norm": "PENDING_INSTRUMENT_PROBE",
+                "clip_mapping": config["instrument_probe"]["mapping"],
+            },
             "feature_boundary_audit": feature_boundary_audit(config),
             "generator_audit": audit,
             "cohort_isolation": {"all_forbidden_access_counts_zero": True},
