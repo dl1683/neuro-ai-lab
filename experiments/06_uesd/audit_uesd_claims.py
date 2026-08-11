@@ -62,6 +62,9 @@ def main():
             encoding="utf-8"
         )
     )
+    e3_preflight = json.loads(
+        (RESULTS / "exp_e3_preflight.json").read_text(encoding="utf-8")
+    )
     ledger_entries = [
         json.loads(line)
         for line in LEDGER.read_text(encoding="utf-8").splitlines()
@@ -1228,6 +1231,96 @@ def main():
             f"entry_count={len(repair_entries)}, "
             f"route={repair_metrics.get('final_route_token')}, "
             f"artifact_sha={repair_metrics.get('artifact_sha256')}"
+        ),
+    )
+
+    # 36. Bind the immutable E3 preflight to the registered probe mapping and
+    #     the single controlling competence-smoke denominator.
+    e3_path = RESULTS / "exp_e3_preflight.json"
+    e3_sha = canonical_lf_sha256(e3_path)
+    probe = e3_preflight["instrument_probe"]
+    norms = probe["raw_global_preclip_gradient_norms"]
+    sorted_norms = sorted(norms)
+    probe_median = (sorted_norms[24] + sorted_norms[25]) / 2
+    mapped_clip = min(16, max(2, int(probe_median + 0.5)))
+    smoke = e3_preflight["competence_smoke"]
+    check(
+        "e3_preflight_probe_and_smoke_terminal_binding",
+        e3_sha
+        == "51b7e565fe13967948017c88b7df2ea4738cb35fdc2dba92a402673698130c9a"
+        and e3_preflight["final_token"] == "PREFLIGHT_STOP"
+        and e3_preflight["decision"]["reason"]
+        == "PRETRAINED_INTERFACE_COMPETENCE_SMOKE_MISS"
+        and e3_preflight["decision"]["route"]
+        == "DRAFT_REGISTER_INTERFACE_SUPERVISION_DIAGNOSTIC_ONLY"
+        and not e3_preflight["decision"]["canonical_launch_authorized_now"]
+        and probe["outcome"] == "PASS"
+        and probe["completed_updates"] == 50
+        and len(norms) == 50
+        and all(value > 0 for value in norms)
+        and probe["ordinary_median"] == probe_median
+        and probe["quantiles"]["median"] == probe_median
+        and mapped_clip == 14
+        and probe["derived_controller_gradient_clip_norm"] == mapped_clip
+        and not probe["forbidden_metrics_computed"]
+        and not probe["accuracy_computed"]
+        and smoke["outcome"] == "PREFLIGHT_STOP"
+        and smoke["completed_optimizer_updates"] == 500
+        and smoke["validation_correct"] == 128
+        and smoke["validation_denominator"] == 512
+        and smoke["validation_percentage"] == 25.0
+        and smoke["pass_correct_minimum"] == 205
+        and smoke["intermediate_validation_inspections"] == 0
+        and len(smoke["training_curve"]) == 10
+        and smoke["training_curve"][-1]["completed_update"] == 500
+        and e3_preflight["compute"]["total_completed_optimizer_updates"] == 550
+        and e3_preflight["compute"]["canonical_retained_updates"] == 0
+        and e3_preflight["state_isolation"]["all_throwaway_state_discarded"]
+        and e3_preflight["cohort_isolation"][
+            "all_forbidden_access_counts_zero"
+        ],
+        (
+            f"artifact_sha={e3_sha}, token={e3_preflight['final_token']}, "
+            f"probe_n={len(norms)}, median={probe_median}, clip={mapped_clip}, "
+            f"smoke={smoke['validation_correct']}/{smoke['validation_denominator']}"
+        ),
+    )
+
+    # 37. Bind the reviewed runner/config bytes and append-only chronology to
+    #     the immutable E3 stop without promoting it to mechanics evidence.
+    e3_runner = Path(__file__).resolve().parent / "exp_e3_pretrained_latch_mechanics.py"
+    e3_config = (
+        Path(__file__).resolve().parent
+        / "exp_e3_pretrained_latch_mechanics_config.json"
+    )
+    e3_entries = [
+        entry for entry in ledger_entries if entry.get("id") == "uesd-e3-preflight"
+    ]
+    e3_entry = e3_entries[0] if len(e3_entries) == 1 else {}
+    e3_metrics = e3_entry.get("metrics", {})
+    check(
+        "e3_preflight_live_hash_and_ledger_binding",
+        canonical_lf_sha256(e3_runner) == e3_preflight["hashes"]["runner_sha256"]
+        and canonical_lf_sha256(e3_config)
+        == e3_preflight["hashes"]["config_sha256"]
+        and len(e3_entries) == 1
+        and e3_entry.get("status") == "stopped"
+        and e3_entry.get("artifacts")
+        == ["experiments/06_uesd/results/exp_e3_preflight.json"]
+        and e3_metrics.get("final_token") == "PREFLIGHT_STOP"
+        and e3_metrics.get("reason")
+        == "PRETRAINED_INTERFACE_COMPETENCE_SMOKE_MISS"
+        and e3_metrics.get("hashes", {}).get("artifact_sha256") == e3_sha
+        and e3_metrics.get("instrument_probe", {}).get("derived_clip_norm") == 14
+        and e3_metrics.get("competence_smoke", {}).get("validation_correct")
+        == {"numerator": 128, "denominator": 512, "rate": 0.25}
+        and e3_metrics.get("official_test_rows_inspected") == 0
+        and e3_metrics.get("line_07_rows_accessed") == 0
+        and not e3_metrics.get("canonical_launch_authorized"),
+        (
+            f"entry_count={len(e3_entries)}, status={e3_entry.get('status')}, "
+            f"runner={canonical_lf_sha256(e3_runner)}, "
+            f"config={canonical_lf_sha256(e3_config)}"
         ),
     )
 
