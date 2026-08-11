@@ -37,6 +37,13 @@ Suite aggregate: `results/pilot_suite_summary.json`.
 
 Framework where AI generation happens in continuous embedding space via iterative dynamics, with no softmax collapse. Tests whether self-consistency energy E(s) = ||F_theta(s,c)||^2 produces correct, stable attractors.
 
+### E3 Pretrained-Substrate Latch-Mechanics (PREREGISTERED / NOT RUN)
+
+- **Event:** E3 was frozen on 2026-08-10 before any E3 instrument probe, competence smoke, training, calibration, or test outcome existed. The current from-scratch line remains killed; E3 is a materially different mechanics gate and does not reopen or reinterpret E2, E2-DIAG, or D38-D40.
+- **Canonical protocol:** `experiments/06_uesd/E3_PRETRAINED_MECHANICS_PREREGISTRATION.md`.
+- **Frozen scope:** E3 uses the already revision-fixed line-06 alias `base-B` with no base-weight updates, one pilot-scale recurrent controller/readout/critic, a parameter-matched non-recurrent control, fresh synthetic-deduction namespaces, two canonical seeds, and zero line-07, additional GSM8K/SVAMP official-test, or E2-test examples.
+- **Current route:** **BUILD AUTHORIZED / LAUNCH BLOCKED** on implementation, complete hash bindings, instrument-probe `PASS`, exact-architecture competence-smoke `PASS`, measured completion within the 9,000-second canonical cap, independent full-pipeline pre-training review, resolution of every blocking finding, and a clean launch attestation. This registration authorizes no execution and does not unblock the 0.5B semantic-ratchet program. Line 07 remains independent and retains first GPU-queue priority.
+
 ### E2-DIAG Stage 0 operational repair (STOP / DIAGNOSTIC ONLY)
 
 - **Scope and artifact:** The single owner-authorized repair repeated only the frozen 128-example Stage-0 gate and landed `experiments/06_uesd/results/exp_e2_diag_stage0_instrumented.json` (canonical-LF SHA-256 `0ad4fc5fafe343b37944b462972d32ff201749280a7bdbb506fa3b62536620d7`). It completed 3,000 updates, 2,786,051 non-padding input-plus-answer tokens, and 11,998 example presentations in 98.873 GPU-seconds; peak allocated/reserved VRAM was 637,935,104/696,254,464 bytes. No later stage launched.

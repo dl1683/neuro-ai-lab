@@ -117,6 +117,8 @@ The repaired invocation completed 3,000 updates over 2,786,051 non-padding input
 
 The dated failure synthesis concludes that successor mechanics work must begin from demonstrated competence, treat recurrent computation as a transient resource, couple supervision and adjudication to correctness, and enforce competence before denominator and provenance claims; see [`Failure Synthesis Retrospective — 2026-08-10`](docs/UNIFIED_ERROR_SPACE.md#12-failure-synthesis-retrospective-2026-08-10).
 
+E3 is **PREREGISTERED / NOT RUN / BUILD AUTHORIZED / LAUNCH BLOCKED** on implementation → hash bindings → instrument-probe `PASS` → exact-architecture competence-smoke `PASS` → measured compute-cap preflight → independent pre-training review → clean launch attestation. The registration authorizes build work only, does not authorize any probe, smoke, training, calibration, or test execution, leaves the 0.5B launch blocked, and preserves line-07 independence and first GPU-queue priority; see `experiments/06_uesd/E3_PRETRAINED_MECHANICS_PREREGISTRATION.md`.
+
 Operationally, two earlier GSM8K canonical invocations were killed before GPU use while sandboxed dataset loading stalled on user-profile Hugging Face cache lock files; neither wrote an evidence artifact. The successful GSM8K attempt and the SVAMP initial attempt used the ignored workspace-local `.hf_cache/` fully offline. The SVAMP loader began GPU work immediately, so its 10-minute watchdog did not trigger.
 
 ### Canonical Documents and Evidence
@@ -147,6 +149,7 @@ The fixed-point convergence arc is closed. D40 stands at 15/16; rerunning the cr
 | UESD scientific synthesis | `docs/UNIFIED_ERROR_SPACE.md` |
 | UESD semantic-ratchet preregistration | `experiments/06_uesd/PREREGISTRATION.md` |
 | E2-DIAG competence/learnability preregistration | `experiments/06_uesd/E2_DIAG_PREREGISTRATION.md` |
+| E3 pretrained-substrate mechanics preregistration | `experiments/06_uesd/E3_PRETRAINED_MECHANICS_PREREGISTRATION.md` |
 | E2 optimizer's-curse secondary analysis | `experiments/06_uesd/E2_SECONDARY_ANALYSIS_CURSE.md` (informational only; subordinate to E2 adjudication) |
 | Best-of-N safe-selection preregistration | `experiments/07_safe_selection/PREREGISTRATION.md` |
 | Experiment chronology | `experiments/EXPERIMENTS.md` + `experiments/ledger.jsonl` |
