@@ -1,6 +1,6 @@
 # Frozen Best-of-N Safe Selection Pilot Preregistration
 
-Status: **FRESHLY PREREGISTERED SUCCESSOR / ORIGINAL ATTEMPT TERMINAL PREFLIGHT STOP / NOT YET RUN**
+Status: **SUCCESSOR IMPLEMENTED AND HASH-BOUND / SCORER DETERMINISM PASS / READY-FOR-HOLISTIC-REVIEW / NOT RUN**
 
 This is the single canonical preregistration for the frozen best-of-\(N\) safe-selection pilot. It tests an inference-layer selection law over independent stochastic samples. It is not a UESD-lineage experiment, does not reopen the D38–D40 fixed-point arc, and cannot alter, rescue, delay, reinterpret, or adjudicate E2 or the preregistered 0.5B semantic-ratchet experiment. No result is claimed here.
 
@@ -1585,3 +1585,101 @@ access remain fail-closed until that review resolves every blocking finding
 and its attestation is registered. A scorer determinism failure routes only to
 Option B through fresh steering; a calibration-headroom miss remains a stop,
 not permission to change scorers.
+
+## Amendment 2026-08-11 — successor implementation and slot filling
+
+### Evidence boundary
+
+This pre-data amendment records the completed implementation, CPU-only cohort
+construction, deterministic schedule derivation, and operational-scorer
+determinism gate. No retained response was generated. Zero successor
+calibration or test row was accessed by either model, no candidate was scored,
+and no label-derived quantity, headroom metric, threshold, policy outcome,
+bootstrap result, permutation result, or scientific result exists.
+
+The final tracked runner is fail-closed for every retained generation,
+scoring, calibration-evaluation, and test mode pending holistic independent
+review. The successor uses a separate ignored work root; the original
+32-response smoke and database were neither opened nor modified.
+
+### Scorer determinism evidence
+
+The frozen fixture passed exactly three clean loads across two fresh Python
+processes. All three loads reproduced:
+
+- 454 tokens and input SHA-256
+  `e14ec22c375a3dbc31596964e53fe1a59b4f7264b4c73f5dcd80a1bbb3f52741`;
+- marker positions `[197, 333, 386, 451]`;
+- BF16 step values `[1.0, 0.1923828125, 0.98046875, 1.0]` with bit patterns
+  `[16256, 15941, 16251, 16256]`;
+- minimum value `0.1923828125` with BF16 bit pattern `15941`;
+- complete output digest
+  `69c6eb7edf43742d9e9e159ae6f20168732dd1e9000ea971d244758e7fed899b`.
+
+The across-load comparison digest is
+`b2c673a51f7d473766ac7b201cecc96a69810ec4b5f50505f751af665dd2cb06`.
+The three scored-forward times were `0.3677370s`, `0.2757420s`, and
+`0.3667366s`; timing is non-adjudicating. The maintained wrapper consumed all
+342 operational backbone and reward-head tensors in BF16 with zero missing or
+mismatched keys. The checkpoint's unused `lm_head.weight` was the sole
+intentionally omitted key, as preregistered; the operational wrapper exposes
+no language-model head. No alternate backend, precision, cache mode, scorer,
+or tolerance was attempted.
+
+### Cohort and schedule construction evidence
+
+The CPU-only construction passed with 6,700 source rows, 768/768 original rows
+excluded, 256 new calibration rows, 512 new test rows, 5,932 rows remaining
+unallocated, zero calibration/test index overlap, zero selected-demonstration
+overlap, zero normalized-question overlap with the prior-consumption registry,
+and zero normalized-question overlap with the original 768 rows.
+
+The full 12,288-candidate generation-seed schedule, batch-8 seed schedule,
+10,000-replicate bootstrap schedule, 1,000-permutation schedule, and 64-record
+outcome-blind rescore schedule were derived without model loading. The
+batch-8 schedule is hash-bound implementation state, not an eligibility or
+compute-cap finding; batch generation remains unrun and review-blocked. Its
+complete mixed-call schedule SHA-256 is
+`5ba90fad31e20f40b283ae0c67a0b19e8e39c345c09e8d321915fc9360e8d123`.
+
+### Filled successor binding slots
+
+- `successor_source_pool_sorted_indices_sha256`: `aa28e47af683f7fe65dd2cc78eaf29030c55d7de9127fe4995af844f1d31b44c`
+- `successor_original_excluded_ordered_indices_sha256`: `727debb0c35837935e4686ce6ba30051f5826bca8eef2963b7acbae47953fa2f`
+- `successor_calibration_ordered_indices_sha256`: `a284b5f4a38dd9b6f5d21eb2f91eaff34dd5803098e48ceb282706f0b8fa62bd`
+- `successor_calibration_sorted_indices_sha256`: `d190f26e2277b4a4cb2e23f07c1a942b1a644136d23f07fd5343069f493a86bd`
+- `successor_calibration_row_content_sha256`: `14e0ce501106b5fea8a131c8b51104370f049483f2bb71217d8162bccc3b2d79`
+- `successor_test_pool_sorted_indices_sha256`: `5af1192b9618485d44dc525d124a3b91d1b0f3d5c2c0a7afef06ac37710df9de`
+- `successor_test_ordered_indices_sha256`: `b6205763aa73ac18236798c480575093ba9fae9a524632d484b5ed2062998c13`
+- `successor_test_sorted_indices_sha256`: `b30d93bf362d68db6d2e6cb655be6325688baa631bb80b25071d501b627b48f7`
+- `successor_test_row_content_sha256`: `ed66f706e4a8a8a3281636aeff2a9f17e32b6da36a26b411520e64eff45a0132`
+- `successor_calibration_then_test_ordered_indices_sha256`: `04ecc8021d0387d49e4255953f5655724d763b8e52ec70414f69776769f962a6`
+- `successor_remaining_unallocated_sorted_indices_sha256`: `db499eecfe80a55570f2be728f14d87ae96b7be385a4c7cfb22a1f7c3aff72fe`
+- `successor_remaining_unallocated_row_content_sha256`: `6a38d194d31c7edbaa9531619cd745ac41b68fa0c5becb3a86f78b94406f5e4b`
+- `successor_prompt_serialization_sha256`: `9a069fbf34173fa5277bd65ed66857007ce08c7e86a4bcff4c74403ed879062c`
+- `successor_generation_seed_schedule_sha256`: `0ef7ab18ca67417d79df5ee0eb60e76fe4da63625d7d1a8bddaf39ce28973b68`
+- `successor_batch_seed_schedule_sha256`: `fa962e5a04bd990996f25773fbe062749d624a8769553f7da2b30bf043324063`
+- `successor_bootstrap_schedule_sha256`: `32a68e7657b234f204d4155d247f68247b40e5130bb5b449efada974c8942fef`
+- `successor_permutation_schedule_sha256`: `922dbfe7321d40d212c36d9adfd2345ade70716305211c34fb764aec227552e1`
+- `successor_outcome_blind_rescore_schedule_sha256`: `8b00a293b4183629229a387e313426d718dcd16849ad899db4dfb1f5df0a8ff4`
+- `successor_verifier_identity_bundle_sha256`: `f93d1a26504c9b5f658919bf6427815a3ab3a6886d7ef6a87c9485bd6ea19a86`
+- `successor_tokenizer_identity_bundle_sha256`: `c38f458cabaaa7861935e132f430a83b00b0926e31077235aa80b9ee1ceca77b`
+- `successor_manifest_identity_digest`: `4f7112fd7af77bdff204a17f5345f3a91b01c0794ef851df9a58e61456e39c6d`
+- `successor_maintained_scorer_source_sha256`: `ac4fbe44e8688de5cf8ab09baaa59546512546443df224f5f1a7bbdacba5f82f`
+- `successor_checkpoint_tensor_identity_sha256`: `e2221887f28dea5de29000221ed78d2dd9336f5d8a0e03b1a0cce9651a6d3aa7`
+- `successor_runner_source_sha256`: `fde1bd46a0376cdb793d9aaf2a4cd2f7f47763a24a62ffbdebbfa7bd27324f25`
+
+The unchanged qualified parser-source SHA-256 is
+`4555cf412805a261cfc8de094990ac700566022f420d556bd7860bbd7ea3c3a4`.
+Raw checkpoint identifiers, revisions, paths, and file listings remain private
+in the gitignored manifest; the tracked surface contains only pseudonyms and
+binding digests.
+
+### Current boundary
+
+Status is **`READY-FOR-HOLISTIC-REVIEW / NOT RUN`**. No retained generation is
+authorized by this amendment. The next permissible action is holistic review
+of the complete runner and bindings. Findings must be resolved before any
+batch eligibility probe, retained calibration response, successor-bank score,
+calibration-headroom calculation, outcome-blind rescore execution, or test
+access.

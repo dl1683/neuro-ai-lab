@@ -21,7 +21,12 @@ Suite aggregate: `results/pilot_suite_summary.json`.
 
 ## 07: Best-of-N Safe Selection
 
-### Option-A successor (FRESHLY PREREGISTERED / ORIGINAL ATTEMPT TERMINAL PREFLIGHT STOP / NOT YET RUN)
+### Option-A successor (IMPLEMENTED / HASH-BOUND / SCORER DETERMINISM PASS / READY-FOR-HOLISTIC-REVIEW / NOT RUN)
+
+- **Implementation event:** The pseudonymous maintained-eager BF16 scorer, three-load/two-process determinism gate, fresh-cohort construction, deterministic schedules, preserved calibration headroom gate, and pre-test outcome-blind 64-record rescore gate are implemented. Every retained mode remains fail-closed pending holistic review.
+- **Determinism evidence:** 3/3 clean loads across 2/2 fresh processes were bit-exact on the 454-token fixture, marker positions `[197, 333, 386, 451]`, BF16 vector `[1.0, 0.1923828125, 0.98046875, 1.0]`, minimum BF16 bit pattern `15941`, and complete output digest `69c6eb7edf43742d9e9e159ae6f20168732dd1e9000ea971d244758e7fed899b`. All 342 operational backbone/reward-head tensors loaded in BF16 without missing or mismatched keys; only the preregistered unused language-model head was omitted.
+- **Bound successor cohorts:** The CPU-only construction selected 256 new calibration and 512 new test rows from the 6,700-row source pool, excluded 768/768 original rows, left 5,932 rows unallocated, and passed every index/content/normalized-question exclusion. Ordered calibration/test hashes are `a284b5f4a38dd9b6f5d21eb2f91eaff34dd5803098e48ceb282706f0b8fa62bd` and `b6205763aa73ac18236798c480575093ba9fae9a524632d484b5ed2062998c13`.
+- **Access boundary:** No retained response was generated, no successor candidate was scored, and no calibration/test outcome, headroom metric, threshold, policy result, or scientific result exists. The separate successor work root did not open or modify the immutable historical smoke/database. Next action: holistic independent review only.
 
 - **Successor event:** Round-2 steering prospectively registered a fresh successor around the exact hash-bound `verifier-V / maintained-eager-BF16-v1` operational scorer. The original attempt remains terminal at `PREFLIGHT_STOP_IMPLEMENTATION_DISCREPANCY`; its 0.002 published-vector gate was not relaxed or retrospectively passed.
 - **Preserved scientific protocol:** The generator, verifier checkpoint, tokenizer, backbone and reward-head tensors, minimum-over-steps aggregation, six policies, parameter grids, CONFIRM/KILL conditions, acquisition-retention and effect-size thresholds, paired bootstrap, and order-permutation protocol remain unchanged. The successor does not claim reproduction of the verifier's published implementation.
