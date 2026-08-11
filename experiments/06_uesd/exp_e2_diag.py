@@ -40,11 +40,16 @@ REPO_ROOT = HERE.parents[1]
 PREREGISTRATION = HERE / "E2_DIAG_PREREGISTRATION.md"
 E2_CONFIG = HERE / "exp_e2_latch_mechanics_config.json"
 RESULT_PATH = HERE / "results" / "exp_e2_diag.json"
+REPAIR_RESULT_PATH = HERE / "results" / "exp_e2_diag_stage0_instrumented.json"
 RECOVERY_DIR = HERE / "checkpoints" / "exp_e2_diag"
 LAUNCH_MARKER = RECOVERY_DIR / "stage0_launch.json"
 RECOVERY_RECORD = RECOVERY_DIR / "stage0_provenance.json"
 RECOVERY_CHECKPOINT = RECOVERY_DIR / "stage0_final.pt"
 STDOUT_RECOVERY = RECOVERY_DIR / "stage0_stdout_recovery.json"
+REPAIR_RECOVERY_DIR = HERE / "checkpoints" / "exp_e2_diag_stage0_instrumented"
+REPAIR_LAUNCH_MARKER = REPAIR_RECOVERY_DIR / "stage0_launch.json"
+REPAIR_RECOVERY_RECORD = REPAIR_RECOVERY_DIR / "stage0_provenance.json"
+REPAIR_RECOVERY_CHECKPOINT = REPAIR_RECOVERY_DIR / "stage0_final.pt"
 
 SCHEMA_VERSION = "1.0.0"
 EXPERIMENT_ID = "exp_e2_diag"
@@ -58,6 +63,22 @@ GATE_CORRECT = 122
 TARGET_TOKENS_PER_UPDATE = 1024
 WALL_TIME_CAP_SECONDS = 29 * 60
 REVIEW_ATTESTATION = "E2_DIAG_STAGE0_PRELAUNCH_REVIEW_CLEAN"
+REPAIR_REVIEW_ATTESTATION = "E2_DIAG_STAGE0_OPERATIONAL_REPAIR_REVIEW_CLEAN"
+
+GRADIENT_GROUP_PREFIXES: dict[str, tuple[str, ...]] = {
+    "encoder": (
+        "embedding",
+        "position",
+        "encoder",
+        "encoder_norm",
+        "prompt_to_plan",
+    ),
+    "controller": ("controller_layers", "controller_norm"),
+    "plan_slots": ("plan_slots",),
+    "prefix_projector": ("prefix_projector",),
+    "answer_decoder": ("answer_decoder", "answer_query"),
+    "readout_head": ("answer_norm", "choice_head"),
+}
 
 
 class IntegrityFailure(RuntimeError):
@@ -261,6 +282,7 @@ def _evaluate(
             str(key): value for key, value in sorted(Counter(predictions).items())
         },
         "predictions_sha256": _sha256_json(predictions),
+        "predictions": predictions,
     }
 
 
@@ -285,6 +307,85 @@ def _gradient_summary(values: Sequence[float]) -> dict[str, Any]:
             )
         },
     }
+
+
+def _parameter_groups(
+    model: e2.CommonRecurrentModel,
+) -> dict[str, list[tuple[str, nn.Parameter]]]:
+    groups = {name: [] for name in GRADIENT_GROUP_PREFIXES}
+    assigned: set[str] = set()
+    for parameter_name, parameter in model.named_parameters():
+        matches = [
+            group_name
+            for group_name, prefixes in GRADIENT_GROUP_PREFIXES.items()
+            if any(
+                parameter_name == prefix or parameter_name.startswith(f"{prefix}.")
+                for prefix in prefixes
+            )
+        ]
+        if len(matches) != 1:
+            raise IntegrityFailure(
+                f"parameter {parameter_name!r} matched gradient groups {matches}"
+            )
+        groups[matches[0]].append((parameter_name, parameter))
+        assigned.add(parameter_name)
+    if assigned != {name for name, _ in model.named_parameters()}:
+        raise IntegrityFailure("gradient instrumentation did not cover every parameter")
+    if any(not parameters for parameters in groups.values()):
+        raise IntegrityFailure("gradient instrumentation contains an empty group")
+    return groups
+
+
+def _group_gradient_norms(
+    groups: Mapping[str, Sequence[tuple[str, nn.Parameter]]],
+) -> dict[str, Any]:
+    summaries: dict[str, Any] = {}
+    for group_name, parameters in groups.items():
+        squared_norm = 0.0
+        tensors_with_gradient = 0
+        nonzero_gradient_tensors = 0
+        for _, parameter in parameters:
+            if parameter.grad is None:
+                continue
+            tensors_with_gradient += 1
+            gradient = parameter.grad.detach().float()
+            tensor_squared_norm = float(torch.sum(gradient * gradient).item())
+            squared_norm += tensor_squared_norm
+            if tensor_squared_norm > 0.0:
+                nonzero_gradient_tensors += 1
+        summaries[group_name] = {
+            "l2_norm": math.sqrt(squared_norm),
+            "parameter_tensor_count": len(parameters),
+            "tensors_with_gradient": tensors_with_gradient,
+            "nonzero_gradient_tensors": nonzero_gradient_tensors,
+        }
+    return summaries
+
+
+def _snapshot_parameters(
+    parameters: Sequence[tuple[str, nn.Parameter]],
+) -> dict[str, torch.Tensor]:
+    return {
+        name: parameter.detach().cpu().float().clone()
+        for name, parameter in parameters
+    }
+
+
+def _parameter_delta_norm(
+    parameters: Sequence[tuple[str, nn.Parameter]],
+    initial: Mapping[str, torch.Tensor],
+) -> float:
+    squared_norm = 0.0
+    for name, parameter in parameters:
+        delta = parameter.detach().cpu().float() - initial[name]
+        squared_norm += float(torch.sum(delta * delta).item())
+    return math.sqrt(squared_norm)
+
+
+def _prediction_flips(current: Sequence[int], reference: Sequence[int]) -> int:
+    if len(current) != len(reference):
+        raise IntegrityFailure("prediction vectors have unequal lengths")
+    return sum(left != right for left, right in zip(current, reference, strict=True))
 
 
 def _base_result(
@@ -407,17 +508,32 @@ def _validate_prelaunch(
     }
 
 
-def _run_stage_0(review_attestation: str) -> tuple[dict[str, Any], bool]:
-    if review_attestation != REVIEW_ATTESTATION:
+def _run_stage_0(
+    review_attestation: str, *, operational_repair: bool = False
+) -> tuple[dict[str, Any], bool, Path]:
+    expected_attestation = (
+        REPAIR_REVIEW_ATTESTATION if operational_repair else REVIEW_ATTESTATION
+    )
+    result_path = REPAIR_RESULT_PATH if operational_repair else RESULT_PATH
+    launch_marker = REPAIR_LAUNCH_MARKER if operational_repair else LAUNCH_MARKER
+    recovery_record = (
+        REPAIR_RECOVERY_RECORD if operational_repair else RECOVERY_RECORD
+    )
+    recovery_checkpoint = (
+        REPAIR_RECOVERY_CHECKPOINT if operational_repair else RECOVERY_CHECKPOINT
+    )
+    if review_attestation != expected_attestation:
         raise RuntimeError(
             "launch blocked: exact Stage-0 prelaunch review attestation required"
         )
-    if RESULT_PATH.exists():
-        raise RuntimeError(f"immutable result already exists: {RESULT_PATH}")
-    if LAUNCH_MARKER.exists() or RECOVERY_RECORD.exists():
+    if result_path.exists():
+        raise RuntimeError(f"immutable result already exists: {result_path}")
+    if launch_marker.exists() or recovery_record.exists():
         raise RuntimeError(
             "Stage 0 has prior launch provenance; repeating or resuming is forbidden"
         )
+    if operational_repair and not RESULT_PATH.exists():
+        raise RuntimeError("operational repair requires the immutable original VOID")
 
     os.environ["HF_HOME"] = str(REPO_ROOT / ".hf_cache")
     config = e2.load_config(E2_CONFIG)
@@ -456,7 +572,7 @@ def _run_stage_0(review_attestation: str) -> tuple[dict[str, Any], bool]:
             "stage_0_ordered_set_sha256": selected_hash,
             "review_attestation": review_attestation,
         },
-        LAUNCH_MARKER,
+        launch_marker,
     )
 
     cuda_started = time.perf_counter()
@@ -476,6 +592,8 @@ def _run_stage_0(review_attestation: str) -> tuple[dict[str, Any], bool]:
     initialization_hash = _model_state_hash(model)
     model.to(device)
     optimizer = e2.make_optimizer(model, config)
+    parameter_groups = _parameter_groups(model)
+    readout_initial = _snapshot_parameters(parameter_groups["readout_head"])
 
     initial_eval_a = _evaluate(model, selected[:16], tokenizer, device)
     initial_eval_b = _evaluate(model, selected[:16], tokenizer, device)
@@ -505,7 +623,13 @@ def _run_stage_0(review_attestation: str) -> tuple[dict[str, Any], bool]:
     first_threshold_update: int | None = None
     stop_reason: str | None = None
     initial_full_eval = _evaluate(model, selected, tokenizer, device)
+    initial_predictions = initial_full_eval["predictions"]
+    previous_predictions = initial_predictions
+    initial_full_eval["prediction_flip_count_from_initial"] = 0
+    initial_full_eval["prediction_flip_count_from_previous_checkpoint"] = 0
+    initial_full_eval["readout_head_weight_delta_l2_from_initial"] = 0.0
     curve.append({"update": 0, "processed_tokens": 0, **initial_full_eval})
+    gradient_flow: list[dict[str, Any]] = []
 
     horizon_schedule = (1, 2, 4)
     completed_updates = 0
@@ -524,6 +648,9 @@ def _run_stage_0(review_attestation: str) -> tuple[dict[str, Any], bool]:
             logits, _, _ = model(tokens, mask, horizon)
             loss = F.cross_entropy(logits, labels)
         loss.backward()
+        checkpoint_gradient_norms = None
+        if update_index % EVAL_INTERVAL == 0 or update_index == MAX_UPDATES:
+            checkpoint_gradient_norms = _group_gradient_norms(parameter_groups)
         gradient_norm = nn.utils.clip_grad_norm_(
             model.parameters(), float(config["training"]["gradient_clip_norm"])
         )
@@ -543,6 +670,29 @@ def _run_stage_0(review_attestation: str) -> tuple[dict[str, Any], bool]:
 
         if update_index % EVAL_INTERVAL == 0 or update_index == MAX_UPDATES:
             evaluation = _evaluate(model, selected, tokenizer, device)
+            current_predictions = evaluation["predictions"]
+            flip_from_initial = _prediction_flips(
+                current_predictions, initial_predictions
+            )
+            flip_from_previous = _prediction_flips(
+                current_predictions, previous_predictions
+            )
+            readout_delta = _parameter_delta_norm(
+                parameter_groups["readout_head"], readout_initial
+            )
+            evaluation["prediction_flip_count_from_initial"] = flip_from_initial
+            evaluation["prediction_flip_count_from_previous_checkpoint"] = (
+                flip_from_previous
+            )
+            evaluation["readout_head_weight_delta_l2_from_initial"] = readout_delta
+            gradient_flow.append(
+                {
+                    "update": update_index,
+                    "training_horizon": horizon,
+                    "pre_clip_gradient_norms": checkpoint_gradient_norms,
+                    "readout_head_weight_delta_l2_from_initial": readout_delta,
+                }
+            )
             curve.append(
                 {
                     "update": update_index,
@@ -553,6 +703,7 @@ def _run_stage_0(review_attestation: str) -> tuple[dict[str, Any], bool]:
                     **evaluation,
                 }
             )
+            previous_predictions = current_predictions
             correct = evaluation["training_accuracy"]["numerator"]
             print(
                 f"stage0 update={update_index} correct={correct}/128 "
@@ -589,6 +740,22 @@ def _run_stage_0(review_attestation: str) -> tuple[dict[str, Any], bool]:
     cuda_wall_time = time.perf_counter() - cuda_started
     peak_allocated = int(torch.cuda.max_memory_allocated(device))
     peak_reserved = int(torch.cuda.max_memory_reserved(device))
+    initial_ce = float(curve[0]["cross_entropy"]["mean"])
+    minimum_ce_row = min(curve, key=lambda row: row["cross_entropy"]["mean"])
+    loss_decrease = {
+        "initial_cross_entropy_mean": initial_ce,
+        "minimum_cross_entropy_mean": float(
+            minimum_ce_row["cross_entropy"]["mean"]
+        ),
+        "minimum_at_update": int(minimum_ce_row["update"]),
+        "absolute_decrease_from_initial": initial_ce
+        - float(minimum_ce_row["cross_entropy"]["mean"]),
+        "any_decrease_from_initial": float(
+            minimum_ce_row["cross_entropy"]["mean"]
+        )
+        < initial_ce,
+        "final_cross_entropy_mean": float(final_eval["cross_entropy"]["mean"]),
+    }
     stage_record = {
         "status": stage_status,
         "reason": stage_reason,
@@ -628,6 +795,15 @@ def _run_stage_0(review_attestation: str) -> tuple[dict[str, Any], bool]:
             "pre_clip_gradient_norm": _gradient_summary(gradient_norms),
             "clipped_updates": _rate(clipped_updates, completed_updates),
         },
+        "instrumentation": {
+            "informational_only": True,
+            "gradient_group_definitions": {
+                group_name: list(prefixes)
+                for group_name, prefixes in GRADIENT_GROUP_PREFIXES.items()
+            },
+            "gradient_flow_every_100_updates": gradient_flow,
+            "loss_decrease": loss_decrease,
+        },
         "training_curve": curve,
         "final_evaluation": {
             key: final_eval[key]
@@ -638,6 +814,10 @@ def _run_stage_0(review_attestation: str) -> tuple[dict[str, Any], bool]:
                 "cross_entropy",
                 "prediction_counts",
                 "predictions_sha256",
+                "predictions",
+                "prediction_flip_count_from_initial",
+                "prediction_flip_count_from_previous_checkpoint",
+                "readout_head_weight_delta_l2_from_initial",
             )
         },
         "compute": {
@@ -674,21 +854,39 @@ def _run_stage_0(review_attestation: str) -> tuple[dict[str, Any], bool]:
         seed=MODEL_SEED,
         history=curve,
     )
-    if RECOVERY_CHECKPOINT.exists():
-        raise RuntimeError(f"recovery checkpoint already exists: {RECOVERY_CHECKPOINT}")
-    e2.atomic_torch_save(checkpoint_payload, RECOVERY_CHECKPOINT)
-    checkpoint_hash = _sha256_file(RECOVERY_CHECKPOINT)
+    if recovery_checkpoint.exists():
+        raise RuntimeError(f"recovery checkpoint already exists: {recovery_checkpoint}")
+    e2.atomic_torch_save(checkpoint_payload, recovery_checkpoint)
+    checkpoint_hash = _sha256_file(recovery_checkpoint)
     result["hashes"]["checkpoints"] = {
         "stage_0_final_sha256": checkpoint_hash,
         "stage_0_final_processed_tokens": processed_tokens,
         "stage_0_final_completed_updates": completed_updates,
     }
-    _atomic_json_no_clobber(result, RECOVERY_RECORD)
+    if operational_repair:
+        result["operational_repair_of"] = (
+            "experiments/06_uesd/results/exp_e2_diag.json"
+        )
+        result["protocol_deviations"].extend(
+            [
+                {
+                    "stage": 0,
+                    "type": "OWNER_AUTHORIZED_OPERATIONAL_REPAIR_RERUN",
+                    "scientific_configuration_changed": False,
+                },
+                {
+                    "stage": 0,
+                    "type": "INFORMATIONAL_GRADIENT_FLOW_INSTRUMENTATION",
+                    "scientific_branching_metric": False,
+                },
+            ]
+        )
+    _atomic_json_no_clobber(result, recovery_record)
 
     del model, optimizer
     torch.cuda.empty_cache()
     terminal = stage_status in {"STOP", "VOID"}
-    return result, terminal
+    return result, terminal, result_path
 
 
 def _land_operational_void() -> dict[str, Any]:
@@ -936,13 +1134,17 @@ def _self_test() -> int:
     )
     assert _rate(122, 128)["rate"] == 0.953125
     assert _not_run("reason") == {"status": "NOT_RUN", "reason": "reason"}
-    print(json.dumps({"passed": 4, "total": 4, "failed": []}, indent=2))
+    summary = _gradient_summary([1.0, 2.0, 3.0, 4.0])
+    assert summary["quantiles"]["median"] == 2.5
+    assert _prediction_flips([0, 1, 2], [0, 2, 2]) == 1
+    print(json.dumps({"passed": 6, "total": 6, "failed": []}, indent=2))
     return 0
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--stage-0", action="store_true")
+    parser.add_argument("--stage-0-operational-repair", action="store_true")
     parser.add_argument("--land-operational-void", action="store_true")
     parser.add_argument("--self-test", action="store_true")
     parser.add_argument("--review-attestation", default="")
@@ -952,22 +1154,32 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     if args.self_test:
-        if args.stage_0 or args.land_operational_void or args.review_attestation:
+        if (
+            args.stage_0
+            or args.stage_0_operational_repair
+            or args.land_operational_void
+            or args.review_attestation
+        ):
             raise ValueError("self-test accepts no launch options")
         return _self_test()
     if args.land_operational_void:
-        if args.stage_0 or args.review_attestation:
+        if args.stage_0 or args.stage_0_operational_repair or args.review_attestation:
             raise ValueError("operational VOID landing accepts no launch options")
         result = _land_operational_void()
         print(f"published_operational_void={RESULT_PATH}")
         print(f"final_route_token={result['final_route_token']}")
         return 0
-    if not args.stage_0:
+    if args.stage_0 and args.stage_0_operational_repair:
+        raise ValueError("select only one Stage-0 launch mode")
+    if not args.stage_0 and not args.stage_0_operational_repair:
         raise RuntimeError("only the explicit --stage-0 diagnostic is implemented")
-    result, terminal = _run_stage_0(args.review_attestation)
-    if terminal:
-        _atomic_json_no_clobber(result, RESULT_PATH)
-        print(f"published_terminal_result={RESULT_PATH}")
+    result, terminal, result_path = _run_stage_0(
+        args.review_attestation,
+        operational_repair=args.stage_0_operational_repair,
+    )
+    if terminal or args.stage_0_operational_repair:
+        _atomic_json_no_clobber(result, result_path)
+        print(f"published_stage0_result={result_path}")
     else:
         print("stage0_passed=true; immutable_suite_result_published=false")
         print(f"untracked_recovery_record={RECOVERY_RECORD}")

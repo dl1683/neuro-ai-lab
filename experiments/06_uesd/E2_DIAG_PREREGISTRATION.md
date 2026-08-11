@@ -555,3 +555,37 @@ Any such change requires a fresh preregistration and cannot be represented as E2
 ---
 
 **Frozen before E2-DIAG execution. No result is claimed here.**
+
+## 15. Post-VOID operational-repair authorization
+
+**Governance date:** 2026-08-10
+**Nature:** owner-directed reopening after the terminal operational VOID; not a
+pre-data amendment and not a change to the frozen scientific configuration.
+
+The first Stage-0 invocation reached all 3,000 updates but failed during
+post-endpoint result serialization because `torch.quantile` received a
+quantile tensor whose dtype did not match the float64 gradient-norm input.
+The owner has explicitly authorized exactly one operationally repaired Stage-0
+invocation. This is not a repeat because the observed result was unfavorable;
+it repairs a post-endpoint operational failure covered by Section 5. The
+original `exp_e2_diag.json` remains immutable operational evidence.
+
+The repair invocation must preserve the registered seed, selected 128
+examples, initialization, optimizer, horizon schedule, 3,000-update limit,
+122/128 gate, and every access prohibition. It may change only:
+
+- the quantile serialization path so input and quantile tensors share a dtype;
+- diagnostic-only telemetry, sampled every 100 updates, for disjoint parameter
+  groups `encoder`, `controller`, `plan_slots`, `prefix_projector`,
+  `answer_decoder`, and `readout_head`;
+- prediction-flip counts, full-set cross-entropy decrease, and readout-head
+  weight-delta norms.
+
+The added telemetry is informational and cannot choose a scientific branch.
+The registered Stage-0 count still controls the branch table. The one repaired
+invocation lands atomically and without clobbering the prior artifact at:
+
+`experiments/06_uesd/results/exp_e2_diag_stage0_instrumented.json`
+
+No second repair invocation, resume, Stage 1 launch, E2 runner change, or
+line-07 change is authorized by this addendum.

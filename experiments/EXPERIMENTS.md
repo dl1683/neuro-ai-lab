@@ -37,11 +37,30 @@ Suite aggregate: `results/pilot_suite_summary.json`.
 
 Framework where AI generation happens in continuous embedding space via iterative dynamics, with no softmax collapse. Tests whether self-consistency energy E(s) = ||F_theta(s,c)||^2 produces correct, stable attractors.
 
-### E2-DIAG Stage 0 (TERMINAL OPERATIONAL VOID / DIAGNOSTIC ONLY)
+### E2-DIAG Stage 0 operational repair (STOP / DIAGNOSTIC ONLY)
+
+- **Scope and artifact:** The single owner-authorized repair repeated only the frozen 128-example Stage-0 gate and landed `experiments/06_uesd/results/exp_e2_diag_stage0_instrumented.json` (canonical-LF SHA-256 `0ad4fc5fafe343b37944b462972d32ff201749280a7bdbb506fa3b62536620d7`). It completed 3,000 updates, 2,786,051 non-padding input-plus-answer tokens, and 11,998 example presentations in 98.873 GPU-seconds; peak allocated/reserved VRAM was 637,935,104/696,254,464 bytes. No later stage launched.
+- **Registered outcome:** T=4 training accuracy was exactly 32/128 at the initial evaluation and every 100-update checkpoint through update 3,000, below the required 122/128. Final mean CE was 1.388671875. The registered result is **`STOP / FEWER_THAN_122_OF_128_AFTER_3000_UPDATES`**, and the frozen branch table assigns **`KILL_FROM_SCRATCH_LINE`**. This route token permits steering only; it does not alter the original E2 `VOID` or unblock the 0.5B program.
+- **Loss and predictions:** Full-set CE decreased from 1.522216796875 initially to a minimum 1.38671875 at update 2,700, still above `ln(4)=1.3862943611`, and ended at 1.388671875. After update 100, every checkpoint predicted a single answer class for all 128 examples. The selected class changed in 21/30 checkpoint intervals, producing 2,682 example-level flips, while balanced-label accuracy remained 32/128 throughout.
+- **Gradient-flow diagnosis:** Every parameter tensor in all six requested groups had a nonzero gradient at every 100-update sample. The pre-clip group norms were:
+
+  | Group | Update 100 | Range over 30 samples | Update 3,000 |
+  |---|---:|---:|---:|
+  | Encoder | 0.102866 | 2.383e-6–0.102866 | 1.810e-5 |
+  | Controller | 0.192499 | 1.380e-4–0.192499 | 0.001126 |
+  | Plan slots | 0.001613 | 2.515e-11–0.001613 | 9.392e-10 |
+  | Prefix projector | 0.728508 | 0.003672–0.728508 | 0.022183 |
+  | Answer decoder | 10.054618 | 0.139026–10.054618 | 0.501316 |
+  | Readout head | 16.232384 | 1.553784–16.232384 | 12.546060 |
+
+- **Interpretation boundary:** The readout-head delta from initialization reached 1.925192 L2, so its weights did update. The suspected detached/masked answer path was not found: `CommonRecurrentModel.forward` connects encoder → recurrent plan → prefix projector → answer decoder → choice head without `detach` or `no_grad`, and measured gradients reach every group. All 3,000/3,000 updates exceeded the clip norm, making optimization-regime saturation a live diagnosis, but this informational metric cannot override the registered Stage-0 line-kill route or authorize the Stage-2 optimizer matrix.
+- **Deviations and access:** The only deviations were the explicitly owner-authorized operational repair and informational telemetry. The frozen model, data, seed, optimizer, thresholds, and branches did not change. No original E2 official-test, GSM8K/SVAMP official-test, selector, critic, or latch path was accessed. No model bug was fixed.
+
+### E2-DIAG Stage 0 first invocation (HISTORICAL OPERATIONAL VOID)
 
 - **Scope and artifact:** Only the preregistered 128-example full-hard memorization gate ran. The immutable suite artifact is `experiments/06_uesd/results/exp_e2_diag.json` (canonical-LF SHA-256 `41c035dd79fe42e9edb891dcc02664077c7d491cd7a2857fe7cc9ae16dc5ab37`). No Stage 1, optimizer-matrix, or continuation run launched.
 - **Observed endpoint, not an adjudicated miss:** The process completed all 3,000 optimizer updates and printed 32/128 correct (25% training accuracy) at every registered 100-update observation from update 100 through update 3,000. The stdout-rounded T=4 training CE ranged from 1.384766 to 1.521240 and ended at 1.388611. The run processed 2,786,051 non-padding input-plus-answer tokens over 11,998 repeated example presentations. These observations are retained as execution evidence, but the frozen operational precedence prevents a Stage-0 `STOP` adjudication.
-- **Operational failure:** After the update-3,000 endpoint printed, result construction crashed because `torch.quantile` received a float32 quantile tensor for float64 gradient-norm input. The process exited before publishing the registered gradient-norm distribution, clipped-update numerator, recovery checkpoint, exact GPU wall time, or peak VRAM. Those quantities are `unavailable`, not zero. The dtype bug was corrected for code hygiene after the process exited; no training was repeated or resumed.
+- **Operational failure:** After the update-3,000 endpoint printed, result construction crashed because `torch.quantile` received a float32 quantile tensor for float64 gradient-norm input. The process exited before publishing the registered gradient-norm distribution, clipped-update numerator, recovery checkpoint, exact GPU wall time, or peak VRAM. Those quantities remain `unavailable`, not zero. This artifact retains its point-in-time operational VOID; the separate owner-authorized repair above does not modify it.
 - **Controlling route:** **`VOID_NO_ROUTE / POST_ENDPOINT_RESULT_SERIALIZATION_FAILURE`**. Under the frozen branch table, the incomplete result selects no scientific branch: it does not advance to Stage 1, does not assign `KILL_FROM_SCRATCH_LINE`, and cannot be interpreted as evidence for an optimizer, staircase, pretrained-substrate, E2b, or line-kill route. The 0.5B launch remains blocked.
 - **Boundaries:** The selected tiny set was exactly 32 examples per answer position (ordered-set SHA-256 `7d28ffe443047ce49a2fbacf4d7b78f93000eb30c0f74db28e89232877e39e7b`). The original E2 official test, GSM8K/SVAMP official tests, selectors, critic, and latch paths were not accessed. This is one-seed diagnostic execution evidence only and adjudicates nothing about semantic-ratchet mechanics.
 

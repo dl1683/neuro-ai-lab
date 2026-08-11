@@ -57,6 +57,11 @@ def main():
     e2_diag = json.loads(
         (RESULTS / "exp_e2_diag.json").read_text(encoding="utf-8")
     )
+    e2_diag_repair = json.loads(
+        (RESULTS / "exp_e2_diag_stage0_instrumented.json").read_text(
+            encoding="utf-8"
+        )
+    )
     ledger_entries = [
         json.loads(line)
         for line in LEDGER.read_text(encoding="utf-8").splitlines()
@@ -988,9 +993,9 @@ def main():
         ),
     )
 
-    # 30. Bind the reconstruction hashes, model/data integrity, and live landing
-    #     code. The launch hash is historical because the dtype fix landed only
-    #     after the one permitted process exited.
+    # 30. Bind the reconstruction hashes and model/data integrity. Both code
+    #     hashes are historical now that the separately authorized repair mode
+    #     has landed; the original artifact remains immutable.
     e2_diag_runner_path = Path(__file__).resolve().parent / "exp_e2_diag.py"
     e2_diag_live_code_sha = hashlib.sha256(e2_diag_runner_path.read_bytes()).hexdigest()
     e2_diag_config_path = Path(__file__).resolve().parent / (
@@ -1006,8 +1011,6 @@ def main():
         == "d1648e7a6a1563e89b8cc3d0119902eefcef49ea588923f2656a1835751eaca2"
         and e2_diag_hashes["operational_landing_code_sha256"]
         == "6782e8c976697d2c4ea1c10aa30848a8c4c6fa0e99dfa11f2d09641cef7952c7"
-        and e2_diag_live_code_sha
-        == e2_diag_hashes["operational_landing_code_sha256"]
         and e2_diag_live_config_sha == e2_diag_hashes["e2_config_sha256"]
         and e2_diag_hashes["stage_0_ordered_set_sha256"]
         == "7d28ffe443047ce49a2fbacf4d7b78f93000eb30c0f74db28e89232877e39e7b"
@@ -1069,6 +1072,162 @@ def main():
             f"entry_count={len(e2_diag_entries)}, "
             f"route={e2_diag_metrics.get('final_route_token')}, "
             f"artifact_sha={e2_diag_metrics.get('artifact_sha256')}"
+        ),
+    )
+
+    # 32. Bind the one owner-authorized operational repair to the registered
+    #     Stage-0 STOP and its immutable artifact.
+    e2_diag_repair_path = RESULTS / "exp_e2_diag_stage0_instrumented.json"
+    e2_diag_repair_sha = canonical_lf_sha256(e2_diag_repair_path)
+    repair_stage0 = e2_diag_repair["stages"]["stage_0"]
+    repair_curve = repair_stage0["training_curve"]
+    repair_access = e2_diag_repair["access_confirmation"]
+    check(
+        "e2_diag_operational_repair_stage0_stop_binding",
+        e2_diag_repair_sha
+        == "0ad4fc5fafe343b37944b462972d32ff201749280a7bdbb506fa3b62536620d7"
+        and e2_diag_repair["schema_version"] == "1.0.0"
+        and e2_diag_repair["experiment_id"] == "exp_e2_diag"
+        and e2_diag_repair["operational_repair_of"]
+        == "experiments/06_uesd/results/exp_e2_diag.json"
+        and e2_diag_repair["diagnostic_only"]
+        and not e2_diag_repair["adjudicates_semantic_ratchet"]
+        and e2_diag_repair["suite_status"] == "TERMINAL_STAGE_0_STOP"
+        and e2_diag_repair["final_route_token"] == "KILL_FROM_SCRATCH_LINE"
+        and repair_stage0["status"] == "STOP"
+        and repair_stage0["reason"]
+        == "FEWER_THAN_122_OF_128_AFTER_3000_UPDATES"
+        and len(repair_curve) == 31
+        and [row["update"] for row in repair_curve] == list(range(0, 3001, 100))
+        and all(
+            row["training_accuracy"]
+            == {"numerator": 32, "denominator": 128, "rate": 0.25}
+            for row in repair_curve
+        )
+        and repair_stage0["final_evaluation"]["cross_entropy"]["mean"]
+        == 1.388671875
+        and not any(repair_access.values()),
+        (
+            f"sha={e2_diag_repair_sha}, status={repair_stage0['status']}, "
+            f"route={e2_diag_repair['final_route_token']}, access={repair_access}"
+        ),
+    )
+
+    # 33. Bind the diagnostic bug test: every tensor in every requested group
+    #     had a nonzero gradient at all 30 samples, while all updates clipped.
+    repair_instrumentation = repair_stage0["instrumentation"]
+    gradient_rows = repair_instrumentation["gradient_flow_every_100_updates"]
+    gradient_groups = (
+        "encoder",
+        "controller",
+        "plan_slots",
+        "prefix_projector",
+        "answer_decoder",
+        "readout_head",
+    )
+    expected_flips = [
+        122, 128, 0, 128, 0, 0, 0, 128, 128, 128,
+        0, 128, 128, 128, 128, 0, 128, 128, 128, 128,
+        128, 128, 128, 128, 128, 128, 0, 0, 0, 128,
+    ]
+    check(
+        "e2_diag_gradient_flow_and_prediction_flip_binding",
+        len(gradient_rows) == 30
+        and [row["update"] for row in gradient_rows] == list(range(100, 3001, 100))
+        and all(
+            sample["pre_clip_gradient_norms"][group]["l2_norm"] > 0.0
+            and sample["pre_clip_gradient_norms"][group]["tensors_with_gradient"]
+            == sample["pre_clip_gradient_norms"][group]["parameter_tensor_count"]
+            and sample["pre_clip_gradient_norms"][group]["nonzero_gradient_tensors"]
+            == sample["pre_clip_gradient_norms"][group]["parameter_tensor_count"]
+            for sample in gradient_rows
+            for group in gradient_groups
+        )
+        and [
+            row["prediction_flip_count_from_previous_checkpoint"]
+            for row in repair_curve[1:]
+        ]
+        == expected_flips
+        and sum(expected_flips) == 2682
+        and all(
+            list(row["prediction_counts"].values()) == [128]
+            for row in repair_curve[1:]
+        )
+        and repair_stage0["final_evaluation"]
+        ["readout_head_weight_delta_l2_from_initial"]
+        == 1.9251918633863532
+        and repair_stage0["training"]["clipped_updates"]
+        == {"numerator": 3000, "denominator": 3000, "rate": 1.0},
+        (
+            f"gradient_samples={len(gradient_rows)}, "
+            f"flip_total={sum(expected_flips)}, "
+            f"clipped={repair_stage0['training']['clipped_updates']}"
+        ),
+    )
+
+    # 34. Bind the repaired serialization, frozen identities, and exact loss
+    #     movement. The minimum remains above ln(4), so this is chance-floor
+    #     relaxation rather than learned tiny-set discrimination.
+    repair_hashes = e2_diag_repair["hashes"]
+    loss_decrease = repair_instrumentation["loss_decrease"]
+    check(
+        "e2_diag_repair_integrity_hash_and_loss_binding",
+        e2_diag_live_code_sha == repair_hashes["code_sha256"]
+        and e2_diag_live_config_sha == repair_hashes["e2_config_sha256"]
+        and repair_hashes["stage_0_ordered_set_sha256"]
+        == e2_diag_hashes["stage_0_ordered_set_sha256"]
+        and repair_hashes["model_initialization_sha256"]
+        == e2_diag_hashes["reconstructed_model_initialization_sha256"]
+        and e2_diag_repair["model"]["seed"] == 42
+        and e2_diag_repair["model"]["trainable_parameter_count"] == 29509636
+        and e2_diag_repair["integrity"]["pass"]
+        and loss_decrease
+        == {
+            "initial_cross_entropy_mean": 1.522216796875,
+            "minimum_cross_entropy_mean": 1.38671875,
+            "minimum_at_update": 2700,
+            "absolute_decrease_from_initial": 0.135498046875,
+            "any_decrease_from_initial": True,
+            "final_cross_entropy_mean": 1.388671875,
+        }
+        and loss_decrease["minimum_cross_entropy_mean"] > 1.3862943611198906,
+        (
+            f"live_code={e2_diag_live_code_sha}, "
+            f"repair_code={repair_hashes['code_sha256']}, loss={loss_decrease}"
+        ),
+    )
+
+    # 35. Bind the append-only chronology to the repaired artifact and the
+    #     registered line-kill route without extending it into a model fix.
+    repair_entries = [
+        entry
+        for entry in ledger_entries
+        if entry.get("id") == "uesd-e2-diag-stage0-instrumented-repair"
+    ]
+    repair_entry = repair_entries[0] if len(repair_entries) == 1 else {}
+    repair_metrics = repair_entry.get("metrics", {})
+    check(
+        "e2_diag_repair_ledger_binding",
+        len(repair_entries) == 1
+        and repair_entry.get("status") == "stopped"
+        and repair_entry.get("artifacts")
+        == [
+            "experiments/06_uesd/results/exp_e2_diag_stage0_instrumented.json"
+        ]
+        and repair_metrics.get("artifact_sha256") == e2_diag_repair_sha
+        and repair_metrics.get("stage_status") == "STOP"
+        and repair_metrics.get("final_route_token") == "KILL_FROM_SCRATCH_LINE"
+        and repair_metrics.get("training_accuracy")
+        == {"numerator": 32, "denominator": 128, "rate": 0.25}
+        and repair_metrics.get("prediction_flip_total") == 2682
+        and repair_metrics.get("clipped_updates")
+        == {"numerator": 3000, "denominator": 3000, "rate": 1.0}
+        and not repair_metrics.get("wiring_bug_found")
+        and not repair_metrics.get("official_test_inspected"),
+        (
+            f"entry_count={len(repair_entries)}, "
+            f"route={repair_metrics.get('final_route_token')}, "
+            f"artifact_sha={repair_metrics.get('artifact_sha256')}"
         ),
     )
 
