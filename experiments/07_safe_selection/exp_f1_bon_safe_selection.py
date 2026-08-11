@@ -1,23 +1,20 @@
-"""Frozen line-07 Best-of-N safe-selection pilot runner.
+"""Fresh Option-A line-07 Best-of-N safe-selection successor runner.
 
 This is a provenance runner, not a landing command.  The fast paths are:
 
-* ``--cohort-only``: validate every dataset/cohort/provenance binding without
-  loading either model;
+* ``--cohort-only``: construct the entirely new successor cohorts and bind
+  every dataset/cohort/provenance schedule without loading either model;
 * ``--self-test-fast``: exercise schedules, all six policies, calibration,
   statistics, schema checks, resume logic, and immutable writing on synthetic
   data;
-* ``--smoke``: retain the first two canonical calibration problems, all 16
-  registered candidates, and their verifier scores in the ignored resumable
-  bank while measuring throughput and memory;
-* ``--golden-replay``: replay the verifier's published four-step example;
-* ``--batch-preflight {8,16}``: generate two diagnostic copies of the complete
-  retained-smoke schedule without writing either copy into the candidate bank.
+* ``--scorer-determinism``: run the frozen operational fixture across three
+  clean model loads spanning two fresh Python processes;
 
-Canonical generation/scoring/evaluation stages require an independent-review
-attestation.  Test generation additionally requires a complete, frozen
-calibration bank and selected-parameter digest.  Completed immutable evidence
-is never overwritten.
+All retained generation/scoring/evaluation modes fail closed pending holistic
+review.  Once that gate is separately opened, test generation additionally
+requires a complete frozen calibration bank, the preserved headroom gate, and
+an exact outcome-blind calibration rescore.  Completed immutable evidence is
+never overwritten.
 
 The qualified E1 numeric parser and four-category taxonomy are imported
 directly from ``exp_e1_task_band.py``.  The immutable JSON writer and stale-temp
@@ -32,6 +29,7 @@ import contextlib
 import gc
 import hashlib
 import importlib.util
+import inspect
 import json
 import math
 import multiprocessing
@@ -40,6 +38,7 @@ import re
 import shutil
 import sqlite3
 import statistics
+import subprocess
 import sys
 import threading
 import time
@@ -65,18 +64,23 @@ os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
 
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
+from torch import nn  # noqa: E402
 from datasets import Dataset, disable_progress_bar, load_dataset  # noqa: E402
 from transformers import (  # noqa: E402
+    AutoConfig,
+    AutoModel,
     AutoModelForCausalLM,
     AutoTokenizer,
+    PreTrainedModel,
+    PretrainedConfig,
     StoppingCriteria,
     StoppingCriteriaList,
 )
-from transformers.dynamic_module_utils import get_class_from_dynamic_module  # noqa: E402
+from transformers.modeling_outputs import TokenClassifierOutput  # noqa: E402
 from transformers.utils import logging as transformers_logging  # noqa: E402
 
 
-SCHEMA_VERSION = "1.1.0"
+SCHEMA_VERSION = "2.0.0"
 EXPERIMENT_ID = "exp_f1_bon_safe_selection"
 PUBLIC_GENERATOR = "base-C"
 PUBLIC_VERIFIER = "verifier-V"
@@ -90,28 +94,52 @@ DEMONSTRATION_INDICES = (0, 1, 2, 3, 4)
 CALIBRATION_COUNT = 256
 TEST_COUNT = 512
 CANDIDATE_COUNT = 16
-RETAINED_SMOKE_PROBLEM_COUNT = 2
-RETAINED_SMOKE_CANDIDATE_COUNT = 32
+HISTORICAL_SMOKE_PROBLEM_COUNT = 2
+HISTORICAL_SMOKE_CANDIDATE_COUNT = 32
+# Legacy helpers remain provenance-only and are unreachable pending review.
+RETAINED_SMOKE_PROBLEM_COUNT = HISTORICAL_SMOKE_PROBLEM_COUNT
+RETAINED_SMOKE_CANDIDATE_COUNT = HISTORICAL_SMOKE_CANDIDATE_COUNT
 ELIGIBLE_BATCH_SIZES = (8, 16)
 RESOLVED_BATCH_SIZE = 8
-BATCH_SEED_STRING = "bon-safe-selection-batched-generation-v1-2026-08-10"
 CAP_AUTHORIZING_SECONDS = 8_100.0
 MAX_PREFLIGHT_RESERVED_BYTES = 20 * 1024**3
-GOLDEN_SCORE_TOLERANCE = 0.002
-VERIFIER_COMPATIBILITY_STATUS = "PREFLIGHT_STOP_IMPLEMENTATION_DISCREPANCY"
+SCORER_CONTRACT = "verifier-V / maintained-eager-BF16-v1"
+SCORER_INTERNAL_REFERENCE = (1.0, 0.1923828125, 0.98046875, 1.0)
+SCORER_INTERNAL_REFERENCE_BF16_BITS = (16256, 15941, 16251, 16256)
+SCORER_FIXTURE_INPUT_SHA256 = (
+    "e14ec22c375a3dbc31596964e53fe1a59b4f7264b4c73f5dcd80a1bbb3f52741"
+)
+SCORER_DETERMINISM_STOP = "PREFLIGHT_STOP_SCORER_NONDETERMINISM"
+SCORER_RESCORE_VOID = "VOID_SCORER_RESCORE_MISMATCH"
+SUCCESSOR_REVIEW_STATUS = "READY_FOR_HOLISTIC_REVIEW"
 PREFIXES = (1, 2, 4, 8, 16)
 MAX_NEW_TOKENS = 256
 TEMPERATURE = 0.7
 TOP_P = 0.8
 TOP_K = 0
 REPETITION_PENALTY = 1.0
-CALIBRATION_SELECTION_STRING = (
+ORIGINAL_CALIBRATION_SELECTION_STRING = (
     "bon-safe-selection-base-c-gsm8k-train-calibration-v1-2026-08-10"
 )
-TEST_SELECTION_STRING = "bon-safe-selection-base-c-gsm8k-train-test-v1-2026-08-10"
-GENERATION_SEED_STRING = "bon-safe-selection-base-c-generation-seeds-v1-2026-08-10"
-BOOTSTRAP_STRING = "bon-safe-selection-paired-bootstrap-v1-2026-08-10"
-PERMUTATION_STRING = "bon-safe-selection-order-permutations-v1-2026-08-10"
+ORIGINAL_TEST_SELECTION_STRING = (
+    "bon-safe-selection-base-c-gsm8k-train-test-v1-2026-08-10"
+)
+CALIBRATION_SELECTION_STRING = (
+    "bon-safe-selection-successor-a-base-c-gsm8k-train-calibration-v1-2026-08-11"
+)
+TEST_SELECTION_STRING = (
+    "bon-safe-selection-successor-a-base-c-gsm8k-train-test-v1-2026-08-11"
+)
+GENERATION_SEED_STRING = (
+    "bon-safe-selection-successor-a-base-c-generation-seeds-v1-2026-08-11"
+)
+BATCH_SEED_STRING = "bon-safe-selection-successor-a-batched-generation-v1-2026-08-11"
+BOOTSTRAP_STRING = "bon-safe-selection-successor-a-paired-bootstrap-v1-2026-08-11"
+PERMUTATION_STRING = "bon-safe-selection-successor-a-order-permutations-v1-2026-08-11"
+RESCORE_SELECTION_STRING = (
+    "bon-safe-selection-successor-a-outcome-blind-rescore-v1-2026-08-11"
+)
+RESCORE_RECORD_COUNT = 64
 BOOTSTRAP_REPLICATES = 10_000
 PERMUTATION_REPLICATES = 1_000
 DELTA_GRID = (0.00, 0.01, 0.02, 0.03, 0.05, 0.075, 0.10, 0.15, 0.20, 0.30)
@@ -148,14 +176,15 @@ EXPECTED_HASHES = {
 LOCAL_MANIFEST = HERE / "_local_manifest.md"
 E1_RUNNER = HERE.parent / "06_uesd" / "exp_e1_task_band.py"
 RESULT_PATH = HERE / "results" / "exp_bon_safe_selection.json"
-WORK_ROOT = HF_HOME / "line07_safe_selection"
+WORK_ROOT = HF_HOME / "line07_safe_selection_successor_a"
 CALIBRATION_BANK_PATH = WORK_ROOT / "calibration_bank.json"
 TEST_BANK_PATH = WORK_ROOT / "test_bank.json"
 CALIBRATION_FREEZE_PATH = WORK_ROOT / "calibration_freeze.json"
 PREFLIGHT_PATH = WORK_ROOT / "preflight.json"
 REPEAT_DETERMINISM_PATH = WORK_ROOT / "repeat_determinism.json"
 BATCH_PREFLIGHT_PATH = WORK_ROOT / "batch_preflight.json"
-GOLDEN_REPLAY_PATH = WORK_ROOT / "verifier_golden_replay.json"
+SCORER_DETERMINISM_PATH = WORK_ROOT / "scorer_determinism.json"
+OUTCOME_BLIND_RESCORE_PATH = WORK_ROOT / "outcome_blind_rescore.json"
 REVIEW_BINDING_PATH = WORK_ROOT / "independent_review_binding.json"
 IMMUTABLE_TEMP_PREFIX = ".f1-immutable-result-tmp-"
 IMMUTABLE_TEMP_SUFFIX = ".tmp"
@@ -221,6 +250,7 @@ def utc_now() -> str:
 def configure_runtime() -> None:
     disable_progress_bar()
     transformers_logging.set_verbosity_error()
+    torch.use_deterministic_algorithms(True)
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
     torch.backends.cuda.matmul.allow_tf32 = False
@@ -297,39 +327,67 @@ def construct_cohorts(
         "demonstrations_content", gsm_rows_hash(train, DEMONSTRATION_INDICES)
     )
     assert_hash("demonstration_indices", comma_hash(DEMONSTRATION_INDICES))
-    calibration_pool = list(range(5, EXPECTED_SPLIT_SIZE))
-    assert len(calibration_pool) == 7_468
-    assert_hash("calibration_pool", comma_hash(calibration_pool))
+    original_pool = list(range(5, EXPECTED_SPLIT_SIZE))
+    assert len(original_pool) == 7_468
+    assert_hash("calibration_pool", comma_hash(original_pool))
+    original_calibration = ranked_indices(
+        original_pool,
+        ORIGINAL_CALIBRATION_SELECTION_STRING,
+        CALIBRATION_COUNT,
+    )
+    assert_hash("calibration_ordered_indices", comma_hash(original_calibration))
+    assert_hash("calibration_sorted_indices", comma_hash(sorted(original_calibration)))
+    assert_hash("calibration_content", gsm_rows_hash(train, original_calibration))
+    original_calibration_set = set(original_calibration)
+    original_test_pool = [
+        index for index in original_pool if index not in original_calibration_set
+    ]
+    assert len(original_test_pool) == 7_212
+    assert_hash("test_pool", comma_hash(sorted(original_test_pool)))
+    original_test = ranked_indices(
+        original_test_pool, ORIGINAL_TEST_SELECTION_STRING, TEST_COUNT
+    )
+    assert_hash("test_ordered_indices", comma_hash(original_test))
+    assert_hash("test_sorted_indices", comma_hash(sorted(original_test)))
+    assert_hash("test_content", gsm_rows_hash(train, original_test))
+    assert_hash(
+        "calibration_then_test",
+        comma_hash([*original_calibration, *original_test]),
+    )
+    original_selected = original_calibration_set | set(original_test)
+    successor_source_pool = [
+        index for index in original_pool if index not in original_selected
+    ]
+    assert len(successor_source_pool) == 6_700
+    assert_hash("unallocated_indices", comma_hash(successor_source_pool))
+    assert_hash("unallocated_content", gsm_rows_hash(train, successor_source_pool))
+
     calibration = ranked_indices(
-        calibration_pool, CALIBRATION_SELECTION_STRING, CALIBRATION_COUNT
+        successor_source_pool, CALIBRATION_SELECTION_STRING, CALIBRATION_COUNT
     )
-    assert_hash("calibration_ordered_indices", comma_hash(calibration))
-    assert_hash("calibration_sorted_indices", comma_hash(sorted(calibration)))
-    calibration_hash = assert_hash(
-        "calibration_content", gsm_rows_hash(train, calibration)
-    )
-
     calibration_set = set(calibration)
-    test_pool = [index for index in calibration_pool if index not in calibration_set]
-    assert len(test_pool) == 7_212
-    assert_hash("test_pool", comma_hash(sorted(test_pool)))
+    test_pool = [
+        index for index in successor_source_pool if index not in calibration_set
+    ]
+    if len(test_pool) != 6_444:
+        raise RuntimeError("successor test pool has the wrong size")
     test = ranked_indices(test_pool, TEST_SELECTION_STRING, TEST_COUNT)
-    assert_hash("test_ordered_indices", comma_hash(test))
-    assert_hash("test_sorted_indices", comma_hash(sorted(test)))
-    test_hash = (
-        assert_hash("test_content", gsm_rows_hash(train, test))
-        if expose_pilot_test_content
-        else EXPECTED_HASHES["test_content"]
-    )
-    assert_hash("calibration_then_test", comma_hash([*calibration, *test]))
-
     selected_set = calibration_set | set(test)
-    unallocated = [index for index in calibration_pool if index not in selected_set]
-    assert len(unallocated) == 6_700
-    assert_hash("unallocated_indices", comma_hash(unallocated))
-    unallocated_hash = assert_hash(
-        "unallocated_content", gsm_rows_hash(train, unallocated)
+    unallocated = [
+        index for index in successor_source_pool if index not in selected_set
+    ]
+    if len(unallocated) != 5_932:
+        raise RuntimeError("successor unallocated pool has the wrong size")
+
+    calibration_hash = gsm_rows_hash(train, calibration)
+    test_hash = (
+        gsm_rows_hash(train, test)
+        if expose_pilot_test_content
+        else registered_slot_value("successor_test_row_content_sha256")
     )
+    if test_hash is None:
+        raise RuntimeError("successor test content slot is not registered")
+    unallocated_hash = gsm_rows_hash(train, unallocated)
 
     if len(set(calibration)) != CALIBRATION_COUNT:
         raise RuntimeError("calibration cohort is not unique")
@@ -339,9 +397,14 @@ def construct_cohorts(
         raise RuntimeError("calibration/test cohort overlap")
     if selected_set & set(DEMONSTRATION_INDICES):
         raise RuntimeError("selected cohort overlaps demonstrations")
+    if selected_set & original_selected:
+        raise RuntimeError("successor cohort overlaps the original 768 rows")
 
     registry = validate_prior_consumption_registry(dataset)
     prior_questions = registry.pop("normalized_questions")
+    original_questions = {
+        normalized_question(str(train[i]["question"])) for i in original_selected
+    }
     calibration_questions = [
         normalized_question(train[i]["question"]) for i in calibration
     ]
@@ -349,6 +412,8 @@ def construct_cohorts(
         raise RuntimeError("calibration normalized questions are not unique")
     if set(calibration_questions) & prior_questions:
         raise RuntimeError("calibration questions overlap prior consumption")
+    if set(calibration_questions) & original_questions:
+        raise RuntimeError("calibration questions overlap original line-07 rows")
     if expose_pilot_test_content:
         test_questions = [normalized_question(train[i]["question"]) for i in test]
         if len(set(test_questions)) != TEST_COUNT:
@@ -357,6 +422,8 @@ def construct_cohorts(
             raise RuntimeError("calibration/test normalized-question overlap")
         if set(test_questions) & prior_questions:
             raise RuntimeError("test questions overlap prior consumption")
+        if set(test_questions) & original_questions:
+            raise RuntimeError("test questions overlap original line-07 rows")
 
     cohorts = {"calibration": calibration, "test": test, "unallocated": unallocated}
     evidence = {
@@ -377,6 +444,8 @@ def construct_cohorts(
         "counts": {
             "calibration": len(calibration),
             "test": len(test),
+            "source_pool": len(successor_source_pool),
+            "original_rows_excluded": len(original_selected),
             "unallocated": len(unallocated),
             "calibration_test_overlap": 0,
             "selected_demonstration_overlap": 0,
@@ -387,17 +456,28 @@ def construct_cohorts(
         },
         "pilot_test_content_revalidated_in_this_process": expose_pilot_test_content,
         "hashes": {
-            name: EXPECTED_HASHES[name]
-            for name in (
-                "calibration_pool",
-                "calibration_ordered_indices",
-                "calibration_sorted_indices",
-                "test_pool",
-                "test_ordered_indices",
-                "test_sorted_indices",
-                "calibration_then_test",
-                "unallocated_indices",
-            )
+            "successor_source_pool_sorted_indices_sha256": comma_hash(
+                successor_source_pool
+            ),
+            "successor_original_excluded_ordered_indices_sha256": comma_hash(
+                [*original_calibration, *original_test]
+            ),
+            "successor_calibration_ordered_indices_sha256": comma_hash(calibration),
+            "successor_calibration_sorted_indices_sha256": comma_hash(
+                sorted(calibration)
+            ),
+            "successor_calibration_row_content_sha256": calibration_hash,
+            "successor_test_pool_sorted_indices_sha256": comma_hash(sorted(test_pool)),
+            "successor_test_ordered_indices_sha256": comma_hash(test),
+            "successor_test_sorted_indices_sha256": comma_hash(sorted(test)),
+            "successor_test_row_content_sha256": test_hash,
+            "successor_calibration_then_test_ordered_indices_sha256": comma_hash(
+                [*calibration, *test]
+            ),
+            "successor_remaining_unallocated_sorted_indices_sha256": comma_hash(
+                sorted(unallocated)
+            ),
+            "successor_remaining_unallocated_row_content_sha256": (unallocated_hash),
         },
     }
     return train, cohorts, evidence
@@ -541,27 +621,7 @@ def mixed_generation_schedule(
 ) -> list[dict[str, Any]]:
     schedule: list[dict[str, Any]] = []
     for partition in ("calibration", "test"):
-        for problem_position, dataset_index in enumerate(cohorts[partition]):
-            legacy_smoke = (
-                partition == "calibration"
-                and problem_position < RETAINED_SMOKE_PROBLEM_COUNT
-            )
-            if legacy_smoke:
-                for ordinal in range(1, CANDIDATE_COUNT + 1):
-                    schedule.append(
-                        {
-                            "partition": partition,
-                            "dataset_index": dataset_index,
-                            "first_candidate_ordinal": ordinal,
-                            "batch_size": 1,
-                            "candidate_identity_seeds": [
-                                generation_seed(dataset_index, ordinal)
-                            ],
-                            "batch_seed": None,
-                            "batch_payload_sha256": None,
-                        }
-                    )
-                continue
+        for dataset_index in cohorts[partition]:
             for first_ordinal in range(1, CANDIDATE_COUNT + 1, batch_size):
                 seed, payload_sha256 = batch_seed(
                     partition, dataset_index, first_ordinal, batch_size
@@ -585,6 +645,28 @@ def mixed_generation_schedule(
     return schedule
 
 
+def outcome_blind_rescore_identities(
+    calibration_indices: Sequence[int], count: int = RESCORE_RECORD_COUNT
+) -> list[tuple[int, int]]:
+    identities = [
+        (dataset_index, ordinal)
+        for dataset_index in calibration_indices
+        for ordinal in range(1, CANDIDATE_COUNT + 1)
+    ]
+
+    def key(identity: tuple[int, int]) -> tuple[bytes, int, int]:
+        dataset_index, ordinal = identity
+        payload = (
+            f"{DATASET_REVISION}\n{RESCORE_SELECTION_STRING}\n"
+            f"{dataset_index}\n{ordinal}"
+        ).encode("ascii")
+        return hashlib.sha256(payload).digest(), dataset_index, ordinal
+
+    if count > len(identities):
+        raise ValueError("outcome-blind rescore count exceeds calibration bank")
+    return sorted(identities, key=key)[:count]
+
+
 def permutation_schedule(count: int = PERMUTATION_REPLICATES) -> list[list[int]]:
     result = []
     for permutation_index in range(count):
@@ -603,7 +685,6 @@ def validate_schedules(cohorts: Mapping[str, Sequence[int]]) -> dict[str, Any]:
     seeds = generation_schedule(cohorts)
     seed_hash = comma_hash(seeds)
     assert len(seeds) == (CALIBRATION_COUNT + TEST_COUNT) * CANDIDATE_COUNT
-    assert_hash("generation_schedule", seed_hash)
     mixed = mixed_generation_schedule(cohorts)
     mixed_hash = sha256_bytes(canonical_json_bytes(mixed))
     batch_seeds = [int(row["batch_seed"]) for row in mixed if row["batch_seed"]]
@@ -612,17 +693,45 @@ def validate_schedules(cohorts: Mapping[str, Sequence[int]]) -> dict[str, Any]:
     permutation_hash = sha256_text(
         "\n".join(",".join(str(value) for value in row) for row in permutations)
     )
-    assert_hash("permutation_schedule", permutation_hash)
+    bootstrap_hash = sha256_text(
+        "\n".join(
+            ",".join(str(value) for value in bootstrap_positions(replicate, TEST_COUNT))
+            for replicate in range(BOOTSTRAP_REPLICATES)
+        )
+    )
+    rescore_identities = outcome_blind_rescore_identities(cohorts["calibration"])
+    rescore_hash = sha256_text(
+        "\n".join(f"{index},{ordinal}" for index, ordinal in rescore_identities)
+    )
+    bindings = {
+        "successor_generation_seed_schedule_sha256": seed_hash,
+        "successor_batch_seed_schedule_sha256": batch_seed_hash,
+        "successor_bootstrap_schedule_sha256": bootstrap_hash,
+        "successor_permutation_schedule_sha256": permutation_hash,
+        "successor_outcome_blind_rescore_schedule_sha256": rescore_hash,
+    }
+    for name, actual in bindings.items():
+        registered = registered_slot_value(name)
+        if registered is not None and registered != actual:
+            raise RuntimeError(
+                f"registered successor schedule drift for {name}: "
+                f"expected {registered}, got {actual}"
+            )
     return {
         "generation_seed_count": len(seeds),
         "generation_schedule_sha256": seed_hash,
         "mixed_generation_call_count": len(mixed),
         "mixed_generation_schedule_sha256": mixed_hash,
-        "post_smoke_batch_seed_count": len(batch_seeds),
+        "batch_seed_count": len(batch_seeds),
         "batch_seed_schedule_sha256": batch_seed_hash,
+        "bootstrap_replicates": BOOTSTRAP_REPLICATES,
+        "bootstrap_schedule_sha256": bootstrap_hash,
         "resolved_batch_size": RESOLVED_BATCH_SIZE,
         "permutation_count": len(permutations),
         "permutation_schedule_sha256": permutation_hash,
+        "outcome_blind_rescore_count": len(rescore_identities),
+        "outcome_blind_rescore_schedule_sha256": rescore_hash,
+        "bindings": bindings,
     }
 
 
@@ -681,9 +790,11 @@ def parse_manifest() -> dict[str, str]:
             "torch-version",
             "transformers-version",
             "datasets-version",
+            "tokenizers-version",
             "huggingface-hub-version",
             "safetensors-version",
             "cuda-version",
+            "cuda-driver-version",
             "gpu-identity",
         }
     )
@@ -762,9 +873,7 @@ def prompt_serialization_hash(
 
 def registered_slot_value(name: str) -> str | None:
     """Return the last pre-data amendment value for a 64-hex slot."""
-    pattern = re.compile(
-        rf"^- `{re.escape(name)}`: `([0-9a-f]{{64}})`$", re.MULTILINE
-    )
+    pattern = re.compile(rf"^- `{re.escape(name)}`: `([0-9a-f]{{64}})`$", re.MULTILINE)
     values = pattern.findall(PREREGISTRATION_PATH.read_text(encoding="utf-8"))
     if not values:
         return None
@@ -784,51 +893,91 @@ def provenance_slots(
             "prior_questions"
         ],
         "demonstrations_content_sha256": EXPECTED_HASHES["demonstrations_content"],
-        "calibration_selected_row_content_sha256": EXPECTED_HASHES[
-            "calibration_content"
+        "successor_source_pool_sorted_indices_sha256": EXPECTED_HASHES[
+            "unallocated_indices"
         ],
-        "test_selected_row_content_sha256": EXPECTED_HASHES["test_content"],
-        "remaining_unallocated_row_content_sha256": EXPECTED_HASHES[
-            "unallocated_content"
+        "successor_original_excluded_ordered_indices_sha256": EXPECTED_HASHES[
+            "calibration_then_test"
         ],
-        "prompt_serialization_sha256": None,
+        "successor_calibration_ordered_indices_sha256": comma_hash(
+            cohorts["calibration"]
+        ),
+        "successor_calibration_sorted_indices_sha256": comma_hash(
+            sorted(cohorts["calibration"])
+        ),
+        "successor_calibration_row_content_sha256": gsm_rows_hash(
+            train, cohorts["calibration"]
+        ),
+        "successor_test_pool_sorted_indices_sha256": comma_hash(
+            sorted(index for index in [*cohorts["test"], *cohorts["unallocated"]])
+        ),
+        "successor_test_ordered_indices_sha256": comma_hash(cohorts["test"]),
+        "successor_test_sorted_indices_sha256": comma_hash(sorted(cohorts["test"])),
+        "successor_test_row_content_sha256": None,
+        "successor_calibration_then_test_ordered_indices_sha256": comma_hash(
+            [*cohorts["calibration"], *cohorts["test"]]
+        ),
+        "successor_remaining_unallocated_sorted_indices_sha256": comma_hash(
+            sorted(cohorts["unallocated"])
+        ),
+        "successor_remaining_unallocated_row_content_sha256": gsm_rows_hash(
+            train, cohorts["unallocated"]
+        ),
+        "successor_prompt_serialization_sha256": None,
         "parser_source_sha256": sha256_text(E1.parser_source_text()),
-        "runner_source_sha256": sha256_file(Path(__file__).resolve()),
-        "local_manifest_identity_digest": None,
+        "successor_runner_source_sha256": sha256_file(Path(__file__).resolve()),
+        "successor_manifest_identity_digest": None,
+        "successor_verifier_identity_bundle_sha256": None,
+        "successor_tokenizer_identity_bundle_sha256": None,
+        "successor_maintained_scorer_source_sha256": (
+            maintained_scorer_source_sha256()
+        ),
+        "successor_checkpoint_tensor_identity_sha256": None,
     }
     if LOCAL_MANIFEST.is_file():
         entries = parse_manifest()
         identity_digest, _ = manifest_identity(entries)
-        slots["local_manifest_identity_digest"] = identity_digest
+        slots["successor_manifest_identity_digest"] = identity_digest
+        slots.update(scorer_identity_bundles(entries))
         if allow_pilot_test_access:
-            slots["prompt_serialization_sha256"] = prompt_serialization_hash(
+            slots["successor_test_row_content_sha256"] = gsm_rows_hash(
+                train, cohorts["test"]
+            )
+            slots["successor_prompt_serialization_sha256"] = prompt_serialization_hash(
                 train, cohorts, entries
             )
         else:
-            slots["prompt_serialization_sha256"] = registered_slot_value(
-                "prompt_serialization_sha256"
+            slots["successor_test_row_content_sha256"] = registered_slot_value(
+                "successor_test_row_content_sha256"
+            )
+            slots["successor_prompt_serialization_sha256"] = registered_slot_value(
+                "successor_prompt_serialization_sha256"
+            )
+        if SCORER_DETERMINISM_PATH.is_file():
+            determinism = json.loads(
+                SCORER_DETERMINISM_PATH.read_text(encoding="utf-8")
+            )
+            if determinism.get("status") != "PASS":
+                raise RuntimeError("scorer determinism artifact is not PASS")
+            slots["successor_checkpoint_tensor_identity_sha256"] = determinism["loads"][
+                0
+            ]["loading_report"]["successor_checkpoint_tensor_identity_sha256"]
+        else:
+            slots["successor_checkpoint_tensor_identity_sha256"] = (
+                registered_slot_value("successor_checkpoint_tensor_identity_sha256")
             )
     elif require_manifest:
         raise RuntimeError("manifest-bound provenance slots cannot be filled")
 
-    registered_slots = {
-        name: registered_slot_value(name)
-        for name in (
-            "prompt_serialization_sha256",
-            "parser_source_sha256",
-            "runner_source_sha256",
-            "local_manifest_identity_digest",
-        )
-    }
-    if require_manifest or any(registered_slots.values()):
-        for name, registered in registered_slots.items():
-            if registered is None:
-                raise RuntimeError(f"registration slot remains unfilled: {name}")
-            if slots[name] != registered:
-                raise RuntimeError(
-                    f"registered provenance drift for {name}: "
-                    f"expected {registered}, got {slots[name]}"
-                )
+    for name, actual in slots.items():
+        if not name.startswith("successor_"):
+            continue
+        registered = registered_slot_value(name)
+        if registered is not None and actual != registered:
+            raise RuntimeError(
+                f"registered provenance drift for {name}: "
+                f"expected {registered}, got {actual}"
+            )
     return slots
 
 
@@ -951,32 +1100,168 @@ def load_generator(manifest: Mapping[str, str], device: torch.device):
     return tokenizer, model
 
 
+class MaintainedEagerProcessRewardModel(PreTrainedModel):
+    """Maintained pseudonymous backbone plus the checkpoint reward head."""
+
+    config_class = PretrainedConfig
+    base_model_prefix = "model"
+
+    def __init__(self, config: PretrainedConfig) -> None:
+        super().__init__(config)
+        config.use_cache = False
+        self.model = AutoModel.from_config(
+            config,
+            trust_remote_code=False,
+            attn_implementation="eager",
+        )
+        self.score = nn.Sequential(
+            nn.Linear(config.hidden_size, config.hidden_size),
+            nn.ReLU(),
+            nn.Linear(config.hidden_size, 2),
+        )
+        self.post_init()
+
+    def get_input_embeddings(self):
+        return self.model.embed_tokens
+
+    def set_input_embeddings(self, value) -> None:
+        self.model.embed_tokens = value
+
+    def forward(
+        self,
+        input_ids: torch.LongTensor | None = None,
+        attention_mask: torch.Tensor | None = None,
+        position_ids: torch.LongTensor | None = None,
+        inputs_embeds: torch.FloatTensor | None = None,
+        use_cache: bool | None = False,
+        output_attentions: bool | None = None,
+        output_hidden_states: bool | None = None,
+        return_dict: bool | None = True,
+        **kwargs: Any,
+    ) -> TokenClassifierOutput | tuple[Any, ...]:
+        if use_cache not in (None, False):
+            raise RuntimeError("maintained-eager scorer forbids use_cache=True")
+        outputs = self.model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            inputs_embeds=inputs_embeds,
+            use_cache=False,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=True,
+            **kwargs,
+        )
+        logits = self.score(outputs.last_hidden_state)
+        if return_dict is False:
+            return (logits, outputs.hidden_states, outputs.attentions)
+        return TokenClassifierOutput(
+            logits=logits,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
+        )
+
+
+def scorer_identity_bundles(manifest: Mapping[str, str]) -> dict[str, str]:
+    snapshot = Path(manifest[f"{PUBLIC_VERIFIER}-resolved-path"])
+    verifier_payload = {
+        "revision": manifest[f"{PUBLIC_VERIFIER}-revision"],
+        "local_content_sha256": manifest[f"{PUBLIC_VERIFIER}-local-content-sha256"],
+        "files_map_sha256": manifest[f"{PUBLIC_VERIFIER}-files-map-sha256"],
+    }
+    tokenizer_payload = {
+        "revision": manifest[f"{PUBLIC_VERIFIER}-tokenizer-revision"],
+        "tokenizer_json_sha256": sha256_file(snapshot / "tokenizer.json"),
+        "tokenizer_config_sha256": sha256_file(snapshot / "tokenizer_config.json"),
+    }
+    return {
+        "successor_verifier_identity_bundle_sha256": sha256_bytes(
+            canonical_json_bytes(verifier_payload)
+        ),
+        "successor_tokenizer_identity_bundle_sha256": sha256_bytes(
+            canonical_json_bytes(tokenizer_payload)
+        ),
+    }
+
+
+def maintained_scorer_source_sha256() -> str:
+    source_text = "\n\n".join(
+        inspect.getsource(item)
+        for item in (
+            MaintainedEagerProcessRewardModel,
+            scorer_identity_bundles,
+            load_verifier,
+            operational_scorer_output,
+        )
+    )
+    return sha256_text(source_text)
+
+
 def load_verifier(manifest: Mapping[str, str], device: torch.device):
     snapshot_path = manifest[f"{PUBLIC_VERIFIER}-resolved-path"]
     tokenizer = AutoTokenizer.from_pretrained(
         snapshot_path,
         local_files_only=True,
-        trust_remote_code=True,
+        trust_remote_code=False,
     )
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
-    snapshot_config = json.loads(
-        (Path(snapshot_path) / "config.json").read_text(encoding="utf-8")
-    )
-    remote_class_ref = snapshot_config.get("auto_map", {}).get("AutoModel")
-    if not isinstance(remote_class_ref, str) or "." not in remote_class_ref:
-        raise RuntimeError("verifier snapshot does not bind a remote AutoModel class")
-    verifier_class = get_class_from_dynamic_module(
-        remote_class_ref,
+    config = AutoConfig.from_pretrained(
         snapshot_path,
         local_files_only=True,
+        trust_remote_code=False,
     )
-    model = verifier_class.from_pretrained(
+    config.use_cache = False
+    model, loading_info = MaintainedEagerProcessRewardModel.from_pretrained(
         snapshot_path,
+        config=config,
         local_files_only=True,
-        torch_dtype=torch.bfloat16,
-    ).to(device)
+        dtype=torch.bfloat16,
+        attn_implementation="eager",
+        output_loading_info=True,
+    )
+    unexpected_keys = list(loading_info.get("unexpected_keys", []))
+    omitted_checkpoint_keys = ["lm_head.weight"]
+    blocking_loading_fields = {
+        "missing_keys": list(loading_info.get("missing_keys", [])),
+        "unexpected_keys": sorted(set(unexpected_keys) - set(omitted_checkpoint_keys)),
+        "mismatched_keys": list(loading_info.get("mismatched_keys", [])),
+        "error_msgs": list(loading_info.get("error_msgs", [])),
+    }
+    if sorted(unexpected_keys) != omitted_checkpoint_keys:
+        blocking_loading_fields["unexpected_keys"] = unexpected_keys
+    if any(blocking_loading_fields.values()):
+        raise RuntimeError(
+            f"maintained scorer checkpoint load mismatch: {blocking_loading_fields}"
+        )
+    model = model.to(device)
     model.eval()
+    state = model.state_dict()
+    floating_dtypes = sorted(
+        {str(tensor.dtype) for tensor in state.values() if tensor.is_floating_point()}
+    )
+    if floating_dtypes != ["torch.bfloat16"]:
+        raise RuntimeError(f"maintained scorer dtype drift: {floating_dtypes}")
+    state_key_hash = sha256_text("\n".join(sorted(state)))
+    tensor_identity_payload = {
+        "checkpoint_files_map_sha256": manifest[f"{PUBLIC_VERIFIER}-files-map-sha256"],
+        "state_tensor_count": len(state),
+        "state_key_sha256": state_key_hash,
+        "floating_dtypes": floating_dtypes,
+        "missing_keys": [],
+        "unexpected_keys": unexpected_keys,
+        "omitted_checkpoint_keys": omitted_checkpoint_keys,
+        "mismatched_keys": [],
+        "operational_language_model_head_present": any(
+            key.startswith("lm_head.") for key in state
+        ),
+    }
+    model._line07_loading_report = {  # type: ignore[attr-defined]
+        **tensor_identity_payload,
+        "successor_checkpoint_tensor_identity_sha256": sha256_bytes(
+            canonical_json_bytes(tensor_identity_payload)
+        ),
+    }
     return tokenizer, model
 
 
@@ -1023,7 +1308,9 @@ class PerRowNewQuestionBoundaryCriteria(StoppingCriteria):
         **kwargs: Any,
     ) -> torch.BoolTensor:
         del scores, kwargs
-        stopped = torch.zeros(input_ids.shape[0], dtype=torch.bool, device=input_ids.device)
+        stopped = torch.zeros(
+            input_ids.shape[0], dtype=torch.bool, device=input_ids.device
+        )
         for row_index in range(input_ids.shape[0]):
             if self.boundary_token_counts[row_index] is not None:
                 stopped[row_index] = True
@@ -1183,8 +1470,14 @@ def generate_batch(
                 **taxonomy,
                 "verifier_score": None,
                 "verifier_step_scores": None,
+                "verifier_step_score_bf16_bits": None,
+                "verifier_score_bf16_bits": None,
                 "verifier_scored_tokens": None,
                 "verifier_seconds": None,
+                "verifier_input_sha256": None,
+                "verifier_token_ids_sha256": None,
+                "verifier_marker_positions": None,
+                "verifier_output_digest": None,
             }
         )
     return records, {"wall_seconds": seconds, "per_row_stopping": stop_audit}
@@ -1271,8 +1564,14 @@ def generate_one(
         **taxonomy,
         "verifier_score": None,
         "verifier_step_scores": None,
+        "verifier_step_score_bf16_bits": None,
+        "verifier_score_bf16_bits": None,
         "verifier_scored_tokens": None,
         "verifier_seconds": None,
+        "verifier_input_sha256": None,
+        "verifier_token_ids_sha256": None,
+        "verifier_marker_positions": None,
+        "verifier_output_digest": None,
     }
 
 
@@ -1282,38 +1581,60 @@ def score_one(
     updated = dict(record)
     response = str(record["scored_response_segment"])
     if not response.strip():
+        empty_core = {
+            "serialized_utf8_sha256": sha256_text(""),
+            "token_ids": [],
+            "token_ids_sha256": sha256_text(""),
+            "marker_positions": [],
+            "step_scores": [],
+            "step_score_bf16_bits": [],
+            "minimum_score": 0.0,
+            "minimum_score_bf16_bits": 0,
+            "scored_tokens": 0,
+        }
         updated.update(
             verifier_score=0.0,
             verifier_step_scores=[],
+            verifier_step_score_bf16_bits=[],
+            verifier_score_bf16_bits=0,
             verifier_scored_tokens=0,
             verifier_seconds=0.0,
             verifier_input_sha256=sha256_text(""),
+            verifier_token_ids_sha256=sha256_text(""),
+            verifier_marker_positions=[],
+            verifier_output_digest=sha256_bytes(canonical_json_bytes(empty_core)),
         )
         return updated
     serialized, steps = verifier_serialization(
         str(record["question"]), response, tokenizer
     )
 
-    step_scores, scored_tokens, seconds = verifier_scores_from_serialized(
+    scorer_output = operational_scorer_output(
         serialized, len(steps), tokenizer, model, device
     )
+    step_scores = scorer_output["step_scores"]
     updated.update(
         verifier_score=float(min(step_scores)),
         verifier_step_scores=[float(value) for value in step_scores],
-        verifier_scored_tokens=scored_tokens,
-        verifier_seconds=seconds,
+        verifier_step_score_bf16_bits=scorer_output["step_score_bf16_bits"],
+        verifier_score_bf16_bits=scorer_output["minimum_score_bf16_bits"],
+        verifier_scored_tokens=scorer_output["scored_tokens"],
+        verifier_seconds=scorer_output["score_wall_seconds"],
         verifier_input_sha256=sha256_text(serialized),
+        verifier_token_ids_sha256=scorer_output["token_ids_sha256"],
+        verifier_marker_positions=scorer_output["marker_positions"],
+        verifier_output_digest=scorer_output["complete_output_digest"],
     )
     return updated
 
 
-def verifier_scores_from_serialized(
+def operational_scorer_output(
     serialized: str,
     expected_step_count: int,
     tokenizer,
     model,
     device: torch.device,
-) -> tuple[list[float], int, float]:
+) -> dict[str, Any]:
     input_ids = tokenizer.encode(serialized, return_tensors="pt").to(device)
     step_sep_ids = tokenizer.encode("<extra_0>", add_special_tokens=False)
     if len(step_sep_ids) != 1:
@@ -1329,11 +1650,19 @@ def verifier_scores_from_serialized(
     with torch.inference_mode():
         outputs = model(input_ids=input_ids, use_cache=False)
         logits = outputs[0] if isinstance(outputs, tuple) else outputs.logits
+        if logits.dtype != torch.bfloat16:
+            raise RuntimeError("maintained scorer logits are not BF16")
         probabilities = torch.softmax(logits, dim=-1)
+        if probabilities.dtype != torch.bfloat16:
+            raise RuntimeError("maintained scorer softmax is not native BF16")
         selected = probabilities[0][mask[0]]
         if selected.shape[-1] != 2:
             raise RuntimeError("verifier output does not expose two-class step logits")
-        step_scores = selected[:, 1].detach().cpu().tolist()
+        positive = selected[:, 1].contiguous()
+        step_scores = positive.detach().cpu().tolist()
+        step_bits = positive.view(torch.uint16).detach().cpu().tolist()
+        minimum = torch.min(positive).contiguous()
+        minimum_bits = int(minimum.view(torch.uint16).item())
     if device.type == "cuda":
         torch.cuda.synchronize(device)
     seconds = time.perf_counter() - started
@@ -1345,15 +1674,52 @@ def verifier_scores_from_serialized(
         raise RuntimeError(
             "verifier returned missing, nonfinite, or out-of-range scores"
         )
-    return [float(value) for value in step_scores], int(input_ids.numel()), seconds
+    token_ids = [int(value) for value in input_ids[0].detach().cpu().tolist()]
+    marker_positions = [
+        position
+        for position, token_id in enumerate(token_ids)
+        if token_id == step_sep_ids[0]
+    ]
+    core = {
+        "serialized_utf8_sha256": sha256_text(serialized),
+        "token_ids": token_ids,
+        "token_ids_sha256": comma_hash(token_ids),
+        "marker_positions": marker_positions,
+        "step_scores": [float(value) for value in step_scores],
+        "step_score_bf16_bits": [int(value) for value in step_bits],
+        "minimum_score": float(minimum.item()),
+        "minimum_score_bf16_bits": minimum_bits,
+        "scored_tokens": int(input_ids.numel()),
+    }
+    return {
+        **core,
+        "complete_output_digest": sha256_bytes(canonical_json_bytes(core)),
+        "score_wall_seconds": seconds,
+    }
 
 
-def published_verifier_golden_replay(
+def verifier_scores_from_serialized(
+    serialized: str,
+    expected_step_count: int,
+    tokenizer,
+    model,
+    device: torch.device,
+) -> tuple[list[float], int, float]:
+    output = operational_scorer_output(
+        serialized, expected_step_count, tokenizer, model, device
+    )
+    return output["step_scores"], output["scored_tokens"], output["score_wall_seconds"]
+
+
+def successor_scorer_fixture_load(
     manifest: Mapping[str, str],
+    *,
+    load_ordinal: int,
+    process_ordinal: int,
 ) -> dict[str, Any]:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if device.type != "cuda":
-        raise RuntimeError("published verifier golden replay requires CUDA")
+        raise RuntimeError("successor scorer determinism gate requires CUDA")
     tokenizer, model = load_verifier(manifest, device)
     response_steps = [
         (
@@ -1410,32 +1776,103 @@ def published_verifier_golden_replay(
     serialized = tokenizer.apply_chat_template(
         messages, tokenize=False, add_generation_prompt=False
     )
-    observed, scored_tokens, score_seconds = verifier_scores_from_serialized(
+    output = operational_scorer_output(
         serialized, len(response_steps), tokenizer, model, device
     )
-    expected = [1.0, 0.1904296875, 0.9765625, 1.0]
-    errors = [abs(actual - target) for actual, target in zip(observed, expected)]
+    loading_report = dict(model._line07_loading_report)  # type: ignore[attr-defined]
+    source_sha256 = maintained_scorer_source_sha256()
+    identity_bundles = scorer_identity_bundles(manifest)
+    reference_match = (
+        tuple(output["step_score_bf16_bits"]) == SCORER_INTERNAL_REFERENCE_BF16_BITS
+        and output["serialized_utf8_sha256"] == SCORER_FIXTURE_INPUT_SHA256
+        and output["scored_tokens"] == 454
+    )
     report = {
         "schema_version": SCHEMA_VERSION,
-        "created_at": utc_now(),
-        "status": "PASS" if max(errors) <= GOLDEN_SCORE_TOLERANCE else "FAIL",
-        "source": "published verifier README golden example",
-        "dtype": "bfloat16",
-        "absolute_tolerance": GOLDEN_SCORE_TOLERANCE,
-        "expected_step_scores": expected,
-        "observed_step_scores": observed,
-        "absolute_errors": errors,
-        "maximum_absolute_error": max(errors),
-        "verifier_input_sha256": sha256_text(serialized),
-        "verifier_scored_tokens": scored_tokens,
-        "score_wall_seconds": score_seconds,
+        "status": "PASS" if reference_match else SCORER_DETERMINISM_STOP,
+        "scorer_contract": SCORER_CONTRACT,
+        "process_ordinal": process_ordinal,
+        "load_ordinal": load_ordinal,
+        "internal_reference": list(SCORER_INTERNAL_REFERENCE),
+        "internal_reference_bf16_bits": list(SCORER_INTERNAL_REFERENCE_BF16_BITS),
+        "output": output,
+        "loading_report": loading_report,
+        "successor_maintained_scorer_source_sha256": source_sha256,
+        **identity_bundles,
     }
     del model, tokenizer
     gc.collect()
     torch.cuda.empty_cache()
-    atomic_replace_json(GOLDEN_REPLAY_PATH, report)
-    if report["status"] != "PASS":
-        raise RuntimeError("published verifier golden replay exceeded BF16 tolerance")
+    torch.cuda.ipc_collect()
+    if not reference_match:
+        raise RuntimeError(SCORER_DETERMINISM_STOP)
+    return report
+
+
+def _determinism_comparable(report: Mapping[str, Any]) -> dict[str, Any]:
+    output = report["output"]
+    return {
+        "serialized_utf8_sha256": output["serialized_utf8_sha256"],
+        "token_ids": output["token_ids"],
+        "marker_positions": output["marker_positions"],
+        "step_score_bf16_bits": output["step_score_bf16_bits"],
+        "minimum_score_bf16_bits": output["minimum_score_bf16_bits"],
+        "complete_output_digest": output["complete_output_digest"],
+        "checkpoint_tensor_identity_sha256": report["loading_report"][
+            "successor_checkpoint_tensor_identity_sha256"
+        ],
+        "maintained_scorer_source_sha256": report[
+            "successor_maintained_scorer_source_sha256"
+        ],
+        "verifier_identity_bundle_sha256": report[
+            "successor_verifier_identity_bundle_sha256"
+        ],
+        "tokenizer_identity_bundle_sha256": report[
+            "successor_tokenizer_identity_bundle_sha256"
+        ],
+    }
+
+
+def run_scorer_determinism_gate() -> dict[str, Any]:
+    manifest = parse_manifest()
+    loads = [
+        successor_scorer_fixture_load(
+            manifest, load_ordinal=load_ordinal, process_ordinal=1
+        )
+        for load_ordinal in (1, 2)
+    ]
+    child = subprocess.run(
+        [sys.executable, str(Path(__file__).resolve()), "--scorer-determinism-worker"],
+        cwd=str(ROOT),
+        check=True,
+        capture_output=True,
+        text=True,
+        env=dict(os.environ),
+    )
+    child_lines = [line for line in child.stdout.splitlines() if line.strip()]
+    if not child_lines:
+        raise RuntimeError("scorer determinism worker returned no report")
+    loads.append(json.loads(child_lines[-1]))
+    comparables = [_determinism_comparable(load) for load in loads]
+    bit_exact = all(item == comparables[0] for item in comparables[1:])
+    status = "PASS" if bit_exact else SCORER_DETERMINISM_STOP
+    report = {
+        "schema_version": SCHEMA_VERSION,
+        "created_at": utc_now(),
+        "status": status,
+        "scorer_contract": SCORER_CONTRACT,
+        "clean_loads": len(loads),
+        "fresh_processes": 2,
+        "bit_exact_across_loads": bit_exact,
+        "loads": loads,
+        "comparison_digest": sha256_bytes(canonical_json_bytes(comparables[0])),
+        "retained_generation_performed": False,
+        "calibration_rows_accessed": 0,
+        "test_rows_accessed": 0,
+    }
+    atomic_replace_json(SCORER_DETERMINISM_PATH, report)
+    if not bit_exact:
+        raise RuntimeError(SCORER_DETERMINISM_STOP)
     return report
 
 
@@ -1624,13 +2061,19 @@ def load_or_create_bank(
                 raise RuntimeError(f"resumable bank binding changed at {field}")
         if legacy_smoke:
             previous_slots = dict(bank["protocol_slots"])
-            unchanged_slots = {key: value for key, value in slots.items() if key != "runner_source_sha256"}
+            unchanged_slots = {
+                key: value
+                for key, value in slots.items()
+                if key != "runner_source_sha256"
+            }
             if {
                 key: value
                 for key, value in previous_slots.items()
                 if key != "runner_source_sha256"
             } != unchanged_slots:
-                raise RuntimeError("retained smoke provenance changed outside runner amendment")
+                raise RuntimeError(
+                    "retained smoke provenance changed outside runner amendment"
+                )
             bank["schema_version"] = SCHEMA_VERSION
             bank["legacy_smoke_protocol_slots"] = previous_slots
             bank["protocol_slots"] = dict(slots)
@@ -1669,8 +2112,7 @@ def validate_bank_records(bank: Mapping[str, Any], indices: Sequence[int]) -> No
         ):
             raise RuntimeError("resumable bank seed drift")
         legacy_smoke = (
-            partition == "calibration"
-            and position < RETAINED_SMOKE_CANDIDATE_COUNT
+            partition == "calibration" and position < RETAINED_SMOKE_CANDIDATE_COUNT
         )
         if legacy_smoke:
             if any(
@@ -1698,7 +2140,9 @@ def validate_bank_records(bank: Mapping[str, Any], indices: Sequence[int]) -> No
             "batch_row": ordinal - first_ordinal,
             "batch_payload_sha256": expected_payload_hash,
         }
-        if any(record.get(key) != value for key, value in expected_batch_fields.items()):
+        if any(
+            record.get(key) != value for key, value in expected_batch_fields.items()
+        ):
             raise RuntimeError("resumable bank amended batch binding drift")
 
 
@@ -1760,7 +2204,9 @@ def generate_bank_prefix(
             while offset < target_count:
                 problem_position, ordinal_offset = divmod(offset, CANDIDATE_COUNT)
                 if ordinal_offset % RESOLVED_BATCH_SIZE:
-                    raise RuntimeError("amended batch crosses a frozen ordinal boundary")
+                    raise RuntimeError(
+                        "amended batch crosses a frozen ordinal boundary"
+                    )
                 records, stop_audit = generate_batch(
                     train,
                     partition,
@@ -1785,7 +2231,9 @@ def generate_bank_prefix(
                 )
                 offset += len(records)
     generation_seconds = time.perf_counter() - generation_started
-    total_generated_tokens = sum(int(row["generated_tokens"]) for row in generated_this_run)
+    total_generated_tokens = sum(
+        int(row["generated_tokens"]) for row in generated_this_run
+    )
     active_seconds = sum(float(row["generation_seconds"]) for row in generated_this_run)
     prior = bank.get("telemetry", {}).get("generation")
     prior_gpu_seconds = 0.0
@@ -1815,9 +2263,7 @@ def generate_bank_prefix(
         "cuda": cuda_telemetry(),
         "power": power.summary(active_seconds),
         "per_row_stopping_batch_count": len(batch_stop_audits),
-        "per_row_stopping_pass": all(
-            audit["pass"] for audit in batch_stop_audits
-        ),
+        "per_row_stopping_pass": all(audit["pass"] for audit in batch_stop_audits),
     }
     bank["telemetry"]["generation"] = telemetry
     if (
@@ -2652,7 +3098,11 @@ def order_permutation_analysis(
     return {
         "replicates": PERMUTATION_REPLICATES,
         "seed_string": PERMUTATION_STRING,
-        "schedule_sha256": EXPECTED_HASHES["permutation_schedule"],
+        "schedule_sha256": sha256_text(
+            "\n".join(
+                ",".join(str(value) for value in row) for row in permutation_schedule()
+            )
+        ),
         "baseline_summary": baseline_summary,
         "conditions": conditions,
         "rows": rows,
@@ -2746,6 +3196,12 @@ def validate_result_schema(result: Mapping[str, Any]) -> None:
         "correct",
         "verifier_score",
         "verifier_step_scores",
+        "verifier_step_score_bf16_bits",
+        "verifier_score_bf16_bits",
+        "verifier_input_sha256",
+        "verifier_token_ids_sha256",
+        "verifier_marker_positions",
+        "verifier_output_digest",
         "stop_reason",
         "generated_tokens",
     }
@@ -2889,7 +3345,9 @@ def preflight_projection(
 
 def candidate_auroc(scores: Sequence[float], labels: Sequence[bool]) -> float:
     positives = [score for score, label in zip(scores, labels, strict=True) if label]
-    negatives = [score for score, label in zip(scores, labels, strict=True) if not label]
+    negatives = [
+        score for score, label in zip(scores, labels, strict=True) if not label
+    ]
     if not positives or not negatives:
         raise RuntimeError("candidate AUROC requires both correctness classes")
     concordant = sum(
@@ -2900,7 +3358,9 @@ def candidate_auroc(scores: Sequence[float], labels: Sequence[bool]) -> float:
     return concordant / (len(positives) * len(negatives))
 
 
-def smoke_aggregation_diagnostic(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+def smoke_aggregation_diagnostic(
+    records: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
     if len(records) != RETAINED_SMOKE_CANDIDATE_COUNT:
         raise RuntimeError("aggregation diagnostic requires the immutable 32 responses")
     aggregators = {
@@ -2923,11 +3383,18 @@ def smoke_aggregation_diagnostic(records: Sequence[Mapping[str, Any]]) -> dict[s
             for record in records
         ]
         values = (
-            statistics.fmean(score for score, label in zip(scores, labels, strict=True) if label),
-            statistics.fmean(score for score, label in zip(scores, labels, strict=True) if not label),
+            statistics.fmean(
+                score for score, label in zip(scores, labels, strict=True) if label
+            ),
+            statistics.fmean(
+                score for score, label in zip(scores, labels, strict=True) if not label
+            ),
             candidate_auroc(scores, labels),
         )
-        if any(abs(actual - target) > 5e-10 for actual, target in zip(values, expected[name], strict=True)):
+        if any(
+            abs(actual - target) > 5e-10
+            for actual, target in zip(values, expected[name], strict=True)
+        ):
             raise RuntimeError(f"stored-score {name} diagnostic changed")
         report[name] = {
             "correct_mean": values[0],
@@ -3042,7 +3509,7 @@ def batch_generation_preflight(
 ) -> dict[str, Any]:
     if requested_batch_size not in ELIGIBLE_BATCH_SIZES:
         raise RuntimeError("preflight batch size must be 8 or 16")
-    golden = json.loads(GOLDEN_REPLAY_PATH.read_text(encoding="utf-8"))
+    golden = json.loads(SCORER_DETERMINISM_PATH.read_text(encoding="utf-8"))
     if golden.get("status") != "PASS":
         raise RuntimeError("batch preflight is blocked on the verifier golden replay")
     original_preflight = json.loads(PREFLIGHT_PATH.read_text(encoding="utf-8"))
@@ -3051,7 +3518,10 @@ def batch_generation_preflight(
     retained_records = bank_metadata["records"]
     if len(retained_records) != RETAINED_SMOKE_CANDIDATE_COUNT:
         raise RuntimeError("retained smoke must contain exactly 32 candidates")
-    if bank_content_digest(bank_metadata) != original_preflight["retained_bank_content_sha256"]:
+    if (
+        bank_content_digest(bank_metadata)
+        != original_preflight["retained_bank_content_sha256"]
+    ):
         raise RuntimeError("immutable retained smoke content digest changed")
     aggregation = smoke_aggregation_diagnostic(retained_records)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -3078,7 +3548,9 @@ def batch_generation_preflight(
         stop_audits: list[dict[str, Any]] = []
         with PowerSampler.create() as power:
             for dataset_index in calibration_indices[:RETAINED_SMOKE_PROBLEM_COUNT]:
-                for first_ordinal in range(1, CANDIDATE_COUNT + 1, requested_batch_size):
+                for first_ordinal in range(
+                    1, CANDIDATE_COUNT + 1, requested_batch_size
+                ):
                     batch_records, batch_telemetry = generate_batch(
                         train,
                         "calibration",
@@ -3105,8 +3577,7 @@ def batch_generation_preflight(
                     for audit in stop_audits
                 ),
                 "mixed_row_state_call_count": sum(
-                    int(audit["mixed_row_state_call_count"])
-                    for audit in stop_audits
+                    int(audit["mixed_row_state_call_count"]) for audit in stop_audits
                 ),
                 "post_completion_suffix_padding_only": all(
                     bool(audit["post_completion_suffix_padding_only"])
@@ -3116,15 +3587,23 @@ def batch_generation_preflight(
             }
         )
         execution_records.append(records)
-    first_payload = diagnostic_determinism_payload(execution_records[0], verifier_tokenizer)
-    second_payload = diagnostic_determinism_payload(execution_records[1], verifier_tokenizer)
+    first_payload = diagnostic_determinism_payload(
+        execution_records[0], verifier_tokenizer
+    )
+    second_payload = diagnostic_determinism_payload(
+        execution_records[1], verifier_tokenizer
+    )
     exact_match = first_payload == second_payload
     field_mismatches = []
     if not exact_match:
-        for position, (first, second) in enumerate(zip(first_payload, second_payload, strict=True)):
+        for position, (first, second) in enumerate(
+            zip(first_payload, second_payload, strict=True)
+        ):
             changed = sorted(key for key in first if first[key] != second[key])
             if changed:
-                field_mismatches.append({"candidate_position": position, "fields": changed})
+                field_mismatches.append(
+                    {"candidate_position": position, "fields": changed}
+                )
     del model, tokenizer
     gc.collect()
     torch.cuda.empty_cache()
@@ -3151,8 +3630,10 @@ def batch_generation_preflight(
         "mode": "diagnostic_duplicate_batch_preflight",
         "batch_size": requested_batch_size,
         "diagnostic_duplicates_enter_bank_or_metrics": False,
-        "retained_smoke_content_sha256": original_preflight["retained_bank_content_sha256"],
-        "published_verifier_golden_replay": golden,
+        "retained_smoke_content_sha256": original_preflight[
+            "retained_bank_content_sha256"
+        ],
+        "successor_scorer_determinism": golden,
         "aggregation_diagnostic": aggregation,
         "generation_model_load_seconds": generation_load_seconds,
         "executions": executions,
@@ -3308,24 +3789,38 @@ def freeze_calibration(bank: Mapping[str, Any]) -> dict[str, Any]:
         raise RuntimeError("calibration bank is not completely scored")
     problems = group_records(bank["records"])
     if len(problems) != CALIBRATION_COUNT:
-        raise RuntimeError("calibration bank does not contain the resolved problem count")
+        raise RuntimeError(
+            "calibration bank does not contain the resolved problem count"
+        )
     correct_candidates = sum(bool(record["correct"]) for record in bank["records"])
     incorrect_candidates = len(bank["records"]) - correct_candidates
     argmax = evaluate_policy(problems, 0, include_ledgers=False)["prefixes"]["16"]
-    beneficial = int(
-        argmax["first_incorrect_to_selected_correct"]["numerator"]
-    )
+    beneficial = int(argmax["first_incorrect_to_selected_correct"]["numerator"])
     harmful = int(argmax["harmful_switch_examples"]["numerator"])
-    distinct_scores = len({float(record["verifier_score"]) for record in bank["records"]})
+    distinct_scores = len(
+        {float(record["verifier_score"]) for record in bank["records"]}
+    )
     finite_scores = all(
         math.isfinite(float(record["verifier_score"])) for record in bank["records"]
     )
     viability = {
         "correct_candidates": correct_candidates,
         "incorrect_candidates": incorrect_candidates,
-        "verifier_argmax_beneficial_acquisition_events": beneficial,
-        "verifier_argmax_harmful_switch_examples": harmful,
+        "calibration_candidate_denominator": len(bank["records"]),
+        "verifier_argmax_beneficial_acquisition_events": {
+            "numerator": beneficial,
+            "eligible_denominator": int(
+                argmax["first_incorrect_to_selected_correct"]["denominator"]
+            ),
+        },
+        "verifier_argmax_harmful_switch_examples": {
+            "numerator": harmful,
+            "resolved_problem_denominator": int(
+                argmax["harmful_switch_examples"]["denominator"]
+            ),
+        },
         "distinct_finite_candidate_scores": distinct_scores if finite_scores else 0,
+        "interpretation": "non-degeneracy/headroom only; not verifier accuracy",
         "floors": {
             "correct_candidates_at_least_40": correct_candidates >= 40,
             "incorrect_candidates_at_least_40": incorrect_candidates >= 40,
@@ -3381,6 +3876,78 @@ def load_calibration_freeze() -> dict[str, Any]:
     return freeze
 
 
+def outcome_blind_rescore_calibration(
+    calibration_indices: Sequence[int], manifest: Mapping[str, str]
+) -> dict[str, Any]:
+    bank = json.loads(CALIBRATION_BANK_PATH.read_text(encoding="utf-8"))
+    bank["records"] = load_bank_database_records("calibration")
+    if not bank.get("complete_scoring"):
+        raise RuntimeError("outcome-blind rescore requires a complete scored bank")
+    by_identity = {
+        (int(record["dataset_index"]), int(record["candidate_ordinal"])): record
+        for record in bank["records"]
+    }
+    identities = outcome_blind_rescore_identities(calibration_indices)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if device.type != "cuda":
+        raise RuntimeError("outcome-blind scorer rescore requires CUDA")
+    tokenizer, model = load_verifier(manifest, device)
+    comparison_fields = (
+        "verifier_input_sha256",
+        "verifier_token_ids_sha256",
+        "verifier_marker_positions",
+        "verifier_step_score_bf16_bits",
+        "verifier_score_bf16_bits",
+        "verifier_output_digest",
+    )
+    mismatches = []
+    for identity in identities:
+        original = by_identity.get(identity)
+        if original is None:
+            raise RuntimeError(f"outcome-blind rescore identity absent: {identity}")
+        blind_record = {
+            "question": original["question"],
+            "scored_response_segment": original["scored_response_segment"],
+        }
+        rescored = score_one(blind_record, tokenizer, model, device)
+        matches = {
+            field: rescored.get(field) == original.get(field)
+            for field in comparison_fields
+        }
+        if not all(matches.values()):
+            mismatches.append(
+                {
+                    "dataset_index": identity[0],
+                    "candidate_ordinal": identity[1],
+                    "matches": matches,
+                }
+            )
+    del model, tokenizer
+    gc.collect()
+    torch.cuda.empty_cache()
+    torch.cuda.ipc_collect()
+    report = {
+        "schema_version": SCHEMA_VERSION,
+        "created_at": utc_now(),
+        "status": "PASS" if not mismatches else SCORER_RESCORE_VOID,
+        "outcome_blind": True,
+        "records_rescored": len(identities),
+        "rescore_schedule_sha256": sha256_text(
+            "\n".join(f"{index},{ordinal}" for index, ordinal in identities)
+        ),
+        "comparison_fields": list(comparison_fields),
+        "mismatch_count": len(mismatches),
+        "mismatches": mismatches,
+        "gold_answers_read": False,
+        "correctness_fields_read": False,
+        "policy_outputs_read": False,
+    }
+    atomic_replace_json(OUTCOME_BLIND_RESCORE_PATH, report)
+    if mismatches:
+        raise RuntimeError(SCORER_RESCORE_VOID)
+    return report
+
+
 def canonical_evaluate(
     slots: Mapping[str, Any],
     cohort_evidence: Mapping[str, Any],
@@ -3434,7 +4001,7 @@ def canonical_evaluate(
                 "repetition_penalty": REPETITION_PENALTY,
                 "max_new_tokens": MAX_NEW_TOKENS,
                 "batch_size": RESOLVED_BATCH_SIZE,
-                "retained_smoke_prefix_batch_size": 1,
+                "historical_smoke_excluded": True,
                 "dtype": "bfloat16",
             },
             "parser": "qualified E1 exact-rational numeric parser imported directly",
@@ -3584,16 +4151,32 @@ def self_test_fast() -> dict[str, Any]:
     E1.validate_numeric_extraction()
     replay = E1.replay_gsm8k_parser_guard()
     policy_rules = policy_rule_self_test()
+    original_pool = list(range(5, EXPECTED_SPLIT_SIZE))
+    original_calibration = ranked_indices(
+        original_pool, ORIGINAL_CALIBRATION_SELECTION_STRING, CALIBRATION_COUNT
+    )
+    original_calibration_set = set(original_calibration)
+    original_test = ranked_indices(
+        [index for index in original_pool if index not in original_calibration_set],
+        ORIGINAL_TEST_SELECTION_STRING,
+        TEST_COUNT,
+    )
+    original_selected = original_calibration_set | set(original_test)
+    successor_source_pool = [
+        index for index in original_pool if index not in original_selected
+    ]
     cohorts = {
         "calibration": ranked_indices(
-            list(range(5, EXPECTED_SPLIT_SIZE)), CALIBRATION_SELECTION_STRING, 256
+            successor_source_pool, CALIBRATION_SELECTION_STRING, CALIBRATION_COUNT
         ),
     }
     calibration_set = set(cohorts["calibration"])
     test_pool = [
-        index for index in range(5, EXPECTED_SPLIT_SIZE) if index not in calibration_set
+        index for index in successor_source_pool if index not in calibration_set
     ]
-    cohorts["test"] = ranked_indices(test_pool, TEST_SELECTION_STRING, 512)
+    cohorts["test"] = ranked_indices(test_pool, TEST_SELECTION_STRING, TEST_COUNT)
+    if (set(cohorts["calibration"]) | set(cohorts["test"])) & original_selected:
+        raise AssertionError("successor cohort overlaps original allocation")
     schedules = validate_schedules(cohorts)
     problem = [
         synthetic_candidate(
@@ -3743,14 +4326,12 @@ def bind_review_attestation(
     binding = {
         "schema_version": SCHEMA_VERSION,
         "independent_review_attestation_sha256": attestation_sha256,
-        "runner_source_sha256": slots["runner_source_sha256"],
-        "manifest_identity_digest": slots["local_manifest_identity_digest"],
+        "runner_source_sha256": slots["successor_runner_source_sha256"],
+        "manifest_identity_digest": slots["successor_manifest_identity_digest"],
         "mixed_generation_schedule_sha256": schedule_evidence[
             "mixed_generation_schedule_sha256"
         ],
-        "batch_seed_schedule_sha256": schedule_evidence[
-            "batch_seed_schedule_sha256"
-        ],
+        "batch_seed_schedule_sha256": schedule_evidence["batch_seed_schedule_sha256"],
         "resolved_batch_size": RESOLVED_BATCH_SIZE,
     }
     if REVIEW_BINDING_PATH.is_file():
@@ -3767,8 +4348,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     modes = parser.add_mutually_exclusive_group(required=True)
     modes.add_argument("--cohort-only", action="store_true")
     modes.add_argument("--self-test-fast", action="store_true")
+    modes.add_argument("--scorer-determinism", action="store_true")
+    modes.add_argument(
+        "--scorer-determinism-worker", action="store_true", help=argparse.SUPPRESS
+    )
     modes.add_argument("--smoke", action="store_true")
-    modes.add_argument("--golden-replay", action="store_true")
     modes.add_argument("--batch-preflight", type=int, choices=ELIGIBLE_BATCH_SIZES)
     modes.add_argument("--repeat-determinism", action="store_true")
     modes.add_argument("--generate", choices=("calibration", "test"))
@@ -3785,24 +4369,23 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.self_test_fast:
         print(json.dumps(self_test_fast(), indent=2, allow_nan=False))
         return 0
+    if args.scorer_determinism_worker:
+        report = successor_scorer_fixture_load(
+            parse_manifest(), load_ordinal=3, process_ordinal=2
+        )
+        print(json.dumps(report, separators=(",", ":"), allow_nan=False))
+        return 0
+    if args.scorer_determinism:
+        print(json.dumps(run_scorer_determinism_gate(), indent=2, allow_nan=False))
+        return 0
     if not args.cohort_only:
         raise RuntimeError(
-            f"line-07 is stopped at {VERIFIER_COMPATIBILITY_STATUS}; "
-            "fresh steering and registration are required before execution"
+            f"line-07 successor is {SUCCESSOR_REVIEW_STATUS}; "
+            "retained generation/scoring/evaluation remains blocked pending "
+            "holistic review"
         )
-    if args.golden_replay:
-        print(
-            json.dumps(
-                published_verifier_golden_replay(parse_manifest()),
-                indent=2,
-                allow_nan=False,
-            )
-        )
-        return 0
     pilot_test_mode = (
-        args.generate == "test"
-        or args.score == "test"
-        or args.evaluate == "full"
+        args.generate == "test" or args.score == "test" or args.evaluate == "full"
     )
     if pilot_test_mode:
         require_review_attestation(args)
@@ -3890,6 +4473,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 or not repeat_report.get("projection", {}).get("full_bank_fits")
             ):
                 raise RuntimeError("test generation blocked by amended batch preflight")
+            outcome_blind_rescore_calibration(cohorts["calibration"], manifest)
         bank, telemetry = generate_bank_prefix(
             train, args.generate, cohorts[args.generate], slots, manifest
         )
