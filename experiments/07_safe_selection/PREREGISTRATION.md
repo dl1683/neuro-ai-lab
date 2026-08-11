@@ -1,6 +1,6 @@
 # Frozen Best-of-N Safe Selection Pilot Preregistration
 
-Status: **SUCCESSOR IMPLEMENTED AND HASH-BOUND / SCORER DETERMINISM PASS / READY-FOR-HOLISTIC-REVIEW / NOT RUN**
+Status: **OPTION-A SUCCESSOR TERMINAL PREFLIGHT STOP / COMPUTE CAP / NO RETAINED DATA / NO SCIENTIFIC OUTCOME**
 
 This is the single canonical preregistration for the frozen best-of-\(N\) safe-selection pilot. It tests an inference-layer selection law over independent stochastic samples. It is not a UESD-lineage experiment, does not reopen the D38–D40 fixed-point arc, and cannot alter, rescue, delay, reinterpret, or adjudicate E2 or the preregistered 0.5B semantic-ratchet experiment. No result is claimed here.
 
@@ -1749,3 +1749,37 @@ Status is **`POST-FIX DELTA REVIEW CLEAN / THROWAWAY PROBE AUTHORIZED BUT UNRUN 
 NO RETAINED DATA`**. The attested diagnostic eligibility probe is the next
 permissible action. Retained calibration generation remains stage- and
 cap-blocked.
+
+## Terminal cap-preflight record — 2026-08-11
+
+The exact attested runner executed the registered batch-8 probe first and the
+conditionally authorized batch-16 probe second. Both probe sizes passed the
+technical duplicate-determinism, per-row stopping, VRAM, CUDA, process-leak,
+and checkpoint-consistency checks. Neither passed the strict compute-cap gate.
+
+| Batch | Duplicate match | Larger execution wall time | Full-bank projection | Maximum problems below 8,100s | Cap eligible |
+|---:|---:|---:|---:|---:|---:|
+| 8 | 32/32 | 30.2492013s | 12,731.6355459s | 486 | no |
+| 16 | 32/32 | 91.5409848s | 36,205.6469565s | 171 | no |
+
+The registered minimum canonical size is 512 total problems. Because the
+faster eligible engineering configuration supported at most 486, the probe
+stage could not persist `PASS`, cap resolution was not authorized, and the
+forward-only sequence stopped before retained generation. No stage ledger,
+cap-resolution artifact, retained GPU-time ledger, calibration/test bank,
+calibration outcome, viability metric, rescore, policy evaluation, bootstrap,
+permutation, or CONFIRM/KILL/VOID result exists.
+
+The controlling stop token is **`PREFLIGHT_STOP_COMPUTE_CAP`**. This is an
+operational pre-retained-data stop, not a scientific KILL or VOID. The tested
+safe-selection law remains unadjudicated. The immutable tracked stop artifact
+is `experiments/07_safe_selection/results/exp_bon_safe_selection_cap_preflight.json`
+(canonical-LF SHA-256 `8f7d3be695f5503bd5a0a87a09651f52ab38a0adb4a04483d9a4be842d8da0c2`).
+The source batch-8 and batch-16 probe artifacts have SHA-256
+`0f184c0c9876938dedc50a146d36804afb9c71e9f88274b641e21879702ca66c`
+and `840fe2dbc6bec1c6793eeda93b73dcfa28f01cdbd693fa259927257132fa78c0`.
+
+Current boundary: **`TERMINAL PREFLIGHT STOP / COMPUTE CAP / NO RETAINED DATA /
+NO SCIENTIFIC OUTCOME`**. No probe retry, cap resolution, calibration stage,
+resize below the registered minimum, or later stage is authorized by this
+attempt.

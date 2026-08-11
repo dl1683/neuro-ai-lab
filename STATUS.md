@@ -1,6 +1,6 @@
 # Repository Status
 
-Audited snapshot through the terminal base-A/SVAMP adjudication, the single canonical base-B successor-gate `PASS`, the single E2 mechanics-pilot attempt with a controlling post-evidence `VOID`, the completed E2-DIAG Stage-0 `STOP`, the terminal E3 preflight `PREFLIGHT_STOP`, and the E3 interface-supervision diagnostic frozen as not launchable after its bounded re-review found a design-level lexical shortcut. No diagnostic cell ran and no scientific conclusion was drawn. The base-B artifact is immutable band-placement evidence only; E2, E2-DIAG, E3 preflight, and the frozen diagnostic are diagnostic/design-gate surfaces only.
+Audited snapshot through the terminal base-A/SVAMP adjudication, the single canonical base-B successor-gate `PASS`, the single E2 mechanics-pilot attempt with a controlling post-evidence `VOID`, the completed E2-DIAG Stage-0 `STOP`, the terminal E3 preflight `PREFLIGHT_STOP`, the E3 interface-supervision diagnostic frozen as not launchable after its bounded re-review found a design-level lexical shortcut, and the Line-07 Option-A successor stopped before retained data at its registered compute-cap gate. No Line-07 scientific conclusion was drawn. The base-B artifact is immutable band-placement evidence only; E2, E2-DIAG, E3 preflight, the frozen diagnostic, and the Line-07 cap stop remain bounded evidence surfaces.
 
 **This file is the sole authority for current state.** Experiment writeups, proofs, and reviews are point-in-time evidence; earlier reviews and evidence gates may contain predictions that later experiments falsified.
 
@@ -20,7 +20,7 @@ Audited snapshot through the terminal base-A/SVAMP adjudication, the single cano
 | 04 Circuit-viability pruning | FROZEN / AUDITED | Claim audit `234/234`; SynFlow pathology audit passes; mechanism supported within recorded scope. | `docs/CIRCUIT_VIABILITY_PRUNING_REPORT.md`, `docs/CLAIM_EVIDENCE_LEDGER.md`, `docs/CLAIM_AUDIT.md`, `results/04_criticality_pruning/` |
 | 06 UESD — fixed-point arc | CONVERGENCE ARC CLOSED NEGATIVE | D40 falsifies the tested self-consistency fixed-point thesis; the system behaves as a finite-time transient solver. Surviving core: D22 variable-T k-suppression. | D40 ledger entry, `experiments/06_uesd/results/exp_d40_extended_convergence.json`, `docs/UNIFIED_ERROR_SPACE.md` |
 | 06 UESD — semantic ratchet | BASE-A TASK-BAND TERMINAL VOID / BASE-B TASK-BAND PASS / E2 CONTROLLING VOID / E2-DIAG STAGE-0 STOP / E3 PREFLIGHT STOP / INTERFACE-SUPERVISION DIAGNOSTIC FROZEN-NOT-LAUNCHABLE | Base-B satisfied the separate band-placement prerequisite. E2 remains controlling `VOID`; E2-DIAG killed the from-scratch line. E3 stopped at `PREFLIGHT_STOP / PRETRAINED_INTERFACE_COMPETENCE_SMOKE_MISS`. The permitted diagnostic correction cycle and independent re-review are exhausted: I2 retained a queried-word occurrence-count imbalance whose single-feature affine probe reached 69.73%, requiring dataset/label reconstruction. Under the bottom-out rule the diagnostic is frozen without a scientific conclusion. No diagnostic cell, E3 canonical stage, official test, or 0.5B launch is authorized. | `experiments/06_uesd/E3_INTERFACE_SUPERVISION_DIAGNOSTIC_PREREGISTRATION.md`, `experiments/06_uesd/results/exp_e3_preflight.json`, `experiments/06_uesd/results/exp_e2_diag_stage0_instrumented.json`, `experiments/06_uesd/results/exp_e2_latch_mechanics.json`, `experiments/06_uesd/results/exp_e1_task_band_base_b.json` |
-| 07 Best-of-N safe selection | OPTION-A SUCCESSOR POST-FIX / HASH-BOUND / SCORER DETERMINISM PASS / DELTA REVIEW CLEAN / THROWAWAY PROBE AUTHORIZED BUT UNRUN | The original attempt remains closed at `PREFLIGHT_STOP_IMPLEMENTATION_DISCREPANCY`, and its retained 2-problem x 16-candidate smoke remains immutable historical design data. The successor now enforces an attested, forward-only `probe -> cap_resolution -> calibration -> viability -> rescore -> test` ledger, strict sub-8,100s cap resolution, additive retained-GPU accounting, one-shot integrity gates, and immutable/restart-reconcilable VOID landing. Runner SHA-256 is `49af8237e6de5373a109eb47e71ff0b39efe805750e3fa2bd0c8f15da51b3b26`; clean delta-review SHA-256 is `f2a099ea60d44bb9809fa1e2cfa614c4066c242ba7580c55bdad176a6f59bffc`. No eligibility probe, retained generation, or successor-bank scoring occurred. Only the attested throwaway diagnostic probe is authorized; retained generation remains stage- and cap-blocked. | `experiments/07_safe_selection/PREREGISTRATION.md`, `experiments/07_safe_selection/exp_f1_bon_safe_selection.py` |
+| 07 Best-of-N safe selection | OPTION-A SUCCESSOR TERMINAL PREFLIGHT STOP / COMPUTE CAP / NO RETAINED DATA / NO SCIENTIFIC OUTCOME | The original attempt remains closed at `PREFLIGHT_STOP_IMPLEMENTATION_DISCREPANCY`. The attested successor ran batch 8 first and batch 16 only after batch 8 failed the full-bank cap rule. Both were technically reproducible (32/32 exact diagnostic candidates) but cap-ineligible: batch 8 projected 12,731.64s and at most 486 problems; batch 16 projected 36,205.65s and at most 171, both below the registered 512-problem minimum under the strict 8,100s ceiling. The controlling successor token is `PREFLIGHT_STOP_COMPUTE_CAP`; no retained response, calibration/test outcome, policy result, or scientific verdict exists. | `experiments/07_safe_selection/results/exp_bon_safe_selection_cap_preflight.json`, `experiments/07_safe_selection/PREREGISTRATION.md` |
 | 01/02/03/05 pilots | FROZEN HISTORICAL | Single-run pilots; no active roadmap or runner. 01 failed; 02/03 modest wins on toy tasks; 05 efficiency win with failed DDM fit. | `results/01..05/pilot_result.json`, `results/pilot_suite_summary.json`, frozen-pilots table in `experiments/EXPERIMENTS.md` |
 
 ## 04 — Circuit-Viability Pruning
@@ -165,6 +165,27 @@ The attested throwaway diagnostic eligibility probe is authorized but unrun;
 retained calibration generation remains blocked on probe and cap-resolution
 PASS.
 
+**Line-07 Option-A successor outcome:** **`PREFLIGHT_STOP_COMPUTE_CAP / NO
+RETAINED DATA / NO SCIENTIFIC OUTCOME`**. The registered batch-8 probe ran
+first. Its 2/2 duplicate executions matched all 32/32 candidate records and
+passed stopping, VRAM, CUDA, checkpoint, and process-leak checks, but projected
+the full 768-problem bank at 12,731.6355s and supported at most 486 problems
+below the strict 8,100s authorizing ceiling. Because that did not fit the full
+bank, batch 16 was permitted; its 2/2 executions also matched 32/32 and passed
+the same technical checks, but projected 36,205.6470s and at most 171 problems.
+Both maxima are below the registered 512-problem minimum. The probe stage did
+not pass and cap resolution was never authorized.
+
+The probes generated 128/128 throwaway candidate executions; 0/128 entered a
+retained bank. No retained response, successor score, calibration/test outcome,
+headroom metric, rescore, policy evaluation, bootstrap, permutation, or
+CONFIRM/KILL/VOID result exists. The immutable cap-stop artifact is
+`experiments/07_safe_selection/results/exp_bon_safe_selection_cap_preflight.json`
+(canonical-LF SHA-256 `8f7d3be695f5503bd5a0a87a09651f52ab38a0adb4a04483d9a4be842d8da0c2`).
+This operational stop does not test or kill the registered safe-selection law.
+No retry, sub-minimum resize, cap resolution, calibration, or later stage is
+authorized by this attempt.
+
 Operationally, two earlier GSM8K canonical invocations were killed before GPU use while sandboxed dataset loading stalled on user-profile Hugging Face cache lock files; neither wrote an evidence artifact. The successful GSM8K attempt and the SVAMP initial attempt used the ignored workspace-local `.hf_cache/` fully offline. The SVAMP loader began GPU work immediately, so its 10-minute watchdog did not trigger.
 
 ### Canonical Documents and Evidence
@@ -199,6 +220,7 @@ The fixed-point convergence arc is closed. D40 stands at 15/16; rerunning the cr
 | E3 interface-supervision diagnostic preregistration | `experiments/06_uesd/E3_INTERFACE_SUPERVISION_DIAGNOSTIC_PREREGISTRATION.md` |
 | E2 optimizer's-curse secondary analysis | `experiments/06_uesd/E2_SECONDARY_ANALYSIS_CURSE.md` (informational only; subordinate to E2 adjudication) |
 | Best-of-N safe-selection preregistration | `experiments/07_safe_selection/PREREGISTRATION.md` |
+| Best-of-N safe-selection cap-stop audit | `experiments/07_safe_selection/audit_safe_selection_cap_stop.py` |
 | Experiment chronology | `experiments/EXPERIMENTS.md` + `experiments/ledger.jsonl` |
 | UESD theorem catalog | `experiments/06_uesd/proofs/theory_summary.md` (supporting only) |
 | Raw evidence | `results/` for 01-05 and 04; `experiments/06_uesd/results/` for 06 (do not relocate) |

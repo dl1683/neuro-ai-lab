@@ -1,0 +1,248 @@
+{
+  "schema_version": "1.0.0",
+  "created_at": "2026-08-11T07:21:42.845224+00:00",
+  "experiment": "line-07 Option-A successor registered sequence",
+  "stop_token": "PREFLIGHT_STOP_COMPUTE_CAP",
+  "stop_stage": "probe",
+  "scientific_outcome": false,
+  "scientific_verdict": "N/A",
+  "claim_authorized": false,
+  "summary": "The two registered throwaway duplicate probes were technically reproducible, but neither batch size authorized a canonical bank below the strict 8100-second ceiling. Batch 8 was faster and projected at most 486 total problems, below the registered 512-problem minimum; batch 16 projected at most 171. The successor law was not tested.",
+  "claim_language_boundary": {
+    "permitted": "The registered Option-A successor stopped at its pre-retained-data compute-cap gate on this machine.",
+    "forbidden": [
+      "CONFIRM",
+      "KILL",
+      "VOID",
+      "safe selection succeeded",
+      "safe selection failed scientifically",
+      "verifier argmax beat or lost to any policy",
+      "any accuracy, switch, bootstrap, or permutation claim"
+    ]
+  },
+  "attestation": {
+    "runner_source_sha256": "49af8237e6de5373a109eb47e71ff0b39efe805750e3fa2bd0c8f15da51b3b26",
+    "delta_review_sha256": "f2a099ea60d44bb9809fa1e2cfa614c4066c242ba7580c55bdad176a6f59bffc",
+    "review_binding_artifact_sha256": "46db47709156b158587491c73c3c6ce250bba129702f5529cd23acf11486e61b",
+    "manifest_identity_digest": "4f7112fd7af77bdff204a17f5345f3a91b01c0794ef851df9a58e61456e39c6d",
+    "scorer_determinism_artifact_sha256": "eb429dd494983a53880ea27c3d17228190156e8ebda65137881dff09542ab728",
+    "scorer_determinism_comparison_digest": "b2c673a51f7d473766ac7b201cecc96a69810ec4b5f50505f751af665dd2cb06",
+    "scorer_determinism_clean_loads": {
+      "numerator": 3,
+      "denominator": 3
+    },
+    "scorer_determinism_fresh_processes": {
+      "numerator": 2,
+      "denominator": 2
+    }
+  },
+  "protocol": {
+    "forward_only_sequence": [
+      "probe",
+      "cap_resolution",
+      "calibration",
+      "viability",
+      "rescore",
+      "test"
+    ],
+    "last_reached_stage": "probe",
+    "stage_ledger_created": false,
+    "cap_resolution_created": false,
+    "authorizing_ceiling_seconds": 8100.0,
+    "operational_headroom_seconds": 900.0,
+    "minimum_canonical_problem_count": 512,
+    "full_bank_problem_count": 768,
+    "full_bank_response_count": 12288,
+    "selected_batch_size": "N/A",
+    "resolved_calibration_count": 0,
+    "resolved_test_count": 0,
+    "retained_gpu_time_ledger_created": false
+  },
+  "probe_results": {
+    "batch_8": {
+      "source_artifact_sha256": "0f184c0c9876938dedc50a146d36804afb9c71e9f88274b641e21879702ca66c",
+      "created_at": "2026-08-11T07:18:44.884208+00:00",
+      "diagnostic_successor_rows": [3290, 77],
+      "diagnostic_unique_candidates": 32,
+      "duplicate_executions": {
+        "numerator": 2,
+        "denominator": 2
+      },
+      "exact_match_candidates": {
+        "numerator": 32,
+        "denominator": 32
+      },
+      "determinism_sha256": "ed0b29bb6713e3cde1de2af44411b9f7779dcc65e598f8ec0e9df9345ac48dcf",
+      "technical_eligibility": true,
+      "vram_pass": true,
+      "per_row_stopping_pass": true,
+      "nan_or_cuda_error": false,
+      "process_leak": false,
+      "checkpoint_inconsistency": false,
+      "generation_model_load_seconds": 3.148669400019571,
+      "executions": [
+        {
+          "execution_index": 1,
+          "wall_seconds": 25.0046135999728,
+          "peak_reserved_bytes": 4913627136,
+          "peak_allocated_bytes": 4117231616,
+          "rows_completed_before_batch_end": 24,
+          "post_completion_suffix_padding_only": true,
+          "power": {
+            "sample_count": 96,
+            "average_active_watts": 132.52769791666665,
+            "peak_watts": 171.679,
+            "watt_hours": 0.920501077138936
+          }
+        },
+        {
+          "execution_index": 2,
+          "wall_seconds": 30.249201300001005,
+          "peak_reserved_bytes": 4913627136,
+          "peak_allocated_bytes": 4117231616,
+          "rows_completed_before_batch_end": 24,
+          "post_completion_suffix_padding_only": true,
+          "power": {
+            "sample_count": 116,
+            "average_active_watts": 85.02670689655173,
+            "peak_watts": 108.62,
+            "watt_hours": 0.7144416591083269
+          }
+        }
+      ],
+      "projection": {
+        "formula": "H_b(M)=smoke_generation+g_b*(16M-32)+s*16M+model_load_overhead",
+        "g_b_seconds_per_response": 0.9452875406250314,
+        "retained_smoke_generation_wall_seconds": 110.15521369999624,
+        "retained_smoke_scoring_seconds_per_response": 0.0833382562495899,
+        "combined_model_load_overhead_seconds": 11.975741500020376,
+        "full_bank_projection_seconds": 12731.635545895362,
+        "full_bank_projection_hours": 3.5365654294153783,
+        "maximum_problem_count_under_ceiling": 486,
+        "full_bank_fits": false,
+        "canonical_launch_size_authorized": false
+      },
+      "cap_eligible": false,
+      "status": "FAIL"
+    },
+    "batch_16": {
+      "source_artifact_sha256": "840fe2dbc6bec1c6793eeda93b73dcfa28f01cdbd693fa259927257132fa78c0",
+      "created_at": "2026-08-11T07:21:42.845224+00:00",
+      "diagnostic_successor_rows": [3290, 77],
+      "diagnostic_unique_candidates": 32,
+      "duplicate_executions": {
+        "numerator": 2,
+        "denominator": 2
+      },
+      "exact_match_candidates": {
+        "numerator": 32,
+        "denominator": 32
+      },
+      "determinism_sha256": "173653191e8a0c02ab3c372f93364ff2e059196232b7aca974270f4f28448271",
+      "technical_eligibility": true,
+      "vram_pass": true,
+      "per_row_stopping_pass": true,
+      "nan_or_cuda_error": false,
+      "process_leak": false,
+      "checkpoint_inconsistency": false,
+      "generation_model_load_seconds": 2.406999500002712,
+      "executions": [
+        {
+          "execution_index": 1,
+          "wall_seconds": 36.9141008000006,
+          "peak_reserved_bytes": 6473908224,
+          "peak_allocated_bytes": 5096533504,
+          "rows_completed_before_batch_end": 23,
+          "post_completion_suffix_padding_only": true,
+          "power": {
+            "sample_count": 141,
+            "average_active_watts": 85.23575177304964,
+            "peak_watts": 163.327,
+            "watt_hours": 0.874000314642829
+          }
+        },
+        {
+          "execution_index": 2,
+          "wall_seconds": 91.54098479999811,
+          "peak_reserved_bytes": 6473908224,
+          "peak_allocated_bytes": 5096533504,
+          "rows_completed_before_batch_end": 23,
+          "post_completion_suffix_padding_only": true,
+          "power": {
+            "sample_count": 348,
+            "average_active_watts": 57.74345114942529,
+            "peak_watts": 76.333,
+            "watt_hours": 1.4683034399913817
+          }
+        }
+      ],
+      "projection": {
+        "formula": "H_b(M)=smoke_generation+g_b*(16M-32)+s*16M+model_load_overhead",
+        "g_b_seconds_per_response": 2.860655774999941,
+        "retained_smoke_generation_wall_seconds": 110.15521369999624,
+        "retained_smoke_scoring_seconds_per_response": 0.0833382562495899,
+        "combined_model_load_overhead_seconds": 11.234071600003517,
+        "full_bank_projection_seconds": 36205.64695649424,
+        "full_bank_projection_hours": 10.057124154581732,
+        "maximum_problem_count_under_ceiling": 171,
+        "full_bank_fits": false,
+        "canonical_launch_size_authorized": false
+      },
+      "cap_eligible": false,
+      "status": "FAIL"
+    }
+  },
+  "compute": {
+    "probe_generation_and_load_wall_seconds": {
+      "batch_8": 58.402484300,
+      "batch_16": 130.86208510000143,
+      "total": 189.26456940000143
+    },
+    "probe_sampled_watt_hours": 3.9772464908814837,
+    "maximum_peak_allocated_bytes": 5096533504,
+    "maximum_peak_reserved_bytes": 6473908224,
+    "launch_power_state": {
+      "windows_power_scheme": "High performance",
+      "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU",
+      "gpu_pstate": "P0",
+      "gpu_power_draw_watts": 26.96,
+      "gpu_memory_used_mib": 0,
+      "gpu_utilization_percent": 0,
+      "gpu_temperature_c": 53,
+      "battery_record": "no Win32_Battery record returned"
+    },
+    "power_scheme_transitions_observed": []
+  },
+  "access_and_denominators": {
+    "throwaway_generated_candidate_executions": {
+      "numerator": 128,
+      "denominator": 128
+    },
+    "throwaway_unique_candidate_identities_per_batch_size": 32,
+    "diagnostic_duplicates_entered_retained_bank": {
+      "numerator": 0,
+      "denominator": 128
+    },
+    "retained_responses_generated": 0,
+    "successor_candidates_scored": 0,
+    "calibration_gold_answers_used_by_probe": 0,
+    "calibration_correctness_or_outcome_fields_computed": 0,
+    "test_content_exposed_to_probe": 0,
+    "test_gold_answers_used_by_probe": 0,
+    "test_correctness_or_outcome_fields_computed": 0,
+    "calibration_viability_metrics_computed": 0,
+    "outcome_blind_rescore_records": 0,
+    "policy_evaluations": 0,
+    "bootstrap_replicates": 0,
+    "permutations": 0
+  },
+  "unreached_registered_outputs": {
+    "six_policy_accuracy_table_n16": "N/A",
+    "paired_bootstrap_bounds": "N/A",
+    "harmful_switch_ledgers": "N/A",
+    "beneficial_switch_ledgers": "N/A",
+    "permutation_results": "N/A",
+    "immutable_confirm_kill_void_artifact": "N/A"
+  },
+  "deviations": []
+}
