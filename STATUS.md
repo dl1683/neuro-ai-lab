@@ -20,7 +20,7 @@ Audited snapshot through the terminal base-A/SVAMP adjudication, the single cano
 | 04 Circuit-viability pruning | FROZEN / AUDITED | Claim audit `234/234`; SynFlow pathology audit passes; mechanism supported within recorded scope. | `docs/CIRCUIT_VIABILITY_PRUNING_REPORT.md`, `docs/CLAIM_EVIDENCE_LEDGER.md`, `docs/CLAIM_AUDIT.md`, `results/04_criticality_pruning/` |
 | 06 UESD — fixed-point arc | CONVERGENCE ARC CLOSED NEGATIVE | D40 falsifies the tested self-consistency fixed-point thesis; the system behaves as a finite-time transient solver. Surviving core: D22 variable-T k-suppression. | D40 ledger entry, `experiments/06_uesd/results/exp_d40_extended_convergence.json`, `docs/UNIFIED_ERROR_SPACE.md` |
 | 06 UESD — semantic ratchet | BASE-A TASK-BAND TERMINAL VOID / BASE-B TASK-BAND PASS / E2 CONTROLLING VOID / E2-DIAG STAGE-0 STOP / E3 PREFLIGHT STOP / INTERFACE-SUPERVISION DIAGNOSTIC FROZEN-NOT-LAUNCHABLE | Base-B satisfied the separate band-placement prerequisite. E2 remains controlling `VOID`; E2-DIAG killed the from-scratch line. E3 stopped at `PREFLIGHT_STOP / PRETRAINED_INTERFACE_COMPETENCE_SMOKE_MISS`. The permitted diagnostic correction cycle and independent re-review are exhausted: I2 retained a queried-word occurrence-count imbalance whose single-feature affine probe reached 69.73%, requiring dataset/label reconstruction. Under the bottom-out rule the diagnostic is frozen without a scientific conclusion. No diagnostic cell, E3 canonical stage, official test, or 0.5B launch is authorized. | `experiments/06_uesd/E3_INTERFACE_SUPERVISION_DIAGNOSTIC_PREREGISTRATION.md`, `experiments/06_uesd/results/exp_e3_preflight.json`, `experiments/06_uesd/results/exp_e2_diag_stage0_instrumented.json`, `experiments/06_uesd/results/exp_e2_latch_mechanics.json`, `experiments/06_uesd/results/exp_e1_task_band_base_b.json` |
-| 07 Best-of-N safe selection | OPTION-A SUCCESSOR IMPLEMENTED / HASH-BOUND / SCORER DETERMINISM PASS / READY-FOR-HOLISTIC-REVIEW / NOT RUN | The original attempt remains closed at `PREFLIGHT_STOP_IMPLEMENTATION_DISCREPANCY`, and its retained 2-problem x 16-candidate smoke remains immutable historical design data. The fresh successor is implemented around the exact hash-bound `verifier-V / maintained-eager-BF16-v1` scorer. Three clean loads across two processes were bit-exact; entirely new 256/512 cohorts were bound from the 6,700-row source pool with all 768 original rows excluded. No retained generation or successor-bank scoring occurred. All retained modes remain fail-closed pending holistic review. | `experiments/07_safe_selection/PREREGISTRATION.md`, `experiments/07_safe_selection/exp_f1_bon_safe_selection.py` |
+| 07 Best-of-N safe selection | OPTION-A SUCCESSOR POST-FIX / HASH-BOUND / SCORER DETERMINISM PASS / DELTA REVIEW CLEAN / THROWAWAY PROBE AUTHORIZED BUT UNRUN | The original attempt remains closed at `PREFLIGHT_STOP_IMPLEMENTATION_DISCREPANCY`, and its retained 2-problem x 16-candidate smoke remains immutable historical design data. The successor now enforces an attested, forward-only `probe -> cap_resolution -> calibration -> viability -> rescore -> test` ledger, strict sub-8,100s cap resolution, additive retained-GPU accounting, one-shot integrity gates, and immutable/restart-reconcilable VOID landing. Runner SHA-256 is `49af8237e6de5373a109eb47e71ff0b39efe805750e3fa2bd0c8f15da51b3b26`; clean delta-review SHA-256 is `f2a099ea60d44bb9809fa1e2cfa614c4066c242ba7580c55bdad176a6f59bffc`. No eligibility probe, retained generation, or successor-bank scoring occurred. Only the attested throwaway diagnostic probe is authorized; retained generation remains stage- and cap-blocked. | `experiments/07_safe_selection/PREREGISTRATION.md`, `experiments/07_safe_selection/exp_f1_bon_safe_selection.py` |
 | 01/02/03/05 pilots | FROZEN HISTORICAL | Single-run pilots; no active roadmap or runner. 01 failed; 02/03 modest wins on toy tasks; 05 efficiency win with failed DDM fit. | `results/01..05/pilot_result.json`, `results/pilot_suite_summary.json`, frozen-pilots table in `experiments/EXPERIMENTS.md` |
 
 ## 04 — Circuit-Viability Pruning
@@ -140,6 +140,30 @@ The successor excludes all 768 rows allocated to the original attempt and constr
 **Line-07 successor implementation outcome:** **`SCORER DETERMINISM PASS / HASH-BOUND / READY-FOR-HOLISTIC-REVIEW / NOT RUN`**. The final maintained-eager scorer reproduced `[1.0, 0.1923828125, 0.98046875, 1.0]` bit-exactly in 3/3 clean loads spanning 2/2 fresh processes. The 454-token input SHA-256 was `e14ec22c375a3dbc31596964e53fe1a59b4f7264b4c73f5dcd80a1bbb3f52741`; marker positions were `[197, 333, 386, 451]`; the complete output digest was `69c6eb7edf43742d9e9e159ae6f20168732dd1e9000ea971d244758e7fed899b`. All 342 operational backbone/reward-head tensors loaded in BF16 with no missing or mismatched keys; the unused language-model head was the sole preregistered omission.
 
 CPU-only construction bound 256 new calibration and 512 new test rows from the 6,700 previously unallocated rows, excluded 768/768 original rows, left 5,932 unallocated, and found zero index or normalized-question overlap across prohibited boundaries. Prompt, generation, batch, bootstrap, permutation, outcome-blind-rescore, pseudonymous identity, manifest, scorer-source, tensor-load, and runner hashes are filled in the canonical preregistration. The runner uses a separate ignored successor work root and fails closed for every retained mode. No response was generated, no successor candidate was scored, and no calibration/test outcome or scientific metric exists. The next permissible action is holistic independent review; this status does not authorize a batch probe or retained generation.
+
+**Line-07 post-review hardening:** the six blocking lifecycle findings and six
+blocking delta findings were corrected without a retained run. The exact
+post-fix runner SHA-256 is
+`49af8237e6de5373a109eb47e71ff0b39efe805750e3fa2bd0c8f15da51b3b26`.
+The runner persists a hash-chained forward-only stage ledger, resolves and binds
+prefix-derived cohorts under a strict sub-8,100-second projection before
+calibration generation, accounts retained GPU time additively before durable
+bank transactions, makes determinism/rescore gates no-clobber and terminal, and
+lands registered integrity failures as immutable VOID results with N/A
+scientific fields. A no-clobber rescore failure record can reconcile an absent
+or PASS rescore stage to VOID and finish a missing canonical VOID after restart
+without rerunning GPU work, including when the GPU ledger is unreadable.
+Rescore itself persists STARTED before model loading; a restart promotes a
+valid orphan PASS artifact without CUDA or permanently voids an interrupted
+STARTED state with no controlling artifact. Test generation, scoring, and
+evaluation each independently
+require the bound PASS gates. The fast self-test adversarially confirms that a
+gate rerun, stage skip, interrupted rescore, and orphan PASS all fail closed or
+reconcile without GPU rerun. The final delta review is CLEAN at SHA-256
+`f2a099ea60d44bb9809fa1e2cfa614c4066c242ba7580c55bdad176a6f59bffc`.
+The attested throwaway diagnostic eligibility probe is authorized but unrun;
+retained calibration generation remains blocked on probe and cap-resolution
+PASS.
 
 Operationally, two earlier GSM8K canonical invocations were killed before GPU use while sandboxed dataset loading stalled on user-profile Hugging Face cache lock files; neither wrote an evidence artifact. The successful GSM8K attempt and the SVAMP initial attempt used the ignored workspace-local `.hf_cache/` fully offline. The SVAMP loader began GPU work immediately, so its 10-minute watchdog did not trigger.
 

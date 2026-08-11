@@ -1667,7 +1667,7 @@ complete mixed-call schedule SHA-256 is
 - `successor_manifest_identity_digest`: `4f7112fd7af77bdff204a17f5345f3a91b01c0794ef851df9a58e61456e39c6d`
 - `successor_maintained_scorer_source_sha256`: `ac4fbe44e8688de5cf8ab09baaa59546512546443df224f5f1a7bbdacba5f82f`
 - `successor_checkpoint_tensor_identity_sha256`: `e2221887f28dea5de29000221ed78d2dd9336f5d8a0e03b1a0cce9651a6d3aa7`
-- `successor_runner_source_sha256`: `fde1bd46a0376cdb793d9aaf2a4cd2f7f47763a24a62ffbdebbfa7bd27324f25`
+- `successor_runner_source_sha256`: `49af8237e6de5373a109eb47e71ff0b39efe805750e3fa2bd0c8f15da51b3b26`
 
 The unchanged qualified parser-source SHA-256 is
 `4555cf412805a261cfc8de094990ac700566022f420d556bd7860bbd7ea3c3a4`.
@@ -1683,3 +1683,69 @@ of the complete runner and bindings. Findings must be resolved before any
 batch eligibility probe, retained calibration response, successor-bank score,
 calibration-headroom calculation, outcome-blind rescore execution, or test
 access.
+
+## Amendment 2026-08-11 — post-review lifecycle hardening
+
+### Evidence boundary
+
+This amendment remains pre-data. It records runner corrections and CPU-only
+adversarial tests. No successor eligibility probe was launched, no retained
+response was generated, no successor candidate was scored, and no calibration
+or test outcome was accessed. The earlier scorer-determinism PASS artifact is
+one-shot evidence and was not regenerated.
+
+### Forward-only execution contract
+
+The runner now persists the only legal stage order as `probe -> cap_resolution
+-> calibration -> viability -> rescore -> test`. The eligibility probe uses
+successor-state diagnostic duplicates that are discarded and explicitly barred
+from the retained bank and scientific metrics. Batch 8 is measured first. Batch
+16 may be measured only when batch 8 does not already fit the full registered
+bank; when resizing is necessary, cap resolution selects the eligible batch
+with the smallest measured generation seconds per response. Calibration
+generation requires an immutable cap-resolution PASS artifact.
+
+The cap artifact binds the resolved prefix-derived calibration/test cohorts,
+their row and index digests, all resized schedules, and all resulting
+denominators. The 8,100-second authorizing ceiling is strict: a probe is useful
+only when it supports a resolved bank below the ceiling. Retained-bank GPU time
+uses an append-only, hash-chained ledger; load and batch work is recorded before
+the corresponding retained bank transaction, accumulated rather than
+overwritten, and checked at every stage boundary.
+
+Scorer determinism and outcome-blind rescore are no-clobber gates. Any terminal
+nondeterminism, rescore mismatch, registered scoring/integrity failure, or
+terminal stage state is immutable and permanently blocks the run. Rescore
+persists `STARTED` before model loading. On restart, `STARTED` plus a valid PASS
+artifact advances to PASS without CUDA, `STARTED` plus terminal evidence lands
+VOID, and `STARTED` with neither artifact lands `VOID_SCORER_RESCORE_INTERRUPTED`
+without rerunning GPU work. Test
+generation, test scoring, and evaluation independently require the bound PASS
+artifacts. Integrity failures land an immutable `VOID` result whose scientific
+fields are exactly `N/A`; the result schema binds the claim-language contract
+in this preregistration and validates both denominator and N/A discipline.
+
+### Post-fix source binding and review gate
+
+The final post-fix runner source SHA-256 is
+`49af8237e6de5373a109eb47e71ff0b39efe805750e3fa2bd0c8f15da51b3b26`.
+The obsolete unconditional execution block has been removed. Every retained or
+probe mode requires an attestation token of the form
+`FINAL_POST_FIX_RUNNER_SHA256=<runner>;DELTA_REVIEW_SHA256=<review>`, and the
+runner refuses it unless `<runner>` equals the final registered source hash.
+The clean final delta-review SHA-256 is
+`f2a099ea60d44bb9809fa1e2cfa614c4066c242ba7580c55bdad176a6f59bffc`.
+The exact review-attestation token is
+`FINAL_POST_FIX_RUNNER_SHA256=49af8237e6de5373a109eb47e71ff0b39efe805750e3fa2bd0c8f15da51b3b26;DELTA_REVIEW_SHA256=f2a099ea60d44bb9809fa1e2cfa614c4066c242ba7580c55bdad176a6f59bffc`.
+The review authorizes only the throwaway diagnostic eligibility probe. The
+forward-only ledger and cap gate do not authorize retained calibration
+generation until the probe and cap-resolution stages persist PASS.
+
+- `successor_runner_source_sha256`: `49af8237e6de5373a109eb47e71ff0b39efe805750e3fa2bd0c8f15da51b3b26`
+
+### Current boundary
+
+Status is **`POST-FIX DELTA REVIEW CLEAN / THROWAWAY PROBE AUTHORIZED BUT UNRUN /
+NO RETAINED DATA`**. The attested diagnostic eligibility probe is the next
+permissible action. Retained calibration generation remains stage- and
+cap-blocked.
