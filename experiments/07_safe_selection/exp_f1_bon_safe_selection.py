@@ -7,6 +7,8 @@ This is a provenance runner, not a landing command.  The fast paths are:
 * ``--self-test-fast``: exercise schedules, all six policies, calibration,
   statistics, schema checks, resume logic, and immutable writing on synthetic
   data;
+* ``--interruption-bounded-self-test``: exercise the preregistered fork ledger,
+  interruption closure, resume boundaries, and exact arithmetic without CUDA;
 * ``--scorer-determinism``: run the frozen operational fixture across three
   clean model loads spanning two fresh Python processes;
 * ``--batch-preflight`` / ``--resolve-cap``: measure throwaway diagnostic
@@ -223,6 +225,23 @@ TERMINAL_PROBE_ARTIFACT_SHA256 = {
     8: "0f184c0c9876938dedc50a146d36804afb9c71e9f88274b641e21879702ca66c",
     16: "840fe2dbc6bec1c6793eeda93b73dcfa28f01cdbd693fa259927257132fa78c0",
 }
+INTERRUPTION_BOUNDED_FORK_ROOT = (
+    HF_HOME / "line07_safe_selection_interruption_bounded_fork"
+)
+INTERRUPTION_BOUNDED_FORK_REPORT_PATH = (
+    HERE
+    / "results"
+    / "exp_bon_safe_selection_interruption_bounded_fork.json"
+)
+INTERRUPTION_BOUNDED_FORK_PAIR_SPECS = (
+    ("batch_8_pair_1", 8, 1, ("old", "new")),
+    ("batch_8_pair_2", 8, 2, ("new", "old")),
+    ("batch_16_pair_1", 16, 1, ("old", "new")),
+    ("batch_16_pair_2", 16, 2, ("new", "old")),
+)
+INTERRUPTION_BOUNDED_FORK_STATUS_READY = "READY_FOR_CAP_COMPLIANT_SUCCESSOR"
+INTERRUPTION_BOUNDED_FORK_STATUS_CLOSED = "CLOSED_BRANCH_1_GOVERNS"
+INTERRUPTION_BOUNDED_FORK_STATUS_INTERRUPTED = "CLOSED_INTERRUPTED_ATOMIC_PAIR"
 CALIBRATION_BANK_PATH = WORK_ROOT / "calibration_bank.json"
 TEST_BANK_PATH = WORK_ROOT / "test_bank.json"
 CALIBRATION_FREEZE_PATH = WORK_ROOT / "calibration_freeze.json"
@@ -5241,6 +5260,785 @@ def run_stopping_performance_fork(
     return report
 
 
+def _interruption_bounded_fork_paths(
+    root: Path = INTERRUPTION_BOUNDED_FORK_ROOT,
+    report_path: Path = INTERRUPTION_BOUNDED_FORK_REPORT_PATH,
+) -> dict[str, Any]:
+    return {
+        "root": root,
+        "report": report_path,
+        "started": root / "started.json",
+        "properties": root / "stopping_properties.json",
+        "ledger": root / "stage_ledger",
+        "adjudication": root / "adjudication.json",
+        "pairs": {
+            pair_id: root / f"{pair_id}.json"
+            for pair_id, _, _, _ in INTERRUPTION_BOUNDED_FORK_PAIR_SPECS
+        },
+        "banks": {
+            batch_size: root / f"old_probe_bank_batch_{batch_size}.json"
+            for batch_size in ELIGIBLE_BATCH_SIZES
+        },
+    }
+
+
+def _interruption_bounded_property_pass(properties: Mapping[str, Any]) -> bool:
+    total = int(properties.get("total", -1))
+    return (
+        properties.get("status") == "PASS"
+        and total >= 11
+        and int(properties.get("passed", -1)) == total
+    )
+
+
+def _validate_interruption_bounded_pair_artifact(
+    artifact: Mapping[str, Any],
+    spec: tuple[str, int, int, tuple[str, str]],
+) -> None:
+    pair_id, batch_size, pair_index, order = spec
+    if (
+        artifact.get("mode") != "interruption_bounded_timing_pair"
+        or artifact.get("pair_id") != pair_id
+        or int(artifact.get("batch_size", -1)) != batch_size
+        or int(artifact.get("pair_index", -1)) != pair_index
+        or tuple(artifact.get("execution_order", ())) != order
+        or artifact.get("outcomes_or_scores_accessed") is not False
+        or int(artifact.get("retained_bank_members", -1)) != 0
+    ):
+        raise StageTransitionError(f"timing-pair identity drift: {pair_id}")
+    executions = artifact.get("executions")
+    if not isinstance(executions, list) or len(executions) != 2:
+        raise StageTransitionError(f"timing-pair execution count drift: {pair_id}")
+    for expected_label, wrapped in zip(order, executions, strict=True):
+        if not isinstance(wrapped, dict) or wrapped.get("implementation") != expected_label:
+            raise StageTransitionError(f"timing-pair order drift: {pair_id}")
+        execution = wrapped.get("execution")
+        if not isinstance(execution, dict):
+            raise StageTransitionError(f"timing-pair execution missing: {pair_id}")
+        streams = execution.get("streams")
+        if not isinstance(streams, list) or len(streams) != 32:
+            raise StageTransitionError(f"timing-pair stream denominator drift: {pair_id}")
+        if execution.get("stream_sha256") != sha256_bytes(
+            canonical_json_bytes(streams)
+        ):
+            raise StageTransitionError(f"timing-pair stream hash drift: {pair_id}")
+        wall_seconds = float(execution.get("wall_seconds", -1.0))
+        if not math.isfinite(wall_seconds) or wall_seconds <= 0:
+            raise StageTransitionError(f"timing-pair wall time invalid: {pair_id}")
+        if (
+            int(execution.get("peak_reserved_bytes", -1)) < 0
+            or int(execution.get("peak_allocated_bytes", -1)) < 0
+            or int(execution.get("rows_completed_before_batch_end", -1)) < 0
+            or execution.get("post_completion_suffix_padding_only")
+            not in {True, False}
+        ):
+            raise StageTransitionError(f"timing-pair telemetry invalid: {pair_id}")
+        power = execution.get("power")
+        if not isinstance(power, dict) or not {
+            "sample_count",
+            "average_active_watts",
+            "peak_watts",
+            "watt_hours",
+        }.issubset(power):
+            raise StageTransitionError(f"timing-pair power telemetry missing: {pair_id}")
+    load_seconds = float(artifact.get("generation_model_load_seconds", -1.0))
+    if not math.isfinite(load_seconds) or load_seconds < 0:
+        raise StageTransitionError(f"timing-pair load time invalid: {pair_id}")
+
+
+def _interruption_bounded_ledger_state(paths: Mapping[str, Any]) -> dict[str, Any]:
+    events = _ledger_events(paths["ledger"])
+    cursor = 0
+    properties_complete = False
+    completed_pairs: list[str] = []
+    dangling_pair: str | None = None
+    adjudication_complete = False
+    if events:
+        event = events[cursor]
+        if event.get("event_type") != "PROPERTIES_COMPLETE":
+            raise StageTransitionError("interruption-bounded ledger must start with properties")
+        property_path = Path(paths["properties"])
+        if not property_path.is_file() or event.get("artifact_sha256") != sha256_file(
+            property_path
+        ):
+            raise StageTransitionError("property artifact is absent or hash-drifted")
+        properties = json.loads(property_path.read_text(encoding="utf-8"))
+        if not _interruption_bounded_property_pass(properties):
+            raise StageTransitionError("completed property stage is not passing")
+        properties_complete = True
+        cursor += 1
+    for spec in INTERRUPTION_BOUNDED_FORK_PAIR_SPECS:
+        pair_id, batch_size, pair_index, order = spec
+        if cursor >= len(events):
+            break
+        started = events[cursor]
+        if (
+            started.get("event_type") != "PAIR_STARTED"
+            or started.get("pair_id") != pair_id
+            or int(started.get("batch_size", -1)) != batch_size
+            or int(started.get("pair_index", -1)) != pair_index
+            or tuple(started.get("execution_order", ())) != order
+        ):
+            raise StageTransitionError(f"unexpected timing-pair start: {pair_id}")
+        cursor += 1
+        if cursor >= len(events):
+            dangling_pair = pair_id
+            break
+        completed = events[cursor]
+        if completed.get("event_type") != "PAIR_COMPLETE" or completed.get(
+            "pair_id"
+        ) != pair_id:
+            raise StageTransitionError(f"timing pair lacks matching completion: {pair_id}")
+        pair_path = Path(paths["pairs"][pair_id])
+        if not pair_path.is_file() or completed.get("artifact_sha256") != sha256_file(
+            pair_path
+        ):
+            raise StageTransitionError(f"timing-pair artifact is absent or drifted: {pair_id}")
+        artifact = json.loads(pair_path.read_text(encoding="utf-8"))
+        _validate_interruption_bounded_pair_artifact(artifact, spec)
+        completed_pairs.append(pair_id)
+        cursor += 1
+    if dangling_pair is None and len(completed_pairs) == len(
+        INTERRUPTION_BOUNDED_FORK_PAIR_SPECS
+    ) and cursor < len(events):
+        event = events[cursor]
+        adjudication_path = Path(paths["adjudication"])
+        if (
+            event.get("event_type") != "ADJUDICATION_COMPLETE"
+            or not adjudication_path.is_file()
+            or event.get("artifact_sha256") != sha256_file(adjudication_path)
+        ):
+            raise StageTransitionError("adjudication artifact is absent or hash-drifted")
+        adjudication_complete = True
+        cursor += 1
+    if cursor != len(events):
+        raise StageTransitionError("interruption-bounded ledger has trailing events")
+    if events and not properties_complete:
+        raise StageTransitionError("timing ledger advanced without properties")
+    return {
+        "properties_complete": properties_complete,
+        "completed_pairs": completed_pairs,
+        "dangling_pair": dangling_pair,
+        "adjudication_complete": adjudication_complete,
+        "event_count": len(events),
+    }
+
+
+def _append_interruption_bounded_event(
+    paths: Mapping[str, Any], event_type: str, **fields: Any
+) -> dict[str, Any]:
+    event = _append_ledger_event(
+        paths["ledger"], {"event_type": event_type, **fields}
+    )
+    _interruption_bounded_ledger_state(paths)
+    return event
+
+
+def _land_interruption_bounded_close(
+    paths: Mapping[str, Any],
+    *,
+    status: str,
+    reason: str,
+    dangling_pair: str | None,
+) -> dict[str, Any]:
+    report_path = Path(paths["report"])
+    if report_path.exists():
+        return json.loads(report_path.read_text(encoding="utf-8"))
+    try:
+        state = _interruption_bounded_ledger_state(paths)
+    except StageTransitionError:
+        ledger_path = Path(paths["ledger"])
+        state = {
+            "completed_pairs": [],
+            "event_count": len(list(ledger_path.glob("*.json")))
+            if ledger_path.exists()
+            else 0,
+        }
+    report = {
+        "schema_version": SCHEMA_VERSION,
+        "created_at": utc_now(),
+        "experiment_id": "exp_bon_safe_selection_interruption_bounded_fork",
+        "status": status,
+        "reason": reason,
+        "pre_data_engineering_only": True,
+        "retained_responses_or_scores": 0,
+        "calibration_or_test_outcomes_accessed": False,
+        "scientific_protocol_changed": False,
+        "dangling_pair": dangling_pair,
+        "completed_pairs": state["completed_pairs"],
+        "ledger_event_count": state["event_count"],
+        "partial_pair_artifacts_ignored": {
+            pair_id: Path(path).is_file()
+            for pair_id, path in paths["pairs"].items()
+            if pair_id not in state["completed_pairs"]
+        },
+        "authorization": {
+            "fresh_cap_compliant_successor_registration_authorized": False,
+            "automatic_cap_exception_authorized": False,
+            "owner_exception_decision_required": True,
+        },
+    }
+    write_one_shot_gate(report_path, report)
+    return report
+
+
+def _reconcile_interruption_bounded_fork(
+    paths: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    state = _interruption_bounded_ledger_state(paths)
+    if state["dangling_pair"] is None:
+        return None
+    return _land_interruption_bounded_close(
+        paths,
+        status=INTERRUPTION_BOUNDED_FORK_STATUS_INTERRUPTED,
+        reason="INTERRUPTED_AFTER_PAIR_STARTED_BEFORE_PAIR_COMPLETE",
+        dangling_pair=state["dangling_pair"],
+    )
+
+
+def _interruption_bounded_gate_arithmetic(
+    old_walls: Sequence[float],
+    new_walls: Sequence[float],
+    generation_load_max_seconds: float,
+) -> dict[str, Any]:
+    if len(old_walls) != 2 or len(new_walls) != 2:
+        raise ValueError("interruption-bounded gate requires exactly two old and new walls")
+    walls = [float(value) for value in (*old_walls, *new_walls)]
+    if any(not math.isfinite(value) or value <= 0 for value in walls):
+        raise ValueError("interruption-bounded timing walls must be finite and positive")
+    load_seconds = float(generation_load_max_seconds)
+    if not math.isfinite(load_seconds) or load_seconds < 0:
+        raise ValueError("generation load maximum must be finite and nonnegative")
+    old_min = min(float(value) for value in old_walls)
+    new_max = max(float(value) for value in new_walls)
+    ratio = old_min / new_max
+    g_new = new_max / 32
+    response_count = CANDIDATE_COUNT * (CALIBRATION_COUNT + TEST_COUNT)
+    generation_response_count = response_count - HISTORICAL_SMOKE_CANDIDATE_COUNT
+    non_generation_seconds = (
+        HISTORICAL_SMOKE_GENERATION_WALL_SECONDS
+        + HISTORICAL_SMOKE_SCORING_WALL_SECONDS / 32 * response_count
+        + load_seconds
+        + HISTORICAL_SMOKE_SCORING_LOAD_SECONDS
+    )
+    projection_seconds = non_generation_seconds + g_new * generation_response_count
+    ratio_pass = ratio >= PERFORMANCE_SPEEDUP_TARGET
+    projection_pass = projection_seconds <= CAP_AUTHORIZING_SECONDS
+    return {
+        "old_min_wall_seconds": old_min,
+        "new_max_wall_seconds": new_max,
+        "adjudicating_lower_bound_speedup_min_old_over_max_new": ratio,
+        "speedup_target": PERFORMANCE_SPEEDUP_TARGET,
+        "speedup_pass": ratio_pass,
+        "g_new_8_seconds_per_response": g_new,
+        "generation_load_max_seconds": load_seconds,
+        "non_generation_seconds": non_generation_seconds,
+        "generation_response_count": generation_response_count,
+        "full_bank_projection_seconds": projection_seconds,
+        "authorizing_ceiling_seconds": CAP_AUTHORIZING_SECONDS,
+        "projection_pass": projection_pass,
+        "ratio_and_projection_pass": ratio_pass and projection_pass,
+    }
+
+
+def _require_interruption_bounded_pair_startable(
+    paths: Mapping[str, Any],
+    spec: tuple[str, int, int, tuple[str, str]],
+) -> None:
+    pair_id = spec[0]
+    state = _interruption_bounded_ledger_state(paths)
+    expected_pair_ids = [item[0] for item in INTERRUPTION_BOUNDED_FORK_PAIR_SPECS]
+    next_index = len(state["completed_pairs"])
+    if state["dangling_pair"] is not None or next_index >= len(expected_pair_ids):
+        raise StageTransitionError("no timing pair may start from the current state")
+    if expected_pair_ids[next_index] != pair_id:
+        raise StageTransitionError(f"timing pair cannot be retried or skipped: {pair_id}")
+
+
+def _run_interruption_bounded_pair(
+    paths: Mapping[str, Any],
+    spec: tuple[str, int, int, tuple[str, str]],
+    *,
+    train: Dataset,
+    probe_rows: Sequence[int],
+    tokenizer,
+    model,
+    device: torch.device,
+    generation_load_seconds: float,
+    invocation_id: str,
+    invocation_child_pids_before: Sequence[int],
+) -> dict[str, Any]:
+    pair_id, batch_size, pair_index, order = spec
+    _require_interruption_bounded_pair_startable(paths, spec)
+    _append_interruption_bounded_event(
+        paths,
+        "PAIR_STARTED",
+        pair_id=pair_id,
+        batch_size=batch_size,
+        pair_index=pair_index,
+        execution_order=list(order),
+        invocation_id=invocation_id,
+    )
+    wrapped_executions = []
+    criteria_types = {
+        "old": FullPrefixNewQuestionBoundaryCriteria,
+        "new": PerRowNewQuestionBoundaryCriteria,
+    }
+    for label in order:
+        execution = _performance_probe_execution(
+            train,
+            probe_rows,
+            batch_size,
+            tokenizer,
+            model,
+            device,
+            criteria_types[label],
+            pair_index,
+        )
+        wrapped_executions.append(
+            {"implementation": label, "execution": execution}
+        )
+    child_pids_after = sorted(child.pid for child in multiprocessing.active_children())
+    artifact = {
+        "schema_version": SCHEMA_VERSION,
+        "created_at": utc_now(),
+        "mode": "interruption_bounded_timing_pair",
+        "pair_id": pair_id,
+        "batch_size": batch_size,
+        "pair_index": pair_index,
+        "execution_order": list(order),
+        "invocation_id": invocation_id,
+        "generation_model_load_seconds": generation_load_seconds,
+        "diagnostic_rows": [int(value) for value in probe_rows],
+        "outcomes_or_scores_accessed": False,
+        "retained_bank_members": 0,
+        "process_leak": child_pids_after != list(invocation_child_pids_before),
+        "checkpoint_inconsistency": False,
+        "nan_or_cuda_error": False,
+        "executions": wrapped_executions,
+    }
+    pair_path = Path(paths["pairs"][pair_id])
+    write_one_shot_gate(pair_path, artifact)
+    persisted = json.loads(pair_path.read_text(encoding="utf-8"))
+    if persisted != artifact:
+        raise StageTransitionError(f"timing-pair readback mismatch: {pair_id}")
+    _validate_interruption_bounded_pair_artifact(persisted, spec)
+    _append_interruption_bounded_event(
+        paths,
+        "PAIR_COMPLETE",
+        pair_id=pair_id,
+        batch_size=batch_size,
+        pair_index=pair_index,
+        artifact_sha256=sha256_file(pair_path),
+    )
+    return persisted
+
+
+def _execution_by_label(
+    artifact: Mapping[str, Any], label: str
+) -> Mapping[str, Any]:
+    matches = [
+        item["execution"]
+        for item in artifact["executions"]
+        if item["implementation"] == label
+    ]
+    if len(matches) != 1:
+        raise StageTransitionError(f"pair does not contain exactly one {label} execution")
+    return matches[0]
+
+
+def _adjudicate_interruption_bounded_fork(
+    paths: Mapping[str, Any], tokenizer
+) -> dict[str, Any]:
+    state = _interruption_bounded_ledger_state(paths)
+    if len(state["completed_pairs"]) != len(INTERRUPTION_BOUNDED_FORK_PAIR_SPECS):
+        raise StageTransitionError("adjudication requires all four completed timing pairs")
+    if state["dangling_pair"] is not None:
+        raise StageTransitionError("adjudication cannot use an interrupted timing pair")
+    if state["adjudication_complete"]:
+        return json.loads(Path(paths["adjudication"]).read_text(encoding="utf-8"))
+    properties = json.loads(Path(paths["properties"]).read_text(encoding="utf-8"))
+    pair_artifacts = {
+        pair_id: json.loads(Path(paths["pairs"][pair_id]).read_text(encoding="utf-8"))
+        for pair_id, _, _, _ in INTERRUPTION_BOUNDED_FORK_PAIR_SPECS
+    }
+    old_banks = []
+    timing: dict[str, Any] = {}
+    generated_stream_matches = 0
+    generated_stream_denominator = 0
+    for batch_size in ELIGIBLE_BATCH_SIZES:
+        specs = [
+            spec
+            for spec in INTERRUPTION_BOUNDED_FORK_PAIR_SPECS
+            if spec[1] == batch_size
+        ]
+        artifacts = [pair_artifacts[spec[0]] for spec in specs]
+        old_executions = [_execution_by_label(item, "old") for item in artifacts]
+        new_executions = [_execution_by_label(item, "new") for item in artifacts]
+        bank = {
+            "schema_version": SCHEMA_VERSION,
+            "created_at": utc_now(),
+            "mode": "interruption_bounded_throwaway_old_stopping_probe_bank",
+            "batch_size": batch_size,
+            "diagnostic_rows": [3290, 77],
+            "outcomes_or_scores_accessed": False,
+            "retained_bank_members": 0,
+            "executions": old_executions,
+        }
+        bank_path = Path(paths["banks"][batch_size])
+        if bank_path.exists():
+            persisted_bank = json.loads(bank_path.read_text(encoding="utf-8"))
+            comparable = {key: value for key, value in bank.items() if key != "created_at"}
+            persisted_comparable = {
+                key: value for key, value in persisted_bank.items() if key != "created_at"
+            }
+            if persisted_comparable != comparable:
+                raise StageTransitionError(f"old probe bank drift: batch {batch_size}")
+            bank = persisted_bank
+        else:
+            write_one_shot_gate(bank_path, bank)
+            bank = json.loads(bank_path.read_text(encoding="utf-8"))
+        old_banks.append(bank)
+        for old_execution, new_execution in zip(
+            old_executions, new_executions, strict=True
+        ):
+            old_streams = old_execution["streams"]
+            new_streams = new_execution["streams"]
+            generated_stream_denominator += len(old_streams)
+            generated_stream_matches += sum(
+                old_stream == new_stream
+                for old_stream, new_stream in zip(
+                    old_streams, new_streams, strict=True
+                )
+            )
+        old_walls = [float(item["wall_seconds"]) for item in old_executions]
+        new_walls = [float(item["wall_seconds"]) for item in new_executions]
+        timing[f"batch_{batch_size}"] = {
+            "old": [_execution_summary(item) for item in old_executions],
+            "new": [_execution_summary(item) for item in new_executions],
+            "old_wall_seconds": old_walls,
+            "new_wall_seconds": new_walls,
+            "median_speedup_ratio": statistics.median(old_walls)
+            / statistics.median(new_walls),
+        }
+    replay = _replay_probe_banks(old_banks, tokenizer)
+    stream_match = {
+        "status": (
+            "PASS"
+            if generated_stream_matches == generated_stream_denominator == 128
+            else "FAIL"
+        ),
+        "identical_generated_streams": {
+            "numerator": generated_stream_matches,
+            "denominator": generated_stream_denominator,
+        },
+    }
+    generation_load_max = max(
+        float(artifact["generation_model_load_seconds"])
+        for artifact in pair_artifacts.values()
+    )
+    arithmetic = _interruption_bounded_gate_arithmetic(
+        timing["batch_8"]["old_wall_seconds"],
+        timing["batch_8"]["new_wall_seconds"],
+        generation_load_max,
+    )
+    timing["batch_8"]["adjudication"] = arithmetic
+    all_executions = [
+        wrapped["execution"]
+        for artifact in pair_artifacts.values()
+        for wrapped in artifact["executions"]
+    ]
+    all_vram_checks_pass = all(
+        int(execution["peak_reserved_bytes"]) <= MAX_PREFLIGHT_RESERVED_BYTES
+        for execution in all_executions
+    )
+    all_stopping_checks_pass = all(
+        int(execution["rows_completed_before_batch_end"]) > 0
+        and bool(execution["post_completion_suffix_padding_only"])
+        for execution in all_executions
+    )
+    repeat_determinism_pass = all(
+        len(
+            {
+                _execution_by_label(pair_artifacts[spec[0]], label)["stream_sha256"]
+                for spec in INTERRUPTION_BOUNDED_FORK_PAIR_SPECS
+                if spec[1] == batch_size
+            }
+        )
+        == 1
+        for batch_size in ELIGIBLE_BATCH_SIZES
+        for label in ("old", "new")
+    )
+    no_process_leak = all(
+        not bool(artifact["process_leak"]) for artifact in pair_artifacts.values()
+    )
+    equivalence_pass = (
+        _interruption_bounded_property_pass(properties)
+        and replay["status"] == "PASS"
+        and stream_match["status"] == "PASS"
+    )
+    technical_eligibility = (
+        all_vram_checks_pass
+        and all_stopping_checks_pass
+        and repeat_determinism_pass
+        and no_process_leak
+        and all(not bool(artifact["nan_or_cuda_error"]) for artifact in pair_artifacts.values())
+        and all(
+            not bool(artifact["checkpoint_inconsistency"])
+            for artifact in pair_artifacts.values()
+        )
+    )
+    ready = (
+        equivalence_pass
+        and technical_eligibility
+        and arithmetic["speedup_pass"]
+        and arithmetic["projection_pass"]
+    )
+    report = {
+        "schema_version": SCHEMA_VERSION,
+        "created_at": utc_now(),
+        "experiment_id": "exp_bon_safe_selection_interruption_bounded_fork",
+        "status": (
+            INTERRUPTION_BOUNDED_FORK_STATUS_READY
+            if ready
+            else INTERRUPTION_BOUNDED_FORK_STATUS_CLOSED
+        ),
+        "pre_data_engineering_only": True,
+        "retained_responses_or_scores": 0,
+        "calibration_or_test_outcomes_accessed": False,
+        "scientific_protocol_changed": False,
+        "candidate_streams_checked": replay[
+            "identical_stop_positions_and_reasons"
+        ]["denominator"],
+        "equivalence": {
+            "pass": equivalence_pass,
+            "probe_bank_replay": replay,
+            "adversarial_properties": properties,
+            "fresh_old_new_generation": stream_match,
+        },
+        "timing": timing,
+        "technical_telemetry": {
+            "execution_count": len(all_executions),
+            "vram_limit_bytes": MAX_PREFLIGHT_RESERVED_BYTES,
+            "all_vram_checks_pass": all_vram_checks_pass,
+            "all_stopping_checks_pass": all_stopping_checks_pass,
+            "repeat_determinism_pass": repeat_determinism_pass,
+            "no_process_leak": no_process_leak,
+            "technical_eligibility": technical_eligibility,
+        },
+        "authorization": {
+            "equivalence_pass": equivalence_pass,
+            "batch_8_speedup_pass": arithmetic["speedup_pass"],
+            "batch_8_full_bank_projection_pass": arithmetic["projection_pass"],
+            "technical_eligibility_pass": technical_eligibility,
+            "all_four_timing_pairs_complete": True,
+            "fresh_cap_compliant_successor_registration_authorized": ready,
+            "retained_generation_authorized": False,
+            "automatic_cap_exception_authorized": False,
+            "owner_exception_decision_required": not ready,
+        },
+        "local_throwaway_probe_bank_sha256": {
+            f"batch_{batch_size}": sha256_file(Path(paths["banks"][batch_size]))
+            for batch_size in ELIGIBLE_BATCH_SIZES
+        },
+        "timing_pair_artifact_sha256": {
+            pair_id: sha256_file(Path(paths["pairs"][pair_id]))
+            for pair_id, _, _, _ in INTERRUPTION_BOUNDED_FORK_PAIR_SPECS
+        },
+        "source_terminal_probe_artifact_sha256": {
+            f"batch_{key}": value for key, value in TERMINAL_PROBE_ARTIFACT_SHA256.items()
+        },
+        "runner_source_sha256": sha256_file(Path(__file__).resolve()),
+    }
+    adjudication_path = Path(paths["adjudication"])
+    write_one_shot_gate(adjudication_path, report)
+    persisted = json.loads(adjudication_path.read_text(encoding="utf-8"))
+    if persisted != report:
+        raise StageTransitionError("interruption-bounded adjudication readback mismatch")
+    _append_interruption_bounded_event(
+        paths,
+        "ADJUDICATION_COMPLETE",
+        artifact_sha256=sha256_file(adjudication_path),
+        status=report["status"],
+    )
+    return persisted
+
+
+def run_interruption_bounded_performance_fork(
+    attestation: Mapping[str, str],
+) -> dict[str, Any]:
+    paths = _interruption_bounded_fork_paths()
+    report_path = Path(paths["report"])
+    if report_path.exists():
+        raise RuntimeError("the interruption-bounded performance fork is already resolved")
+    try:
+        interrupted = _reconcile_interruption_bounded_fork(paths)
+    except StageTransitionError:
+        return _land_interruption_bounded_close(
+            paths,
+            status="CLOSED_IDENTITY_OR_HASH_MISMATCH",
+            reason="STAGE_LEDGER_OR_BOUND_ARTIFACT_DRIFT",
+            dangling_pair=None,
+        )
+    if interrupted is not None:
+        return interrupted
+    state = _interruption_bounded_ledger_state(paths)
+    if state["adjudication_complete"]:
+        report = json.loads(Path(paths["adjudication"]).read_text(encoding="utf-8"))
+        write_one_shot_gate(report_path, report)
+        return report
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if device.type != "cuda":
+        raise RuntimeError("interruption-bounded performance fork requires CUDA")
+    manifest = parse_manifest()
+    manifest_identity_digest, _ = manifest_identity(manifest)
+    registered_manifest_identity_digest = registered_slot_value(
+        "successor_manifest_identity_digest"
+    )
+    generator_identity = validate_public_snapshot_identity(manifest, PUBLIC_GENERATOR)
+    terminal_probe_hashes = {
+        batch_size: sha256_file(WORK_ROOT / f"batch_preflight_{batch_size}.json")
+        for batch_size in ELIGIBLE_BATCH_SIZES
+    }
+    current_runner_hash = sha256_file(Path(__file__).resolve())
+    identity = {
+        "runner_source_sha256": current_runner_hash,
+        "prelaunch_review_sha256": attestation["review"],
+        "manifest_identity_digest": manifest_identity_digest,
+        "generator_identity": generator_identity,
+        "terminal_probe_artifact_sha256": {
+            f"batch_{key}": value for key, value in terminal_probe_hashes.items()
+        },
+    }
+    if (
+        manifest_identity_digest != registered_manifest_identity_digest
+        or terminal_probe_hashes != TERMINAL_PROBE_ARTIFACT_SHA256
+    ):
+        return _land_interruption_bounded_close(
+            paths,
+            status="CLOSED_IDENTITY_OR_HASH_MISMATCH",
+            reason="FROZEN_IDENTITY_VALIDATION_FAILED",
+            dangling_pair=None,
+        )
+    started_path = Path(paths["started"])
+    if started_path.exists():
+        started = json.loads(started_path.read_text(encoding="utf-8"))
+        if any(started.get(key) != value for key, value in identity.items()):
+            return _land_interruption_bounded_close(
+                paths,
+                status="CLOSED_IDENTITY_OR_HASH_MISMATCH",
+                reason="DURABLE_START_IDENTITY_DRIFT",
+                dangling_pair=None,
+            )
+    else:
+        started = {
+            "schema_version": SCHEMA_VERSION,
+            "created_at": utc_now(),
+            "status": "STARTED",
+            **identity,
+            "retained_generation_authorized": False,
+        }
+        write_one_shot_gate(started_path, started)
+    state = _interruption_bounded_ledger_state(paths)
+    tokenizer = None
+    if not state["properties_complete"]:
+        property_path = Path(paths["properties"])
+        if property_path.exists():
+            try:
+                properties = json.loads(property_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                return _land_interruption_bounded_close(
+                    paths,
+                    status="CLOSED_IDENTITY_OR_HASH_MISMATCH",
+                    reason="PROPERTY_ARTIFACT_READBACK_FAILED",
+                    dangling_pair=None,
+                )
+        else:
+            tokenizer = AutoTokenizer.from_pretrained(
+                manifest[f"{PUBLIC_GENERATOR}-repo-id"],
+                revision=manifest[f"{PUBLIC_GENERATOR}-tokenizer-revision"],
+                local_files_only=True,
+                trust_remote_code=False,
+            )
+            properties = stopping_automaton_property_tests(tokenizer)
+            write_one_shot_gate(property_path, properties)
+        if not _interruption_bounded_property_pass(properties):
+            return _land_interruption_bounded_close(
+                paths,
+                status=INTERRUPTION_BOUNDED_FORK_STATUS_CLOSED,
+                reason="ADVERSARIAL_STOPPING_PROPERTIES_FAILED",
+                dangling_pair=None,
+            )
+        _append_interruption_bounded_event(
+            paths,
+            "PROPERTIES_COMPLETE",
+            artifact_sha256=sha256_file(property_path),
+            passed=int(properties["passed"]),
+            total=int(properties["total"]),
+        )
+    state = _interruption_bounded_ledger_state(paths)
+    remaining_specs = [
+        spec
+        for spec in INTERRUPTION_BOUNDED_FORK_PAIR_SPECS
+        if spec[0] not in state["completed_pairs"]
+    ]
+    if remaining_specs:
+        invocation_child_pids_before = sorted(
+            child.pid for child in multiprocessing.active_children()
+        )
+        train, probe_rows = _performance_probe_rows()
+        load_started = time.perf_counter()
+        loaded_tokenizer, model = load_generator(manifest, device)
+        generation_load_seconds = time.perf_counter() - load_started
+        tokenizer = loaded_tokenizer
+        invocation_id = uuid.uuid4().hex
+        def release_loaded_model() -> None:
+            nonlocal model
+            del model
+            gc.collect()
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
+
+        try:
+            for spec in remaining_specs:
+                _run_interruption_bounded_pair(
+                    paths,
+                    spec,
+                    train=train,
+                    probe_rows=probe_rows,
+                    tokenizer=tokenizer,
+                    model=model,
+                    device=device,
+                    generation_load_seconds=generation_load_seconds,
+                    invocation_id=invocation_id,
+                    invocation_child_pids_before=invocation_child_pids_before,
+                )
+        except BaseException:
+            release_loaded_model()
+            raise
+        try:
+            release_loaded_model()
+        except Exception:
+            return _land_interruption_bounded_close(
+                paths,
+                status=INTERRUPTION_BOUNDED_FORK_STATUS_CLOSED,
+                reason="POST_PAIR_CUDA_CLEANUP_FAILED",
+                dangling_pair=None,
+            )
+    if tokenizer is None:
+        tokenizer = AutoTokenizer.from_pretrained(
+            manifest[f"{PUBLIC_GENERATOR}-repo-id"],
+            revision=manifest[f"{PUBLIC_GENERATOR}-tokenizer-revision"],
+            local_files_only=True,
+            trust_remote_code=False,
+        )
+    report = _adjudicate_interruption_bounded_fork(paths, tokenizer)
+    if Path(paths["report"]).exists():
+        raise RuntimeError("interruption-bounded terminal result appeared concurrently")
+    write_one_shot_gate(Path(paths["report"]), report)
+    return report
+
+
 def load_cap_resolution() -> dict[str, Any]:
     require_stage("cap_resolution")
     report = json.loads(CAP_RESOLUTION_PATH.read_text(encoding="utf-8"))
@@ -6383,6 +7181,272 @@ def self_test_fast() -> dict[str, Any]:
     }
 
 
+def _synthetic_interruption_bounded_execution(wall_seconds: float) -> dict[str, Any]:
+    streams = [
+        {
+            "dataset_index": 3290 if position < 16 else 77,
+            "candidate_ordinal": position % 16 + 1,
+            "token_ids": [position, position + 1],
+            "generated_tokens": 2,
+            "content_tokens": 2,
+            "stop_reason": "token_cap",
+        }
+        for position in range(32)
+    ]
+    return {
+        "execution_index": 1,
+        "wall_seconds": wall_seconds,
+        "seconds_per_response": wall_seconds / 32,
+        "peak_reserved_bytes": 1024,
+        "peak_allocated_bytes": 512,
+        "rows_completed_before_batch_end": 1,
+        "mixed_row_state_call_count": 1,
+        "post_completion_suffix_padding_only": True,
+        "stream_sha256": sha256_bytes(canonical_json_bytes(streams)),
+        "power": {
+            "sample_count": 1,
+            "average_active_watts": 1.0,
+            "peak_watts": 1.0,
+            "watt_hours": wall_seconds / 3600,
+        },
+        "streams": streams,
+    }
+
+
+def _synthetic_interruption_bounded_pair(
+    spec: tuple[str, int, int, tuple[str, str]],
+) -> dict[str, Any]:
+    pair_id, batch_size, pair_index, order = spec
+    walls = {"old": 24.0 + pair_index, "new": 14.0 + pair_index}
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "created_at": utc_now(),
+        "mode": "interruption_bounded_timing_pair",
+        "pair_id": pair_id,
+        "batch_size": batch_size,
+        "pair_index": pair_index,
+        "execution_order": list(order),
+        "invocation_id": "self-test",
+        "generation_model_load_seconds": 3.0,
+        "diagnostic_rows": [3290, 77],
+        "outcomes_or_scores_accessed": False,
+        "retained_bank_members": 0,
+        "process_leak": False,
+        "checkpoint_inconsistency": False,
+        "nan_or_cuda_error": False,
+        "executions": [
+            {
+                "implementation": label,
+                "execution": _synthetic_interruption_bounded_execution(walls[label]),
+            }
+            for label in order
+        ],
+    }
+
+
+def _seed_interruption_bounded_property_stage(paths: Mapping[str, Any]) -> None:
+    properties = {
+        "schema_version": SCHEMA_VERSION,
+        "status": "PASS",
+        "passed": 11,
+        "total": 11,
+        "cases": [{"name": f"self-test-{index}", "pass": True} for index in range(11)],
+    }
+    write_one_shot_gate(Path(paths["properties"]), properties)
+    _append_interruption_bounded_event(
+        paths,
+        "PROPERTIES_COMPLETE",
+        artifact_sha256=sha256_file(Path(paths["properties"])),
+        passed=11,
+        total=11,
+    )
+
+
+def interruption_bounded_self_test_worker(root: Path) -> NoReturn:
+    """Persist a real mid-pair crash window, then exit without cleanup."""
+
+    paths = _interruption_bounded_fork_paths(root, root / "terminal.json")
+    write_one_shot_gate(
+        Path(paths["started"]),
+        {"schema_version": SCHEMA_VERSION, "status": "STARTED", "self_test": True},
+    )
+    _seed_interruption_bounded_property_stage(paths)
+    pair_id, batch_size, pair_index, order = INTERRUPTION_BOUNDED_FORK_PAIR_SPECS[0]
+    _append_interruption_bounded_event(
+        paths,
+        "PAIR_STARTED",
+        pair_id=pair_id,
+        batch_size=batch_size,
+        pair_index=pair_index,
+        execution_order=list(order),
+        invocation_id="self-test-killed-worker",
+    )
+    os._exit(97)
+
+
+def interruption_bounded_lifecycle_self_test() -> dict[str, Any]:
+    started = time.perf_counter()
+    container = HERE / f".f1-interruption-self-test-{uuid.uuid4().hex}"
+    lifecycle_checks: list[str] = []
+    arithmetic_checks: list[str] = []
+    container.mkdir()
+    try:
+        killed_root = container / "killed"
+        killed_report = killed_root / "terminal.json"
+        worker = subprocess.run(
+            [
+                sys.executable,
+                str(Path(__file__).resolve()),
+                "--interruption-bounded-self-test-worker",
+                "--self-test-root",
+                str(killed_root),
+            ],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        if worker.returncode != 97:
+            raise AssertionError("mid-pair worker did not terminate at the crash window")
+        lifecycle_checks.append("worker_exited_mid_pair")
+        killed_paths = _interruption_bounded_fork_paths(killed_root, killed_report)
+        killed_state = _interruption_bounded_ledger_state(killed_paths)
+        if killed_state["dangling_pair"] != "batch_8_pair_1":
+            raise AssertionError("simulated kill did not leave the registered dangling pair")
+        lifecycle_checks.append("dangling_pair_detected")
+        closure = _reconcile_interruption_bounded_fork(killed_paths)
+        if (
+            closure is None
+            or closure["status"] != INTERRUPTION_BOUNDED_FORK_STATUS_INTERRUPTED
+            or closure["dangling_pair"] != "batch_8_pair_1"
+        ):
+            raise AssertionError("mid-pair kill did not land the terminal close")
+        lifecycle_checks.append("mid_pair_kill_closed")
+        if (
+            closure["authorization"][
+                "fresh_cap_compliant_successor_registration_authorized"
+            ]
+            or closure["authorization"]["automatic_cap_exception_authorized"]
+        ):
+            raise AssertionError("interrupted pair incorrectly authorized continuation")
+        lifecycle_checks.append("interrupted_pair_authorizes_nothing")
+        terminal_bytes = killed_report.read_bytes()
+        try:
+            write_one_shot_gate(killed_report, {"status": "changed"})
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError("interruption terminal result allowed clobber")
+        if killed_report.read_bytes() != terminal_bytes:
+            raise AssertionError("interruption terminal result changed after rerun attempt")
+        lifecycle_checks.append("terminal_result_no_clobber")
+
+        resume_root = container / "resume"
+        resume_paths = _interruption_bounded_fork_paths(
+            resume_root, resume_root / "terminal.json"
+        )
+        _seed_interruption_bounded_property_stage(resume_paths)
+        first_spec = INTERRUPTION_BOUNDED_FORK_PAIR_SPECS[0]
+        first_artifact = _synthetic_interruption_bounded_pair(first_spec)
+        _append_interruption_bounded_event(
+            resume_paths,
+            "PAIR_STARTED",
+            pair_id=first_spec[0],
+            batch_size=first_spec[1],
+            pair_index=first_spec[2],
+            execution_order=list(first_spec[3]),
+            invocation_id="self-test-complete",
+        )
+        first_path = Path(resume_paths["pairs"][first_spec[0]])
+        write_one_shot_gate(first_path, first_artifact)
+        _append_interruption_bounded_event(
+            resume_paths,
+            "PAIR_COMPLETE",
+            pair_id=first_spec[0],
+            batch_size=first_spec[1],
+            pair_index=first_spec[2],
+            artifact_sha256=sha256_file(first_path),
+        )
+        resumed_state = _interruption_bounded_ledger_state(resume_paths)
+        if resumed_state["completed_pairs"] != [first_spec[0]]:
+            raise AssertionError("completed timing pair did not replay from the ledger")
+        _require_interruption_bounded_pair_startable(
+            resume_paths, INTERRUPTION_BOUNDED_FORK_PAIR_SPECS[1]
+        )
+        lifecycle_checks.append("resume_between_pairs_allowed")
+        event_count_before = resumed_state["event_count"]
+        try:
+            _require_interruption_bounded_pair_startable(resume_paths, first_spec)
+        except StageTransitionError:
+            pass
+        else:
+            raise AssertionError("completed timing pair was allowed to rerun")
+        if _interruption_bounded_ledger_state(resume_paths)[
+            "event_count"
+        ] != event_count_before:
+            raise AssertionError("rejected pair retry mutated the ledger")
+        lifecycle_checks.append("completed_pair_retry_rejected_without_mutation")
+        original_pair_bytes = first_path.read_bytes()
+        first_path.write_bytes(original_pair_bytes + b" ")
+        try:
+            _interruption_bounded_ledger_state(resume_paths)
+        except StageTransitionError:
+            pass
+        else:
+            raise AssertionError("timing-pair artifact hash drift was not detected")
+        lifecycle_checks.append("pair_artifact_hash_drift_detected")
+
+        pass_fixture = _interruption_bounded_gate_arithmetic(
+            [30.0, 29.0], [15.0, 16.0], 3.148669400019571
+        )
+        if not pass_fixture["ratio_and_projection_pass"]:
+            raise AssertionError("passing arithmetic fixture missed its gates")
+        arithmetic_checks.append("ratio_and_projection_pass")
+        partial_fixture = _interruption_bounded_gate_arithmetic(
+            [22.4, 23.0], [15.0, 16.0], 3.148669400019571
+        )
+        if partial_fixture["speedup_pass"] or not partial_fixture["projection_pass"]:
+            raise AssertionError("1.40 partial-speedup fixture was not rejected independently")
+        arithmetic_checks.append("partial_speedup_rejected")
+        projection_miss_fixture = _interruption_bounded_gate_arithmetic(
+            [40.0, 41.0], [20.0, 19.0], 3.148669400019571
+        )
+        if not projection_miss_fixture["speedup_pass"] or projection_miss_fixture[
+            "projection_pass"
+        ]:
+            raise AssertionError("absolute projection gate was not independent")
+        arithmetic_checks.append("projection_miss_not_rescued_by_ratio")
+        equality_fixture = _interruption_bounded_gate_arithmetic(
+            [16.7, 16.7], [10.0, 10.0], 3.148669400019571
+        )
+        if (
+            equality_fixture[
+                "adjudicating_lower_bound_speedup_min_old_over_max_new"
+            ]
+            != 1.67
+            or not equality_fixture["speedup_pass"]
+        ):
+            raise AssertionError("full-precision equality did not pass the ratio gate")
+        arithmetic_checks.append("full_precision_equality_passes")
+    finally:
+        shutil.rmtree(container)
+    return {
+        "status": "PASS",
+        "elapsed_seconds": time.perf_counter() - started,
+        "lifecycle_checks": {
+            "passed": len(lifecycle_checks),
+            "total": 8,
+            "names": lifecycle_checks,
+        },
+        "arithmetic_checks": {
+            "passed": len(arithmetic_checks),
+            "total": 4,
+            "names": arithmetic_checks,
+        },
+        "simulated_mid_pair_process_exit_code": 97,
+        "gpu_work_launched": False,
+    }
+
+
 def require_review_attestation(args: argparse.Namespace) -> dict[str, str]:
     pattern = re.compile(
         r"FINAL_POST_FIX_RUNNER_SHA256=(?P<runner>[0-9a-f]{64});"
@@ -6454,6 +7518,38 @@ def require_performance_fork_attestation(
     return values
 
 
+def require_interruption_bounded_fork_attestation(
+    args: argparse.Namespace,
+) -> dict[str, str]:
+    pattern = re.compile(
+        r"INTERRUPTION_BOUNDED_FORK_RUNNER_SHA256=(?P<runner>[0-9a-f]{64});"
+        r"PRELAUNCH_REVIEW_SHA256=(?P<review>[0-9a-f]{64})"
+    )
+    match = pattern.fullmatch(args.interruption_bounded_attestation or "")
+    if match is None:
+        raise RuntimeError(
+            "interruption-bounded fork requires an exact runner/prelaunch-review "
+            "attestation"
+        )
+    values = match.groupdict()
+    current = sha256_file(Path(__file__).resolve())
+    if values["runner"] != current:
+        raise RuntimeError("interruption-bounded attestation names a different runner")
+    if (
+        registered_slot_value("interruption_bounded_fork_runner_source_sha256")
+        != current
+    ):
+        raise RuntimeError("interruption-bounded runner hash is not preregistered")
+    if (
+        registered_slot_value(
+            "interruption_bounded_fork_prelaunch_review_sha256"
+        )
+        != values["review"]
+    ):
+        raise RuntimeError("interruption-bounded review hash is not preregistered")
+    return values
+
+
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     modes = parser.add_mutually_exclusive_group(required=True)
@@ -6461,6 +7557,13 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     modes.add_argument("--self-test-fast", action="store_true")
     modes.add_argument("--stopping-self-test", action="store_true")
     modes.add_argument("--performance-fork", action="store_true")
+    modes.add_argument("--interruption-bounded-self-test", action="store_true")
+    modes.add_argument(
+        "--interruption-bounded-self-test-worker",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
+    modes.add_argument("--interruption-bounded-fork", action="store_true")
     modes.add_argument("--scorer-determinism", action="store_true")
     modes.add_argument(
         "--scorer-determinism-worker", action="store_true", help=argparse.SUPPRESS
@@ -6473,6 +7576,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     modes.add_argument("--evaluate", choices=("calibration", "full"))
     parser.add_argument("--review-attestation")
     parser.add_argument("--performance-attestation")
+    parser.add_argument("--interruption-bounded-attestation")
+    parser.add_argument("--self-test-root", type=Path, help=argparse.SUPPRESS)
     return parser.parse_args(argv)
 
 
@@ -6482,6 +7587,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     scavenge_stale_immutable_temps(RESULT_PATH.parent, RESULT_PATH)
     if args.self_test_fast:
         print(json.dumps(self_test_fast(), indent=2, allow_nan=False))
+        return 0
+    if args.interruption_bounded_self_test_worker:
+        if args.self_test_root is None:
+            raise RuntimeError("self-test worker requires --self-test-root")
+        interruption_bounded_self_test_worker(args.self_test_root)
+    if args.interruption_bounded_self_test:
+        print(
+            json.dumps(
+                interruption_bounded_lifecycle_self_test(),
+                indent=2,
+                allow_nan=False,
+            )
+        )
         return 0
     if args.stopping_self_test:
         manifest = parse_manifest()
@@ -6509,6 +7627,27 @@ def main(argv: Sequence[str] | None = None) -> int:
                 and not PERFORMANCE_FORK_REPORT_PATH.exists()
             ):
                 _land_interrupted_performance_fork()
+            raise
+        print(json.dumps(report, indent=2, allow_nan=False))
+        return 0
+    if args.interruption_bounded_fork:
+        interruption_attestation = require_interruption_bounded_fork_attestation(args)
+        try:
+            report = run_interruption_bounded_performance_fork(
+                interruption_attestation
+            )
+        except Exception:
+            paths = _interruption_bounded_fork_paths()
+            if not Path(paths["report"]).exists():
+                try:
+                    _reconcile_interruption_bounded_fork(paths)
+                except StageTransitionError:
+                    _land_interruption_bounded_close(
+                        paths,
+                        status="CLOSED_IDENTITY_OR_HASH_MISMATCH",
+                        reason="STAGE_LEDGER_OR_BOUND_ARTIFACT_DRIFT",
+                        dangling_pair=None,
+                    )
             raise
         print(json.dumps(report, indent=2, allow_nan=False))
         return 0

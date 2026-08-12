@@ -80,8 +80,17 @@ def main() -> int:
     )
     runner = ROOT / "experiments" / "07_safe_selection" / "exp_f1_bon_safe_selection.py"
     check(
-        "live_runner_sha256",
-        sha256_file(runner) == EXPECTED_PERFORMANCE_FORK_RUNNER_SHA256,
+        "closed_fork_runner_binding_is_historical",
+        sha256_file(runner) != EXPECTED_PERFORMANCE_FORK_RUNNER_SHA256,
+    )
+    runner_text = runner.read_text(encoding="utf-8")
+    check(
+        "interruption_bounded_successor_root_present",
+        "line07_safe_selection_interruption_bounded_fork" in runner_text,
+    )
+    check(
+        "interruption_bounded_mid_pair_close_present",
+        "CLOSED_INTERRUPTED_ATOMIC_PAIR" in runner_text,
     )
 
     check(
