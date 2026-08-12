@@ -1908,3 +1908,172 @@ cap-compliant successor registration is authorized. The owner's Branch-1 cap
 exception decision is the only registered path to adjudication. There were no
 protocol deviations: the interruption was resolved exactly through the
 precommitted terminal restart branch.
+
+## Pre-data amendment 2026-08-12 — interruption-bounded performance fork
+
+### Decision and anti-retry boundary
+
+Steering Round 40, acting under the owner's delegated repository decision
+authority, registers exactly one separately named engineering fork. The closed
+one-shot fork above and its immutable artifact are not reopened, edited,
+regenerated, or reinterpreted. Its invocation may never be retried. This new
+fork is permissible because the earlier closure exposed no local probe bank,
+equivalence result, timing result, retained response, score, calibration/test
+outcome, or policy result; its closure cause was an external interruption
+before either local bank or any adjudicating measurement existed, not a
+measured gate miss.
+
+The strongest anti-retry objection is that a second fork could relabel an
+identical attempt after the registered one-shot branch became inconvenient.
+That objection would govern if any adjudicating datum had been observed, if
+the implementation or threshold were adapted to a partial result, or if the
+new lifecycle allowed failed timing cells to be sampled again. None is
+permitted here. The incremental automaton, old comparison implementation,
+rows, seeds, batch sizes, execution order, gates, and scientific protocol are
+frozen before new data. The only amended dimension is interruption handling,
+and the amendment forbids recomputation of a completed or interrupted atomic
+timing cell. No third performance fork is authorized by this amendment.
+
+This fork is outcome-blind and engineering-only. It may not read gold answers,
+parse candidate correctness, load the verifier, score a candidate, construct a
+retained bank, inspect calibration or test outcomes, evaluate a policy, or
+change any scientific protocol field. The terminal cap-stop and first-fork
+artifacts remain controlling evidence for their attempts.
+
+### Frozen identity and probe design
+
+Use the existing `FullPrefixNewQuestionBoundaryCriteria` as `old` and
+`PerRowNewQuestionBoundaryCriteria` as `new`, in the existing reusable runner.
+Use the frozen generator/tokenizer snapshot and manifest identity, the two
+outcome-blind successor calibration rows `[3290, 77]`, all 16 candidates per
+row, and the existing batch-seed derivation. At each batch size, run exactly
+two executions per implementation in balanced pair order:
+
+1. pair 1: `old`, then `new`;
+2. pair 2: `new`, then `old`.
+
+Run batch 8 first and batch 16 second. Each implementation execution contains
+exactly 32 streams. The two old executions form a 64-stream no-clobber local
+bank at each batch size, for an immutable-bank replay denominator of 128. Both
+old and new streams must also match exactly within each paired execution. The
+batch-16 measurements are required integrity and informational outputs but do
+not replace the batch-8 authorization gates.
+
+Before adjudication, read both old-bank artifacts back from disk and replay
+every token prefix through old and new stopping logic. All 128/128 streams must
+have the same first true position, reported stop position, content-token count,
+stop reason, and boundary-token count. All 11 registered adversarial marker,
+split-token/multi-byte, EOS, and token-cap cases must pass. The exact property
+case set is bound by the reviewed runner hash; it may be expanded before review
+but not after launch.
+
+Both repeats of both implementations at both batch sizes must be internally
+deterministic, remain within 20 GiB peak reserved VRAM, exercise at least one
+early-completed row, leave only registered padding/EOS after every completed
+row, and show no NaN, CUDA error, process leak, or checkpoint inconsistency.
+For every execution, record wall time, peak allocated and reserved VRAM,
+rows completed before batch end, post-completion suffix integrity, sampled
+power count, average active watts, peak watts, and watt-hours. Every
+denominator and failure must be recorded in the terminal report.
+
+### Durable stages and interruption semantics
+
+Use a new gitignored workspace root and a distinct no-clobber result path:
+
+- local root: `<repo>/.hf_cache/line07_safe_selection_interruption_bounded_fork/`;
+- terminal result:
+  `experiments/07_safe_selection/results/exp_bon_safe_selection_interruption_bounded_fork.json`.
+
+The runner must maintain a hash-chained, write-once stage ledger. It validates
+the exact runner, clean pre-launch review, generator/tokenizer and manifest
+identity, and both terminal probe-report hashes before writing overall
+`STARTED`. The forward-only stages are:
+
+1. deterministic CPU property tests;
+2. batch-8 pair 1 (`old,new`);
+3. batch-8 pair 2 (`new,old`);
+4. batch-16 pair 1 (`old,new`);
+5. batch-16 pair 2 (`new,old`);
+6. bank readback, 128-stream replay, technical adjudication, and terminal
+   report.
+
+Each GPU timing pair is atomic. Immediately before its first timed execution,
+write a durable `PAIR_STARTED` record; only after both executions and their
+stream payloads are fsynced and read back may the ledger append `PAIR_COMPLETE`
+with their hashes. A restart may resume at the first not-started pair after all
+prior completed pairs revalidate exactly. It may never recompute a completed
+pair. If a restart finds `PAIR_STARTED` without its matching
+`PAIR_COMPLETE`, the fork must land terminal
+`CLOSED_INTERRUPTED_ATOMIC_PAIR` without rerunning that pair or using partial
+timing. An interruption before any pair starts, or strictly between completed
+pairs, may resume without changing the schedule. Voluntary abandonment or any
+identity/hash mismatch closes without authorization.
+
+Intermediate timing values may not change execution order, thresholds, or the
+decision tree. The terminal projection uses the maximum generator-load time
+measured across every invocation that completed a timing pair. Completed local
+artifacts remain outcome-blind, gitignored engineering evidence and never enter
+a retained scientific bank.
+
+### Exact arithmetic and authorization gate
+
+For batch 8, define:
+
+```text
+R_8 = min(t_old_8_1, t_old_8_2) / max(t_new_8_1, t_new_8_2)
+g_new_8 = max(t_new_8_1, t_new_8_2) / 32
+H_8(768) = 110.15521369999624
+           + g_new_8 * (16 * 768 - 32)
+           + 0.0833382562495899 * (16 * 768)
+           + L_generation_max
+           + 8.827072100000805
+```
+
+`L_generation_max` is the maximum measured generator-load wall time across
+invocations that completed a timing pair; `8.827072100000805` seconds is the
+frozen retained-smoke scoring-model load. With the terminal probe's historical
+generator load of `3.148669400019571` seconds only as an arithmetic check, the
+non-generation term is `1,146.19144799498` seconds, so the 8,100-second ceiling
+would require `g_new_8 <= 0.567379940600932` seconds per response, equivalently
+`max(t_new_8_1,t_new_8_2) <= 18.1561580992298` seconds. The live measured load,
+not this historical check, governs.
+
+Authorization requires every one of the following:
+
+1. exact equivalence and all technical-integrity gates pass;
+2. `R_8 >= 1.67`;
+3. `H_8(768) <= 8,100.0` seconds;
+4. all four balanced timing pairs and the batch-16 report are complete.
+
+The ratio and absolute projection are independent hard gates. Equality passes.
+Values are compared at full stored precision, not rounded display precision.
+If all gates pass, the terminal token is `READY_FOR_CAP_COMPLIANT_SUCCESSOR`,
+which authorizes landing a fresh unchanged 768-problem successor skeleton with
+new runner/review hash slots. It does not itself authorize retained generation.
+
+Any equivalence, technical, ratio, projection, or completeness miss closes the
+fork without retained data or successor authorization. In particular,
+`1.40 <= R_8 < 1.67` is a fail even if the residual projected overage is small;
+it authorizes no threshold relaxation, cohort resize, timing retry, or automatic
+cap exception. A ratio miss also cannot be rescued by an absolute projection
+pass, and a ratio pass cannot rescue `H_8(768) > 8,100`.
+
+### Failure escalation and launch blockers
+
+If the fork fails or is interrupted inside an atomic pair, do not self-authorize
+the projected 3h32m Branch-1 exception or any smaller measured overage. Return
+the terminal measurements and exact requested ceiling to the owner for an
+explicit exception decision. This precommit respects the standing rule that a
+single run above approximately 2.5 GPU-hours requires explicit owner approval.
+
+This amendment itself authorizes no GPU work. The owner must first confirm this
+registration text. Then the existing runner may be extended, but launch remains
+blocked until the full change receives a clean read-only pre-launch review and
+the exact values below are appended and supplied by the invocation:
+
+- `interruption_bounded_fork_runner_source_sha256`: `UNFILLED — launch blocking`;
+- `interruption_bounded_fork_prelaunch_review_sha256`: `UNFILLED — launch blocking`.
+
+The follow-up implementation round may run CPU-only validation, but the GPU
+probe belongs to a later execution round after these slots are filled. No
+retained calibration or test generation is authorized in either round.

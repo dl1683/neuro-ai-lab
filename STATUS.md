@@ -1,6 +1,6 @@
 # Repository Status
 
-Audited snapshot through the terminal base-A/SVAMP adjudication, the single canonical base-B successor-gate `PASS`, the single E2 mechanics-pilot attempt with a controlling post-evidence `VOID`, the completed E2-DIAG Stage-0 `STOP`, the terminal E3 preflight `PREFLIGHT_STOP`, the E3 interface-supervision diagnostic frozen as not launchable after its bounded re-review found a design-level lexical shortcut, the Line-07 Option-A successor stopped before retained data at its registered compute-cap gate, and its one-shot stopping-performance fork closed after an external interruption following durable `STARTED` but before either local probe bank existed. No Line-07 scientific conclusion was drawn. The base-B artifact is immutable band-placement evidence only; E2, E2-DIAG, E3 preflight, the frozen diagnostic, and the Line-07 operational stops remain bounded evidence surfaces.
+Audited snapshot through the terminal base-A/SVAMP adjudication, the single canonical base-B successor-gate `PASS`, the single E2 mechanics-pilot attempt with a controlling post-evidence `VOID`, the completed E2-DIAG Stage-0 `STOP`, the terminal E3 preflight `PREFLIGHT_STOP`, the E3 interface-supervision diagnostic frozen as not launchable after its bounded re-review found a design-level lexical shortcut, the Line-07 Option-A successor stopped before retained data at its registered compute-cap gate, its one-shot stopping-performance fork closed after an external interruption following durable `STARTED` but before either local probe bank existed, and Steering Round 40 preregistered one separately named interruption-bounded performance fork. The new fork is not implemented, reviewed, or GPU-authorized. No Line-07 scientific conclusion was drawn. The base-B artifact is immutable band-placement evidence only; E2, E2-DIAG, E3 preflight, the frozen diagnostic, and the Line-07 operational stops remain bounded evidence surfaces.
 
 **This file is the sole authority for current state.** Experiment writeups, proofs, and reviews are point-in-time evidence; earlier reviews and evidence gates may contain predictions that later experiments falsified.
 
@@ -20,7 +20,7 @@ Audited snapshot through the terminal base-A/SVAMP adjudication, the single cano
 | 04 Circuit-viability pruning | FROZEN / AUDITED | Claim audit `234/234`; SynFlow pathology audit passes; mechanism supported within recorded scope. | `docs/CIRCUIT_VIABILITY_PRUNING_REPORT.md`, `docs/CLAIM_EVIDENCE_LEDGER.md`, `docs/CLAIM_AUDIT.md`, `results/04_criticality_pruning/` |
 | 06 UESD — fixed-point arc | CONVERGENCE ARC CLOSED NEGATIVE | D40 falsifies the tested self-consistency fixed-point thesis; the system behaves as a finite-time transient solver. Surviving core: D22 variable-T k-suppression. | D40 ledger entry, `experiments/06_uesd/results/exp_d40_extended_convergence.json`, `docs/UNIFIED_ERROR_SPACE.md` |
 | 06 UESD — semantic ratchet | BASE-A TASK-BAND TERMINAL VOID / BASE-B TASK-BAND PASS / E2 CONTROLLING VOID / E2-DIAG STAGE-0 STOP / E3 PREFLIGHT STOP / INTERFACE-SUPERVISION DIAGNOSTIC FROZEN-NOT-LAUNCHABLE | Base-B satisfied the separate band-placement prerequisite. E2 remains controlling `VOID`; E2-DIAG killed the from-scratch line. E3 stopped at `PREFLIGHT_STOP / PRETRAINED_INTERFACE_COMPETENCE_SMOKE_MISS`. The permitted diagnostic correction cycle and independent re-review are exhausted: I2 retained a queried-word occurrence-count imbalance whose single-feature affine probe reached 69.73%, requiring dataset/label reconstruction. Under the bottom-out rule the diagnostic is frozen without a scientific conclusion. No diagnostic cell, E3 canonical stage, official test, or 0.5B launch is authorized. | `experiments/06_uesd/E3_INTERFACE_SUPERVISION_DIAGNOSTIC_PREREGISTRATION.md`, `experiments/06_uesd/results/exp_e3_preflight.json`, `experiments/06_uesd/results/exp_e2_diag_stage0_instrumented.json`, `experiments/06_uesd/results/exp_e2_latch_mechanics.json`, `experiments/06_uesd/results/exp_e1_task_band_base_b.json` |
-| 07 Best-of-N safe selection | PERFORMANCE FORK CLOSED INTERRUPTED / BRANCH 1 GOVERNS / NO RETAINED DATA / NO SCIENTIFIC OUTCOME | The Option-A successor remains closed at `PREFLIGHT_STOP_COMPUTE_CAP`. Its one-shot stopping-performance fork durably reached `STARTED` but was externally interrupted before either local probe bank existed. The registered restart branch then landed `CLOSED_INTERRUPTED_BRANCH_1_GOVERNS` without GPU work. The 128-stream equivalence replay, batch-8 speedup ratio, and batch-16 retest are not measured; no fresh cap-compliant successor is authorized. | `experiments/07_safe_selection/results/exp_bon_safe_selection_performance_fork.json`, `experiments/07_safe_selection/results/exp_bon_safe_selection_cap_preflight.json`, `experiments/07_safe_selection/PREREGISTRATION.md` |
+| 07 Best-of-N safe selection | INTERRUPTION-BOUNDED PERFORMANCE FORK PREREGISTERED / IMPLEMENTATION AND REVIEW BLOCKED / NO RETAINED DATA / NO SCIENTIFIC OUTCOME | The Option-A successor remains closed at `PREFLIGHT_STOP_COMPUTE_CAP`, and the first one-shot performance fork remains terminal `CLOSED_INTERRUPTED_BRANCH_1_GOVERNS`. Steering Round 40 authorized one separate outcome-blind engineering fork with durable stage boundaries, no retry of an interrupted timing cell, exact-equivalence plus 1.67x and 8,100s gates, and no automatic cap exception. This registration authorizes no GPU work; owner confirmation of the text, runner implementation, a clean pre-launch review, and exact hash binding must occur first. | `experiments/07_safe_selection/PREREGISTRATION.md`, `experiments/07_safe_selection/results/exp_bon_safe_selection_performance_fork.json`, `experiments/07_safe_selection/results/exp_bon_safe_selection_cap_preflight.json` |
 | 01/02/03/05 pilots | FROZEN HISTORICAL | Single-run pilots; no active roadmap or runner. 01 failed; 02/03 modest wins on toy tasks; 05 efficiency win with failed DDM fit. | `results/01..05/pilot_result.json`, `results/pilot_suite_summary.json`, frozen-pilots table in `experiments/EXPERIMENTS.md` |
 
 ## 04 — Circuit-Viability Pruning
@@ -202,6 +202,26 @@ timing gate. The immutable closure artifact is
 `e88194f92a07e85c53cc775f3aba37a108beb7f00dd231f780f0fdb7f352ba8d`).
 No fresh cap-compliant successor registration is authorized; the owner's
 Branch-1 cap-exception decision is the only registered adjudication path.
+
+**Steering Round 40 resumption decision:** the sentence immediately above
+remains the controlling outcome of the closed one-shot fork, but no longer
+exhausts future pre-data amendments. Owner-delegated steering preregistered one
+separately named interruption-bounded performance fork. This is not a retry of
+the closed artifact or its invocation: the old result and local root remain
+untouched, the new fork has a distinct no-clobber result path and stage ledger,
+and no equivalence or timing datum existed when the decision was made.
+
+The new fork preserves the frozen scientific protocol and is outcome-blind.
+It must pass exact old/new stopping equivalence on 128 streams, all registered
+adversarial and technical checks, a batch-8 lower-bound speedup of at least
+1.67x, and `H_8(768) <= 8,100s`. It may resume only between durably completed
+atomic timing pairs; interruption inside a started pair closes the fork without
+authorization. Any gate miss, including speedup in `[1.40, 1.67)`, authorizes
+neither a reduced protocol nor a cap exception. The measured case must be
+returned to the owner for an explicit exception decision. This registration
+authorizes no GPU work: owner confirmation of its text, implementation in the
+existing runner, clean pre-launch review, and exact runner/review hash binding
+are all still required.
 
 Operationally, two earlier GSM8K canonical invocations were killed before GPU use while sandboxed dataset loading stalled on user-profile Hugging Face cache lock files; neither wrote an evidence artifact. The successful GSM8K attempt and the SVAMP initial attempt used the ignored workspace-local `.hf_cache/` fully offline. The SVAMP loader began GPU work immediately, so its 10-minute watchdog did not trigger.
 
