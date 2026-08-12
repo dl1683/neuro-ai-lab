@@ -1,6 +1,6 @@
 # Repository Status
 
-Audited snapshot through the terminal base-A/SVAMP adjudication, the single canonical base-B successor-gate `PASS`, the single E2 mechanics-pilot attempt with a controlling post-evidence `VOID`, the completed E2-DIAG Stage-0 `STOP`, the terminal E3 preflight `PREFLIGHT_STOP`, the E3 interface-supervision diagnostic frozen as not launchable after its bounded re-review found a design-level lexical shortcut, the Line-07 Option-A successor stopped before retained data at its registered compute-cap gate, its one-shot stopping-performance fork closed after an external interruption following durable `STARTED` but before either local probe bank existed, and Steering Round 40 preregistered one separately named interruption-bounded performance fork. The new fork's initial and second-round delta-review findings have been fixed and CPU-validated, but it remains further delta-review and hash-binding blocked; it is not GPU-authorized. No Line-07 scientific conclusion was drawn. The base-B artifact is immutable band-placement evidence only; E2, E2-DIAG, E3 preflight, the frozen diagnostic, and the Line-07 operational stops remain bounded evidence surfaces.
+Audited snapshot through the terminal base-A/SVAMP adjudication, the single canonical base-B successor-gate `PASS`, the single E2 mechanics-pilot attempt with a controlling post-evidence `VOID`, the completed E2-DIAG Stage-0 `STOP`, the terminal E3 preflight `PREFLIGHT_STOP`, the E3 interface-supervision diagnostic frozen as not launchable after its bounded re-review found a design-level lexical shortcut, the Line-07 Option-A successor stopped before retained data at its registered compute-cap gate, its one-shot stopping-performance fork closed after an external interruption following durable `STARTED` but before either local probe bank existed, and Steering Round 40 preregistered one separately named interruption-bounded performance fork. The new fork's initial and three delta-review rounds have been addressed and CPU-validated, but it remains further delta-review and hash-binding blocked; it is not GPU-authorized. No Line-07 scientific conclusion was drawn. The base-B artifact is immutable band-placement evidence only; E2, E2-DIAG, E3 preflight, the frozen diagnostic, and the Line-07 operational stops remain bounded evidence surfaces.
 
 **This file is the sole authority for current state.** Experiment writeups, proofs, and reviews are point-in-time evidence; earlier reviews and evidence gates may contain predictions that later experiments falsified.
 
@@ -227,8 +227,11 @@ measured post-load generator-snapshot revalidation. The second delta review
 confirmed those fixes and found two new recovery defects; the runner now also
 promotes an exact canonical record-zero head after a pre-pair interruption and
 requires the current durable-start review, manifest, generator, and terminal-
-probe bindings before orphan promotion. CPU-only validation passes 11/11
-stopping property cases, 16/16 lifecycle/integrity checks, and 4/4 independent
+probe bindings before orphan promotion. The third delta review found that the
+record-zero helper was not reached by the production restart path; the runner
+now uses one restart coordinator for durable-start validation, head promotion,
+ledger recovery, and orphan recovery. CPU-only validation passes 11/11
+stopping property cases, 17/17 lifecycle/integrity checks, and 4/4 independent
 arithmetic-gate checks; the lifecycle
 test used a child process that exited after durable `PAIR_STARTED` and confirmed
 terminal `CLOSED_INTERRUPTED_ATOMIC_PAIR` without continuation authority. The

@@ -5689,6 +5689,8 @@ def _land_interruption_bounded_close(
 def _reconcile_interruption_bounded_fork(
     paths: Mapping[str, Any],
 ) -> dict[str, Any] | None:
+    if Path(paths["started"]).is_file():
+        _initialize_interruption_bounded_head(paths)
     state = _interruption_bounded_ledger_state(paths)
     if state["dangling_pair"] is None:
         return None
@@ -5884,6 +5886,47 @@ def _validate_interruption_bounded_start(
     ):
         raise StageTransitionError("durable start identity drift")
     return started
+
+
+def _restart_interruption_bounded_fork(
+    paths: Mapping[str, Any], identity: Mapping[str, Any]
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Run the production restart sequence before any CUDA or new stage work."""
+
+    try:
+        _validate_interruption_bounded_start(paths, identity)
+        _initialize_interruption_bounded_head(paths)
+        interrupted = _reconcile_interruption_bounded_fork(paths)
+    except (OSError, json.JSONDecodeError, StageTransitionError) as error:
+        return (
+            _land_interruption_bounded_close(
+                paths,
+                status="CLOSED_IDENTITY_OR_HASH_MISMATCH",
+                reason="STAGE_LEDGER_OR_BOUND_ARTIFACT_DRIFT",
+                dangling_pair=None,
+                details={"integrity_error": f"{type(error).__name__}: {error}"},
+            ),
+            None,
+        )
+    if interrupted is not None:
+        return interrupted, None
+    orphan_adjudication = _reconcile_orphan_interruption_bounded_adjudication(
+        paths, identity
+    )
+    if orphan_adjudication is not None:
+        if Path(paths["report"]).exists():
+            return (
+                json.loads(Path(paths["report"]).read_text(encoding="utf-8")),
+                None,
+            )
+        write_one_shot_gate(Path(paths["report"]), orphan_adjudication)
+        return orphan_adjudication, None
+    state = _interruption_bounded_ledger_state(paths)
+    if state["adjudication_complete"]:
+        report = json.loads(Path(paths["adjudication"]).read_text(encoding="utf-8"))
+        write_one_shot_gate(Path(paths["report"]), report)
+        return report, None
+    return None, state
 
 
 def _interruption_bounded_gate_arithmetic(
@@ -6328,40 +6371,13 @@ def run_interruption_bounded_performance_fork(
             dangling_pair=None,
         )
     if Path(paths["started"]).exists():
-        try:
-            _validate_interruption_bounded_start(paths, identity)
-        except (OSError, json.JSONDecodeError, StageTransitionError) as error:
-            return _land_interruption_bounded_close(
-                paths,
-                status="CLOSED_IDENTITY_OR_HASH_MISMATCH",
-                reason="DURABLE_START_MISSING_OR_DRIFTED",
-                dangling_pair=None,
-                details={"integrity_error": f"{type(error).__name__}: {error}"},
-            )
-    try:
-        interrupted = _reconcile_interruption_bounded_fork(paths)
-    except StageTransitionError:
-        return _land_interruption_bounded_close(
-            paths,
-            status="CLOSED_IDENTITY_OR_HASH_MISMATCH",
-            reason="STAGE_LEDGER_OR_BOUND_ARTIFACT_DRIFT",
-            dangling_pair=None,
-        )
-    if interrupted is not None:
-        return interrupted
-    orphan_adjudication = _reconcile_orphan_interruption_bounded_adjudication(
-        paths, identity
-    )
-    if orphan_adjudication is not None:
-        if Path(paths["report"]).exists():
-            return json.loads(Path(paths["report"]).read_text(encoding="utf-8"))
-        write_one_shot_gate(Path(paths["report"]), orphan_adjudication)
-        return orphan_adjudication
-    state = _interruption_bounded_ledger_state(paths)
-    if state["adjudication_complete"]:
-        report = json.loads(Path(paths["adjudication"]).read_text(encoding="utf-8"))
-        write_one_shot_gate(report_path, report)
-        return report
+        restart_resolution, state = _restart_interruption_bounded_fork(paths, identity)
+        if restart_resolution is not None:
+            return restart_resolution
+        if state is None:
+            raise AssertionError("restart coordinator returned no state or resolution")
+    else:
+        state = _interruption_bounded_ledger_state(paths)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if device.type != "cuda":
         raise RuntimeError("interruption-bounded performance fork requires CUDA")
@@ -7853,10 +7869,41 @@ def _synthetic_orphan_adjudication(
     return artifact
 
 
-def interruption_bounded_self_test_worker(root: Path) -> NoReturn:
-    """Persist a real mid-pair crash window, then exit without cleanup."""
+def interruption_bounded_self_test_worker(
+    root: Path, crash_window: str = "mid_pair"
+) -> NoReturn:
+    """Persist a real registered crash window, then exit without cleanup."""
 
     paths = _interruption_bounded_fork_paths(root, root / "terminal.json")
+    if crash_window in {"record_zero", "record_zero_with_event"}:
+        identity = _synthetic_interruption_bounded_start_identity()
+        write_one_shot_gate(
+            Path(paths["started"]),
+            {
+                "schema_version": SCHEMA_VERSION,
+                "created_at": utc_now(),
+                "status": "STARTED",
+                **identity,
+                "retained_generation_authorized": False,
+            },
+        )
+        zero_head = _interruption_bounded_head_payload(0, None, None)
+        zero_history_path = Path(paths["ledger_head_history"]) / "00000000.json"
+        atomic_replace_json(zero_history_path, zero_head)
+        if crash_window == "record_zero_with_event":
+            _append_ledger_event(
+                paths["ledger"],
+                {
+                    "event_type": "PROPERTIES_COMPLETE",
+                    "artifact_sha256": "0" * 64,
+                    "passed": 11,
+                    "total": 11,
+                },
+            )
+            os._exit(99)
+        os._exit(98)
+    if crash_window != "mid_pair":
+        raise ValueError(f"unknown interruption self-test crash window: {crash_window}")
     write_one_shot_gate(
         Path(paths["started"]),
         {"schema_version": SCHEMA_VERSION, "status": "STARTED", "self_test": True},
@@ -7931,39 +7978,97 @@ def interruption_bounded_lifecycle_self_test() -> dict[str, Any]:
             raise AssertionError("interruption terminal result changed after rerun attempt")
         lifecycle_checks.append("terminal_result_no_clobber")
 
-        zero_head_root = container / "zero_head_promotion"
+        zero_head_root = container / "zero_head_production_restart"
+        zero_worker = subprocess.run(
+            [
+                sys.executable,
+                str(Path(__file__).resolve()),
+                "--interruption-bounded-self-test-worker",
+                "--self-test-root",
+                str(zero_head_root),
+                "--self-test-crash-window",
+                "record_zero",
+            ],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        if zero_worker.returncode != 98:
+            raise AssertionError("record-zero worker did not exit at the crash window")
         zero_head_paths = _interruption_bounded_fork_paths(
             zero_head_root, zero_head_root / "terminal.json"
         )
-        zero_identity = _synthetic_interruption_bounded_start_identity()
-        write_one_shot_gate(
-            Path(zero_head_paths["started"]),
-            {
-                "schema_version": SCHEMA_VERSION,
-                "created_at": utc_now(),
-                "status": "STARTED",
-                **zero_identity,
-                "retained_generation_authorized": False,
-            },
-        )
-        zero_head = _interruption_bounded_head_payload(0, None, None)
-        zero_history_path = (
-            Path(zero_head_paths["ledger_head_history"]) / "00000000.json"
-        )
-        write_one_shot_gate(zero_history_path, zero_head)
         if Path(zero_head_paths["ledger_head"]).exists():
             raise AssertionError("record-zero crash fixture unexpectedly has a current head")
-        promoted_zero = _initialize_interruption_bounded_head(zero_head_paths)
-        promoted_bytes = Path(zero_head_paths["ledger_head"]).read_bytes()
-        repeated_zero = _initialize_interruption_bounded_head(zero_head_paths)
+        zero_resolution, zero_state = _restart_interruption_bounded_fork(
+            zero_head_paths, _synthetic_interruption_bounded_start_identity()
+        )
         if (
-            promoted_zero != zero_head
-            or repeated_zero != zero_head
-            or Path(zero_head_paths["ledger_head"]).read_bytes() != promoted_bytes
-            or _interruption_bounded_ledger_state(zero_head_paths)["event_count"] != 0
+            zero_resolution is not None
+            or zero_state is None
+            or zero_state["event_count"] != 0
+            or zero_state["properties_complete"]
+            or Path(zero_head_paths["report"]).exists()
+            or not Path(zero_head_paths["ledger_head"]).is_file()
         ):
-            raise AssertionError("record-zero head promotion was not exact and idempotent")
-        lifecycle_checks.append("record_zero_head_promoted_idempotently")
+            raise AssertionError(
+                "production restart did not resume the record-zero crash pre-pair"
+            )
+        promoted_head_bytes = Path(zero_head_paths["ledger_head"]).read_bytes()
+        repeated_resolution, repeated_state = _restart_interruption_bounded_fork(
+            zero_head_paths, _synthetic_interruption_bounded_start_identity()
+        )
+        if (
+            repeated_resolution is not None
+            or repeated_state != zero_state
+            or Path(zero_head_paths["ledger_head"]).read_bytes()
+            != promoted_head_bytes
+        ):
+            raise AssertionError("production record-zero restart was not idempotent")
+        _seed_interruption_bounded_property_stage(zero_head_paths)
+        _require_interruption_bounded_pair_startable(
+            zero_head_paths, INTERRUPTION_BOUNDED_FORK_PAIR_SPECS[0]
+        )
+        lifecycle_checks.append("record_zero_production_restart_resumed_pre_pair")
+
+        advanced_root = container / "zero_head_with_ledger_event"
+        advanced_worker = subprocess.run(
+            [
+                sys.executable,
+                str(Path(__file__).resolve()),
+                "--interruption-bounded-self-test-worker",
+                "--self-test-root",
+                str(advanced_root),
+                "--self-test-crash-window",
+                "record_zero_with_event",
+            ],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        if advanced_worker.returncode != 99:
+            raise AssertionError("advanced-head worker did not exit at the crash window")
+        advanced_paths = _interruption_bounded_fork_paths(
+            advanced_root, advanced_root / "terminal.json"
+        )
+        advanced_resolution, advanced_state = _restart_interruption_bounded_fork(
+            advanced_paths, _synthetic_interruption_bounded_start_identity()
+        )
+        if (
+            advanced_resolution is None
+            or advanced_resolution["status"] != "CLOSED_IDENTITY_OR_HASH_MISMATCH"
+            or advanced_resolution["reason"]
+            != "STAGE_LEDGER_OR_BOUND_ARTIFACT_DRIFT"
+            or advanced_state is not None
+            or Path(advanced_paths["ledger_head"]).exists()
+            or advanced_resolution["authorization"][
+                "fresh_cap_compliant_successor_registration_authorized"
+            ]
+        ):
+            raise AssertionError(
+                "production restart promoted record zero despite an existing ledger event"
+            )
+        lifecycle_checks.append("record_zero_with_event_production_restart_closed")
 
         resume_root = container / "resume"
         resume_paths = _interruption_bounded_fork_paths(
@@ -8232,7 +8337,7 @@ def interruption_bounded_lifecycle_self_test() -> dict[str, Any]:
         "elapsed_seconds": time.perf_counter() - started,
         "lifecycle_checks": {
             "passed": len(lifecycle_checks),
-            "total": 16,
+            "total": 17,
             "names": lifecycle_checks,
         },
         "arithmetic_checks": {
@@ -8376,6 +8481,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--performance-attestation")
     parser.add_argument("--interruption-bounded-attestation")
     parser.add_argument("--self-test-root", type=Path, help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--self-test-crash-window",
+        choices=("mid_pair", "record_zero", "record_zero_with_event"),
+        default="mid_pair",
+        help=argparse.SUPPRESS,
+    )
     return parser.parse_args(argv)
 
 
@@ -8389,7 +8500,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.interruption_bounded_self_test_worker:
         if args.self_test_root is None:
             raise RuntimeError("self-test worker requires --self-test-root")
-        interruption_bounded_self_test_worker(args.self_test_root)
+        interruption_bounded_self_test_worker(
+            args.self_test_root, args.self_test_crash_window
+        )
     if args.interruption_bounded_self_test:
         print(
             json.dumps(
