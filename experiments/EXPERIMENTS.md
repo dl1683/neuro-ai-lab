@@ -21,6 +21,14 @@ Suite aggregate: `results/pilot_suite_summary.json`.
 
 ## 07: Best-of-N Safe Selection
 
+### Stopping-performance fork (CLOSED INTERRUPTED / BRANCH 1 GOVERNS)
+
+- **Controlling close:** **`CLOSED_INTERRUPTED_BRANCH_1_GOVERNS`**. The one-shot runner durably wrote `STARTED` after all identity checks but was externally interrupted before either no-clobber local probe bank existed. The next invocation followed the registered restart rule and landed the terminal close without GPU work.
+- **Equivalence boundary:** Both the frozen full-prefix comparison harness and incremental automaton remain in the runner. The permitted post-close CPU self-test matched stop position and reason in 11/11 adversarial marker-boundary, split-token/multi-byte, EOS, and cap-edge cases. The required immutable-bank replay is not measured because 0/2 banks were created; the CPU cases do not substitute for its 128-stream denominator.
+- **Timing boundary:** Batch-8 old/new wall times, the adjudicating `min(old)/max(new)` ratio, the consistency projection, and the batch-16 retest are all not measured. The one-shot contract prohibits a timing retry, so the 1.67x gate is unadjudicated rather than failed.
+- **Ruling and access:** No fresh cap-compliant successor skeleton is authorized; the owner's Branch-1 cap-exception decision governs. Retained responses/scores and calibration/test outcome accesses remain zero. There were no protocol deviations.
+- **Evidence:** `experiments/07_safe_selection/results/exp_bon_safe_selection_performance_fork.json` (canonical-LF SHA-256 `e88194f92a07e85c53cc775f3aba37a108beb7f00dd231f780f0fdb7f352ba8d`).
+
 ### Option-A successor (TERMINAL PREFLIGHT STOP / COMPUTE CAP / NO RETAINED DATA)
 
 - **Controlling stop:** **`PREFLIGHT_STOP_COMPUTE_CAP`**. The attested one-shot batch-8 probe and conditionally authorized batch-16 probe both passed technical duplicate determinism (32/32 exact candidates per batch size), per-row stopping, VRAM, CUDA, process-leak, and checkpoint-consistency checks, but neither authorized a canonical bank below the strict 8,100-second ceiling.

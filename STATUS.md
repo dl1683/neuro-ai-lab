@@ -1,6 +1,6 @@
 # Repository Status
 
-Audited snapshot through the terminal base-A/SVAMP adjudication, the single canonical base-B successor-gate `PASS`, the single E2 mechanics-pilot attempt with a controlling post-evidence `VOID`, the completed E2-DIAG Stage-0 `STOP`, the terminal E3 preflight `PREFLIGHT_STOP`, the E3 interface-supervision diagnostic frozen as not launchable after its bounded re-review found a design-level lexical shortcut, and the Line-07 Option-A successor stopped before retained data at its registered compute-cap gate. No Line-07 scientific conclusion was drawn. The base-B artifact is immutable band-placement evidence only; E2, E2-DIAG, E3 preflight, the frozen diagnostic, and the Line-07 cap stop remain bounded evidence surfaces.
+Audited snapshot through the terminal base-A/SVAMP adjudication, the single canonical base-B successor-gate `PASS`, the single E2 mechanics-pilot attempt with a controlling post-evidence `VOID`, the completed E2-DIAG Stage-0 `STOP`, the terminal E3 preflight `PREFLIGHT_STOP`, the E3 interface-supervision diagnostic frozen as not launchable after its bounded re-review found a design-level lexical shortcut, the Line-07 Option-A successor stopped before retained data at its registered compute-cap gate, and its one-shot stopping-performance fork closed after an external interruption following durable `STARTED` but before either local probe bank existed. No Line-07 scientific conclusion was drawn. The base-B artifact is immutable band-placement evidence only; E2, E2-DIAG, E3 preflight, the frozen diagnostic, and the Line-07 operational stops remain bounded evidence surfaces.
 
 **This file is the sole authority for current state.** Experiment writeups, proofs, and reviews are point-in-time evidence; earlier reviews and evidence gates may contain predictions that later experiments falsified.
 
@@ -20,7 +20,7 @@ Audited snapshot through the terminal base-A/SVAMP adjudication, the single cano
 | 04 Circuit-viability pruning | FROZEN / AUDITED | Claim audit `234/234`; SynFlow pathology audit passes; mechanism supported within recorded scope. | `docs/CIRCUIT_VIABILITY_PRUNING_REPORT.md`, `docs/CLAIM_EVIDENCE_LEDGER.md`, `docs/CLAIM_AUDIT.md`, `results/04_criticality_pruning/` |
 | 06 UESD — fixed-point arc | CONVERGENCE ARC CLOSED NEGATIVE | D40 falsifies the tested self-consistency fixed-point thesis; the system behaves as a finite-time transient solver. Surviving core: D22 variable-T k-suppression. | D40 ledger entry, `experiments/06_uesd/results/exp_d40_extended_convergence.json`, `docs/UNIFIED_ERROR_SPACE.md` |
 | 06 UESD — semantic ratchet | BASE-A TASK-BAND TERMINAL VOID / BASE-B TASK-BAND PASS / E2 CONTROLLING VOID / E2-DIAG STAGE-0 STOP / E3 PREFLIGHT STOP / INTERFACE-SUPERVISION DIAGNOSTIC FROZEN-NOT-LAUNCHABLE | Base-B satisfied the separate band-placement prerequisite. E2 remains controlling `VOID`; E2-DIAG killed the from-scratch line. E3 stopped at `PREFLIGHT_STOP / PRETRAINED_INTERFACE_COMPETENCE_SMOKE_MISS`. The permitted diagnostic correction cycle and independent re-review are exhausted: I2 retained a queried-word occurrence-count imbalance whose single-feature affine probe reached 69.73%, requiring dataset/label reconstruction. Under the bottom-out rule the diagnostic is frozen without a scientific conclusion. No diagnostic cell, E3 canonical stage, official test, or 0.5B launch is authorized. | `experiments/06_uesd/E3_INTERFACE_SUPERVISION_DIAGNOSTIC_PREREGISTRATION.md`, `experiments/06_uesd/results/exp_e3_preflight.json`, `experiments/06_uesd/results/exp_e2_diag_stage0_instrumented.json`, `experiments/06_uesd/results/exp_e2_latch_mechanics.json`, `experiments/06_uesd/results/exp_e1_task_band_base_b.json` |
-| 07 Best-of-N safe selection | OPTION-A SUCCESSOR TERMINAL PREFLIGHT STOP / COMPUTE CAP / NO RETAINED DATA / NO SCIENTIFIC OUTCOME | The original attempt remains closed at `PREFLIGHT_STOP_IMPLEMENTATION_DISCREPANCY`. The attested successor ran batch 8 first and batch 16 only after batch 8 failed the full-bank cap rule. Both were technically reproducible (32/32 exact diagnostic candidates) but cap-ineligible: batch 8 projected 12,731.64s and at most 486 problems; batch 16 projected 36,205.65s and at most 171, both below the registered 512-problem minimum under the strict 8,100s ceiling. The controlling successor token is `PREFLIGHT_STOP_COMPUTE_CAP`; no retained response, calibration/test outcome, policy result, or scientific verdict exists. | `experiments/07_safe_selection/results/exp_bon_safe_selection_cap_preflight.json`, `experiments/07_safe_selection/PREREGISTRATION.md` |
+| 07 Best-of-N safe selection | PERFORMANCE FORK CLOSED INTERRUPTED / BRANCH 1 GOVERNS / NO RETAINED DATA / NO SCIENTIFIC OUTCOME | The Option-A successor remains closed at `PREFLIGHT_STOP_COMPUTE_CAP`. Its one-shot stopping-performance fork durably reached `STARTED` but was externally interrupted before either local probe bank existed. The registered restart branch then landed `CLOSED_INTERRUPTED_BRANCH_1_GOVERNS` without GPU work. The 128-stream equivalence replay, batch-8 speedup ratio, and batch-16 retest are not measured; no fresh cap-compliant successor is authorized. | `experiments/07_safe_selection/results/exp_bon_safe_selection_performance_fork.json`, `experiments/07_safe_selection/results/exp_bon_safe_selection_cap_preflight.json`, `experiments/07_safe_selection/PREREGISTRATION.md` |
 | 01/02/03/05 pilots | FROZEN HISTORICAL | Single-run pilots; no active roadmap or runner. 01 failed; 02/03 modest wins on toy tasks; 05 efficiency win with failed DDM fit. | `results/01..05/pilot_result.json`, `results/pilot_suite_summary.json`, frozen-pilots table in `experiments/EXPERIMENTS.md` |
 
 ## 04 — Circuit-Viability Pruning
@@ -185,6 +185,23 @@ CONFIRM/KILL/VOID result exists. The immutable cap-stop artifact is
 This operational stop does not test or kill the registered safe-selection law.
 No retry, sub-minimum resize, cap resolution, calibration, or later stage is
 authorized by this attempt.
+
+**Line-07 stopping-performance fork outcome:**
+**`CLOSED_INTERRUPTED_BRANCH_1_GOVERNS / NO RETAINED DATA / NO SCIENTIFIC
+OUTCOME`**. The exact registered runner durably wrote `STARTED` at
+`2026-08-11T08:32:28.311345+00:00`, then the executor session was externally
+interrupted before either batch-8 or batch-16 local probe bank was created.
+The next invocation applied the preregistered restart rule and closed the fork
+without GPU work. The required 128-stream replay, batch-8 old/new timings and
+1.67x adjudication, projection consistency check, and batch-16 retest are not
+measured and may not be retried. A separate CPU-only self-test confirmed 11/11
+adversarial old/new stopping cases, but it cannot replace the absent banks or
+timing gate. The immutable closure artifact is
+`experiments/07_safe_selection/results/exp_bon_safe_selection_performance_fork.json`
+(canonical-LF SHA-256
+`e88194f92a07e85c53cc775f3aba37a108beb7f00dd231f780f0fdb7f352ba8d`).
+No fresh cap-compliant successor registration is authorized; the owner's
+Branch-1 cap-exception decision is the only registered adjudication path.
 
 Operationally, two earlier GSM8K canonical invocations were killed before GPU use while sandboxed dataset loading stalled on user-profile Hugging Face cache lock files; neither wrote an evidence artifact. The successful GSM8K attempt and the SVAMP initial attempt used the ignored workspace-local `.hf_cache/` fully offline. The SVAMP loader began GPU work immediately, so its 10-minute watchdog did not trigger.
 

@@ -1,4 +1,4 @@
-"""Read-only audit for the immutable Line-07 Option-A compute-cap stop."""
+"""Read-only audit for immutable Line-07 Option-A engineering stops."""
 
 from __future__ import annotations
 
@@ -15,14 +15,30 @@ ARTIFACT = (
     / "results"
     / "exp_bon_safe_selection_cap_preflight.json"
 )
+PERFORMANCE_FORK_ARTIFACT = (
+    ROOT
+    / "experiments"
+    / "07_safe_selection"
+    / "results"
+    / "exp_bon_safe_selection_performance_fork.json"
+)
 EXPECTED_ARTIFACT_SHA256 = (
     "8f7d3be695f5503bd5a0a87a09651f52ab38a0adb4a04483d9a4be842d8da0c2"
 )
-EXPECTED_RUNNER_SHA256 = (
+EXPECTED_CAP_RUNNER_SHA256 = (
     "49af8237e6de5373a109eb47e71ff0b39efe805750e3fa2bd0c8f15da51b3b26"
 )
 EXPECTED_REVIEW_SHA256 = (
     "f2a099ea60d44bb9809fa1e2cfa614c4066c242ba7580c55bdad176a6f59bffc"
+)
+EXPECTED_PERFORMANCE_FORK_ARTIFACT_SHA256 = (
+    "e88194f92a07e85c53cc775f3aba37a108beb7f00dd231f780f0fdb7f352ba8d"
+)
+EXPECTED_PERFORMANCE_FORK_RUNNER_SHA256 = (
+    "07d23d8cc15de79e6e33b9780d2a1e3ee9bc0c0d8a88db86c84211dad9667a98"
+)
+EXPECTED_PERFORMANCE_FORK_REVIEW_SHA256 = (
+    "6e23e774524684908a6a57053cf87204b691761a9c81824b721848727eab1bc5"
 )
 
 
@@ -36,6 +52,9 @@ def sha256_canonical_lf(path: Path) -> str:
 
 def main() -> int:
     result = json.loads(ARTIFACT.read_text(encoding="utf-8"))
+    performance_fork = json.loads(
+        PERFORMANCE_FORK_ARTIFACT.read_text(encoding="utf-8")
+    )
     checks: list[tuple[str, bool]] = []
 
     def check(name: str, condition: bool) -> None:
@@ -52,14 +71,60 @@ def main() -> int:
     check("claim_not_authorized", result["claim_authorized"] is False)
     check(
         "runner_binding",
-        result["attestation"]["runner_source_sha256"] == EXPECTED_RUNNER_SHA256,
+        result["attestation"]["runner_source_sha256"]
+        == EXPECTED_CAP_RUNNER_SHA256,
     )
     check(
         "review_binding",
         result["attestation"]["delta_review_sha256"] == EXPECTED_REVIEW_SHA256,
     )
     runner = ROOT / "experiments" / "07_safe_selection" / "exp_f1_bon_safe_selection.py"
-    check("live_runner_sha256", sha256_file(runner) == EXPECTED_RUNNER_SHA256)
+    check(
+        "live_runner_sha256",
+        sha256_file(runner) == EXPECTED_PERFORMANCE_FORK_RUNNER_SHA256,
+    )
+
+    check(
+        "performance_fork_artifact_sha256",
+        sha256_canonical_lf(PERFORMANCE_FORK_ARTIFACT)
+        == EXPECTED_PERFORMANCE_FORK_ARTIFACT_SHA256,
+    )
+    check(
+        "performance_fork_interrupted_close",
+        performance_fork["status"] == "CLOSED_INTERRUPTED_BRANCH_1_GOVERNS",
+    )
+    check(
+        "performance_fork_reason",
+        performance_fork["reason"] == "INTERRUPTED_AFTER_DURABLE_START",
+    )
+    check(
+        "performance_fork_runner_binding",
+        performance_fork["started"]["runner_source_sha256"]
+        == EXPECTED_PERFORMANCE_FORK_RUNNER_SHA256,
+    )
+    check(
+        "performance_fork_review_binding",
+        performance_fork["started"]["prelaunch_review_sha256"]
+        == EXPECTED_PERFORMANCE_FORK_REVIEW_SHA256,
+    )
+    check(
+        "performance_fork_no_local_banks",
+        performance_fork["local_bank_artifacts_present"]
+        == {"batch_8": False, "batch_16": False},
+    )
+    check(
+        "performance_fork_no_retained_data",
+        performance_fork["retained_responses_or_scores"] == 0
+        and performance_fork["calibration_or_test_outcomes_accessed"] is False,
+    )
+    check(
+        "performance_fork_no_successor_authorization",
+        performance_fork["authorization"]
+        == {
+            "fresh_cap_compliant_successor_registration_authorized": False,
+            "owner_exception_necessary": True,
+        },
+    )
 
     protocol = result["protocol"]
     check("forward_sequence_length", len(protocol["forward_only_sequence"]) == 6)
@@ -159,14 +224,23 @@ def main() -> int:
     check("no_deviations", result["deviations"] == [])
 
     expected_texts = {
-        ROOT / "STATUS.md": "PREFLIGHT_STOP_COMPUTE_CAP",
-        ROOT / "experiments" / "EXPERIMENTS.md": "PREFLIGHT_STOP_COMPUTE_CAP",
+        ROOT / "STATUS.md": (
+            "PREFLIGHT_STOP_COMPUTE_CAP",
+            "CLOSED_INTERRUPTED_BRANCH_1_GOVERNS",
+        ),
+        ROOT / "experiments" / "EXPERIMENTS.md": (
+            "PREFLIGHT_STOP_COMPUTE_CAP",
+            "CLOSED_INTERRUPTED_BRANCH_1_GOVERNS",
+        ),
         ROOT / "experiments" / "07_safe_selection" / "PREREGISTRATION.md": (
-            "exp_bon_safe_selection_cap_preflight.json"
+            "exp_bon_safe_selection_cap_preflight.json",
+            "exp_bon_safe_selection_performance_fork.json",
         ),
     }
-    for path, needle in expected_texts.items():
-        check(f"document_binding_{path.name}", needle in path.read_text(encoding="utf-8"))
+    for path, needles in expected_texts.items():
+        text = path.read_text(encoding="utf-8")
+        for ordinal, needle in enumerate(needles, start=1):
+            check(f"document_binding_{path.name}_{ordinal}", needle in text)
 
     ledger_entries = []
     for line in (ROOT / "experiments" / "ledger.jsonl").read_text(
@@ -182,6 +256,26 @@ def main() -> int:
         check(
             "ledger_artifact_hash",
             metrics["artifact_sha256"] == EXPECTED_ARTIFACT_SHA256,
+        )
+
+    performance_ledger_entries = []
+    for line in (ROOT / "experiments" / "ledger.jsonl").read_text(
+        encoding="utf-8"
+    ).splitlines():
+        entry = json.loads(line)
+        if entry.get("id") == "safe-selection-stopping-performance-fork-interrupted":
+            performance_ledger_entries.append(entry)
+    check("one_performance_fork_ledger_entry", len(performance_ledger_entries) == 1)
+    if performance_ledger_entries:
+        metrics = performance_ledger_entries[0]["metrics"]
+        check(
+            "performance_ledger_status",
+            metrics["status"] == performance_fork["status"],
+        )
+        check(
+            "performance_ledger_artifact_hash",
+            metrics["artifact_sha256"]
+            == EXPECTED_PERFORMANCE_FORK_ARTIFACT_SHA256,
         )
 
     failed = [name for name, passed in checks if not passed]

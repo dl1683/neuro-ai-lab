@@ -1866,3 +1866,45 @@ second slot and the invocation supplies both values exactly.
 
 - `performance_fork_runner_source_sha256`: `07d23d8cc15de79e6e33b9780d2a1e3ee9bc0c0d8a88db86c84211dad9667a98`
 - `performance_fork_prelaunch_review_sha256`: `6e23e774524684908a6a57053cf87204b691761a9c81824b721848727eab1bc5`
+
+## Terminal performance-fork record — 2026-08-12
+
+The registered runner durably wrote `STARTED` at
+`2026-08-11T08:32:28.311345+00:00`, after validating the exact runner,
+pre-launch review, frozen generator/tokenizer snapshot, manifest identity, and
+both terminal probe-report hashes, but before dataset or model loading. The
+executor session was then externally interrupted. No batch-8 or batch-16 local
+probe-bank artifact was created.
+
+On the next performance-fork invocation, the preregistered restart rule landed
+**`CLOSED_INTERRUPTED_BRANCH_1_GOVERNS`** without GPU work. The 128-stream
+machine-checked replay, batch-8 old/new timing probe, adjudicating speedup ratio,
+batch-8 cap projection, and batch-16 retest are therefore all **not measured**;
+none may be reconstructed by retrying the one-shot fork.
+
+| Required fork output | Result |
+|---|---:|
+| Immutable old-logic streams replayed | not measured (0 banks created) |
+| Adversarial CPU property cases | 11/11 pass, non-adjudicating |
+| Batch-8 old wall times | not measured |
+| Batch-8 new wall times | not measured |
+| Batch-8 adjudicating ratio | not measured |
+| Batch-16 new wall times | not measured |
+
+The implementation inspection confirms that the frozen
+`FullPrefixNewQuestionBoundaryCriteria` comparison harness and the incremental
+`PerRowNewQuestionBoundaryCriteria` remain simultaneously available. A
+post-close CPU-only self-test matched their stop position and reason in all 11
+registered marker-boundary, split-token/multi-byte, EOS, and token-cap cases.
+That check does not substitute for the absent 128-stream replay or timing gate.
+
+The immutable terminal artifact is
+`experiments/07_safe_selection/results/exp_bon_safe_selection_performance_fork.json`
+(canonical-LF SHA-256
+`e88194f92a07e85c53cc775f3aba37a108beb7f00dd231f780f0fdb7f352ba8d`).
+It records zero retained responses or scores, no calibration/test outcome
+access, unchanged scientific protocol, and no local probe banks. No fresh
+cap-compliant successor registration is authorized. The owner's Branch-1 cap
+exception decision is the only registered path to adjudication. There were no
+protocol deviations: the interruption was resolved exactly through the
+precommitted terminal restart branch.
