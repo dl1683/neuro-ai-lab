@@ -5408,12 +5408,33 @@ def _initialize_interruption_bounded_head(paths: Mapping[str, Any]) -> dict[str,
         head = json.loads(head_path.read_text(encoding="utf-8"))
         _validate_interruption_bounded_head(head)
         return head
-    if _ledger_events(Path(paths["ledger"])) or history_dir.exists():
-        raise StageTransitionError("trusted ledger head is missing despite ledger history")
+    events = _ledger_events(Path(paths["ledger"]))
+    history_paths = sorted(history_dir.glob("*.json")) if history_dir.exists() else []
+    if events:
+        raise StageTransitionError("trusted ledger head is missing despite ledger events")
     head = _interruption_bounded_head_payload(0, None, None)
     history_path = history_dir / "00000000.json"
-    write_one_shot_gate(history_path, head)
-    write_one_shot_gate(head_path, head)
+    if history_paths:
+        if history_paths != [history_path]:
+            raise StageTransitionError(
+                "trusted ledger head is missing with divergent head history"
+            )
+        persisted_zero = json.loads(history_path.read_text(encoding="utf-8"))
+        _validate_interruption_bounded_head(persisted_zero)
+        if persisted_zero != head:
+            raise StageTransitionError(
+                "trusted ledger record zero conflicts with the canonical null head"
+            )
+        head = persisted_zero
+    else:
+        atomic_replace_json(history_path, head)
+        persisted_zero = json.loads(history_path.read_text(encoding="utf-8"))
+        if persisted_zero != head:
+            raise StageTransitionError("trusted ledger record zero did not read back")
+    atomic_replace_json(head_path, head)
+    persisted_head = json.loads(head_path.read_text(encoding="utf-8"))
+    if persisted_head != head:
+        raise StageTransitionError("trusted ledger null head promotion did not read back")
     return head
 
 
@@ -5680,8 +5701,11 @@ def _reconcile_interruption_bounded_fork(
 
 
 def _validate_orphan_interruption_bounded_adjudication(
-    paths: Mapping[str, Any], artifact: Mapping[str, Any]
+    paths: Mapping[str, Any],
+    artifact: Mapping[str, Any],
+    expected_start_identity: Mapping[str, Any],
 ) -> None:
+    _validate_interruption_bounded_start(paths, expected_start_identity)
     state = _interruption_bounded_ledger_state(paths)
     if (
         state["dangling_pair"] is not None
@@ -5776,15 +5800,20 @@ def _validate_orphan_interruption_bounded_adjudication(
 
 
 def _reconcile_orphan_interruption_bounded_adjudication(
-    paths: Mapping[str, Any]
+    paths: Mapping[str, Any], expected_start_identity: Mapping[str, Any]
 ) -> dict[str, Any] | None:
     adjudication_path = Path(paths["adjudication"])
-    state = _interruption_bounded_ledger_state(paths)
-    if state["adjudication_complete"] or not adjudication_path.exists():
+    if not adjudication_path.exists():
         return None
     try:
+        _validate_interruption_bounded_start(paths, expected_start_identity)
+        state = _interruption_bounded_ledger_state(paths)
+        if state["adjudication_complete"]:
+            return None
         artifact = json.loads(adjudication_path.read_text(encoding="utf-8"))
-        _validate_orphan_interruption_bounded_adjudication(paths, artifact)
+        _validate_orphan_interruption_bounded_adjudication(
+            paths, artifact, expected_start_identity
+        )
     except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError, StageTransitionError) as error:
         return _land_interruption_bounded_close(
             paths,
@@ -5825,10 +5854,7 @@ def _persist_or_validate_interruption_bounded_start(
 ) -> dict[str, Any]:
     started_path = Path(paths["started"])
     if started_path.exists():
-        started = json.loads(started_path.read_text(encoding="utf-8"))
-        if any(started.get(key) != value for key, value in identity.items()):
-            raise StageTransitionError("durable start identity drift")
-        return started
+        return _validate_interruption_bounded_start(paths, identity)
     if _interruption_bounded_history_exists(paths):
         raise StageTransitionError("durable start is missing despite fork history")
     started = {
@@ -5840,6 +5866,23 @@ def _persist_or_validate_interruption_bounded_start(
     }
     write_one_shot_gate(started_path, started)
     _initialize_interruption_bounded_head(paths)
+    return started
+
+
+def _validate_interruption_bounded_start(
+    paths: Mapping[str, Any], identity: Mapping[str, Any]
+) -> dict[str, Any]:
+    started_path = Path(paths["started"])
+    if not started_path.is_file():
+        raise StageTransitionError("durable start is absent")
+    started = json.loads(started_path.read_text(encoding="utf-8"))
+    if (
+        started.get("schema_version") != SCHEMA_VERSION
+        or started.get("status") != "STARTED"
+        or started.get("retained_generation_authorized") is not False
+        or any(started.get(key) != value for key, value in identity.items())
+    ):
+        raise StageTransitionError("durable start identity drift")
     return started
 
 
@@ -6254,31 +6297,6 @@ def run_interruption_bounded_performance_fork(
             reason="DURABLE_START_MISSING_DESPITE_FORK_HISTORY",
             dangling_pair=None,
         )
-    try:
-        interrupted = _reconcile_interruption_bounded_fork(paths)
-    except StageTransitionError:
-        return _land_interruption_bounded_close(
-            paths,
-            status="CLOSED_IDENTITY_OR_HASH_MISMATCH",
-            reason="STAGE_LEDGER_OR_BOUND_ARTIFACT_DRIFT",
-            dangling_pair=None,
-        )
-    if interrupted is not None:
-        return interrupted
-    orphan_adjudication = _reconcile_orphan_interruption_bounded_adjudication(paths)
-    if orphan_adjudication is not None:
-        if Path(paths["report"]).exists():
-            return json.loads(Path(paths["report"]).read_text(encoding="utf-8"))
-        write_one_shot_gate(Path(paths["report"]), orphan_adjudication)
-        return orphan_adjudication
-    state = _interruption_bounded_ledger_state(paths)
-    if state["adjudication_complete"]:
-        report = json.loads(Path(paths["adjudication"]).read_text(encoding="utf-8"))
-        write_one_shot_gate(report_path, report)
-        return report
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if device.type != "cuda":
-        raise RuntimeError("interruption-bounded performance fork requires CUDA")
     manifest = parse_manifest()
     manifest_identity_digest, _ = manifest_identity(manifest)
     registered_manifest_identity_digest = registered_slot_value(
@@ -6309,6 +6327,44 @@ def run_interruption_bounded_performance_fork(
             reason="FROZEN_IDENTITY_VALIDATION_FAILED",
             dangling_pair=None,
         )
+    if Path(paths["started"]).exists():
+        try:
+            _validate_interruption_bounded_start(paths, identity)
+        except (OSError, json.JSONDecodeError, StageTransitionError) as error:
+            return _land_interruption_bounded_close(
+                paths,
+                status="CLOSED_IDENTITY_OR_HASH_MISMATCH",
+                reason="DURABLE_START_MISSING_OR_DRIFTED",
+                dangling_pair=None,
+                details={"integrity_error": f"{type(error).__name__}: {error}"},
+            )
+    try:
+        interrupted = _reconcile_interruption_bounded_fork(paths)
+    except StageTransitionError:
+        return _land_interruption_bounded_close(
+            paths,
+            status="CLOSED_IDENTITY_OR_HASH_MISMATCH",
+            reason="STAGE_LEDGER_OR_BOUND_ARTIFACT_DRIFT",
+            dangling_pair=None,
+        )
+    if interrupted is not None:
+        return interrupted
+    orphan_adjudication = _reconcile_orphan_interruption_bounded_adjudication(
+        paths, identity
+    )
+    if orphan_adjudication is not None:
+        if Path(paths["report"]).exists():
+            return json.loads(Path(paths["report"]).read_text(encoding="utf-8"))
+        write_one_shot_gate(Path(paths["report"]), orphan_adjudication)
+        return orphan_adjudication
+    state = _interruption_bounded_ledger_state(paths)
+    if state["adjudication_complete"]:
+        report = json.loads(Path(paths["adjudication"]).read_text(encoding="utf-8"))
+        write_one_shot_gate(report_path, report)
+        return report
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if device.type != "cuda":
+        raise RuntimeError("interruption-bounded performance fork requires CUDA")
     try:
         _persist_or_validate_interruption_bounded_start(paths, identity)
     except (OSError, json.JSONDecodeError, StageTransitionError) as error:
@@ -7705,6 +7761,18 @@ def _seed_synthetic_interruption_bounded_pairs(paths: Mapping[str, Any]) -> None
         )
 
 
+def _synthetic_interruption_bounded_start_identity() -> dict[str, Any]:
+    return {
+        "runner_source_sha256": sha256_file(Path(__file__).resolve()),
+        "prelaunch_review_sha256": "a" * 64,
+        "manifest_identity_digest": "b" * 64,
+        "generator_identity": {"identity_sha256": "self-test-generator"},
+        "terminal_probe_artifact_sha256": {
+            f"batch_{key}": value for key, value in TERMINAL_PROBE_ARTIFACT_SHA256.items()
+        },
+    }
+
+
 def _synthetic_orphan_adjudication(
     paths: Mapping[str, Any], *, corrupt_pair_hash: bool = False
 ) -> dict[str, Any]:
@@ -7863,6 +7931,40 @@ def interruption_bounded_lifecycle_self_test() -> dict[str, Any]:
             raise AssertionError("interruption terminal result changed after rerun attempt")
         lifecycle_checks.append("terminal_result_no_clobber")
 
+        zero_head_root = container / "zero_head_promotion"
+        zero_head_paths = _interruption_bounded_fork_paths(
+            zero_head_root, zero_head_root / "terminal.json"
+        )
+        zero_identity = _synthetic_interruption_bounded_start_identity()
+        write_one_shot_gate(
+            Path(zero_head_paths["started"]),
+            {
+                "schema_version": SCHEMA_VERSION,
+                "created_at": utc_now(),
+                "status": "STARTED",
+                **zero_identity,
+                "retained_generation_authorized": False,
+            },
+        )
+        zero_head = _interruption_bounded_head_payload(0, None, None)
+        zero_history_path = (
+            Path(zero_head_paths["ledger_head_history"]) / "00000000.json"
+        )
+        write_one_shot_gate(zero_history_path, zero_head)
+        if Path(zero_head_paths["ledger_head"]).exists():
+            raise AssertionError("record-zero crash fixture unexpectedly has a current head")
+        promoted_zero = _initialize_interruption_bounded_head(zero_head_paths)
+        promoted_bytes = Path(zero_head_paths["ledger_head"]).read_bytes()
+        repeated_zero = _initialize_interruption_bounded_head(zero_head_paths)
+        if (
+            promoted_zero != zero_head
+            or repeated_zero != zero_head
+            or Path(zero_head_paths["ledger_head"]).read_bytes() != promoted_bytes
+            or _interruption_bounded_ledger_state(zero_head_paths)["event_count"] != 0
+        ):
+            raise AssertionError("record-zero head promotion was not exact and idempotent")
+        lifecycle_checks.append("record_zero_head_promoted_idempotently")
+
         resume_root = container / "resume"
         resume_paths = _interruption_bounded_fork_paths(
             resume_root, resume_root / "terminal.json"
@@ -7922,14 +8024,16 @@ def interruption_bounded_lifecycle_self_test() -> dict[str, Any]:
         orphan_paths = _interruption_bounded_fork_paths(
             orphan_root, orphan_root / "terminal.json"
         )
-        write_one_shot_gate(
-            Path(orphan_paths["started"]),
-            {"schema_version": SCHEMA_VERSION, "status": "STARTED", "self_test": True},
+        orphan_identity = _synthetic_interruption_bounded_start_identity()
+        _persist_or_validate_interruption_bounded_start(
+            orphan_paths, orphan_identity
         )
         _seed_interruption_bounded_property_stage(orphan_paths)
         _seed_synthetic_interruption_bounded_pairs(orphan_paths)
         orphan_artifact = _synthetic_orphan_adjudication(orphan_paths)
-        promoted = _reconcile_orphan_interruption_bounded_adjudication(orphan_paths)
+        promoted = _reconcile_orphan_interruption_bounded_adjudication(
+            orphan_paths, orphan_identity
+        )
         promoted_state = _interruption_bounded_ledger_state(orphan_paths)
         if (
             promoted != orphan_artifact
@@ -7947,9 +8051,9 @@ def interruption_bounded_lifecycle_self_test() -> dict[str, Any]:
         invalid_orphan_paths = _interruption_bounded_fork_paths(
             invalid_orphan_root, invalid_orphan_root / "terminal.json"
         )
-        write_one_shot_gate(
-            Path(invalid_orphan_paths["started"]),
-            {"schema_version": SCHEMA_VERSION, "status": "STARTED", "self_test": True},
+        invalid_orphan_identity = _synthetic_interruption_bounded_start_identity()
+        _persist_or_validate_interruption_bounded_start(
+            invalid_orphan_paths, invalid_orphan_identity
         )
         _seed_interruption_bounded_property_stage(invalid_orphan_paths)
         _seed_synthetic_interruption_bounded_pairs(invalid_orphan_paths)
@@ -7957,7 +8061,7 @@ def interruption_bounded_lifecycle_self_test() -> dict[str, Any]:
             invalid_orphan_paths, corrupt_pair_hash=True
         )
         invalid_close = _reconcile_orphan_interruption_bounded_adjudication(
-            invalid_orphan_paths
+            invalid_orphan_paths, invalid_orphan_identity
         )
         if (
             invalid_close is None
@@ -7969,6 +8073,44 @@ def interruption_bounded_lifecycle_self_test() -> dict[str, Any]:
         ):
             raise AssertionError("invalid orphan adjudication did not terminal-close")
         lifecycle_checks.append("invalid_adjudication_orphan_closed")
+
+        for binding_key, replacement in (
+            ("prelaunch_review_sha256", "c" * 64),
+            ("manifest_identity_digest", "d" * 64),
+        ):
+            mismatch_root = container / f"orphan_{binding_key}_mismatch"
+            mismatch_paths = _interruption_bounded_fork_paths(
+                mismatch_root, mismatch_root / "terminal.json"
+            )
+            persisted_identity = _synthetic_interruption_bounded_start_identity()
+            _persist_or_validate_interruption_bounded_start(
+                mismatch_paths, persisted_identity
+            )
+            _seed_interruption_bounded_property_stage(mismatch_paths)
+            _seed_synthetic_interruption_bounded_pairs(mismatch_paths)
+            _synthetic_orphan_adjudication(mismatch_paths)
+            expected_identity = dict(persisted_identity)
+            expected_identity[binding_key] = replacement
+            mismatch_close = _reconcile_orphan_interruption_bounded_adjudication(
+                mismatch_paths, expected_identity
+            )
+            mismatch_state = _interruption_bounded_ledger_state(mismatch_paths)
+            if (
+                mismatch_close is None
+                or mismatch_close["status"] != "CLOSED_IDENTITY_OR_HASH_MISMATCH"
+                or mismatch_close["reason"] != "ORPHAN_ADJUDICATION_INVALID"
+                or mismatch_state["adjudication_complete"]
+                or mismatch_state["event_count"] != 9
+                or mismatch_close["authorization"][
+                    "fresh_cap_compliant_successor_registration_authorized"
+                ]
+            ):
+                raise AssertionError(
+                    f"orphan adjudication promoted under mismatched {binding_key}"
+                )
+            lifecycle_checks.append(
+                f"orphan_promotion_refused_on_{binding_key}_mismatch"
+            )
 
         truncation_root = container / "suffix_truncation"
         truncation_paths = _interruption_bounded_fork_paths(
@@ -8090,7 +8232,7 @@ def interruption_bounded_lifecycle_self_test() -> dict[str, Any]:
         "elapsed_seconds": time.perf_counter() - started,
         "lifecycle_checks": {
             "passed": len(lifecycle_checks),
-            "total": 13,
+            "total": 16,
             "names": lifecycle_checks,
         },
         "arithmetic_checks": {
