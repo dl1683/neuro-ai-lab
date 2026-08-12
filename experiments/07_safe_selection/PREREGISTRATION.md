@@ -2071,8 +2071,8 @@ registration text. Then the existing runner may be extended, but launch remains
 blocked until the full change receives a clean read-only pre-launch review and
 the exact values below are appended and supplied by the invocation:
 
-- `interruption_bounded_fork_runner_source_sha256`: `UNFILLED — launch blocking`;
-- `interruption_bounded_fork_prelaunch_review_sha256`: `UNFILLED — launch blocking`.
+- `interruption_bounded_fork_runner_source_sha256`: `0e72834961b2fe9944ff265ca4e7cedc954dbda202b5a2823ed762f953e19ea4`;
+- `interruption_bounded_fork_prelaunch_review_sha256`: `ee06fe8d5535dee6b9540b42249c437f290ace86db4ccf43b66078ede1cf0741`.
 
 The follow-up implementation round may run CPU-only validation, but the GPU
 probe belongs to a later execution round after these slots are filled. No
