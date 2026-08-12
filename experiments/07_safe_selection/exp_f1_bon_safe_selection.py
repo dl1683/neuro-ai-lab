@@ -5270,6 +5270,8 @@ def _interruption_bounded_fork_paths(
         "started": root / "started.json",
         "properties": root / "stopping_properties.json",
         "ledger": root / "stage_ledger",
+        "ledger_head": root / "stage_ledger_head.json",
+        "ledger_head_history": root / "stage_ledger_head_history",
         "adjudication": root / "adjudication.json",
         "pairs": {
             pair_id: root / f"{pair_id}.json"
@@ -5304,6 +5306,7 @@ def _validate_interruption_bounded_pair_artifact(
         or tuple(artifact.get("execution_order", ())) != order
         or artifact.get("outcomes_or_scores_accessed") is not False
         or int(artifact.get("retained_bank_members", -1)) != 0
+        or not isinstance(artifact.get("checkpoint_identity_check"), dict)
     ):
         raise StageTransitionError(f"timing-pair identity drift: {pair_id}")
     executions = artifact.get("executions")
@@ -5344,10 +5347,174 @@ def _validate_interruption_bounded_pair_artifact(
     load_seconds = float(artifact.get("generation_model_load_seconds", -1.0))
     if not math.isfinite(load_seconds) or load_seconds < 0:
         raise StageTransitionError(f"timing-pair load time invalid: {pair_id}")
+    checkpoint_check = artifact["checkpoint_identity_check"]
+    if (
+        checkpoint_check.get("measured_after_model_load") is not True
+        or checkpoint_check.get("pre_load_identity")
+        != checkpoint_check.get("post_load_identity")
+        or checkpoint_check.get("match") is not True
+        or artifact.get("checkpoint_inconsistency") is not False
+    ):
+        raise StageTransitionError(f"checkpoint identity check failed: {pair_id}")
+
+
+def _interruption_bounded_head_payload(
+    event_count: int,
+    head_event_sha256: str | None,
+    previous_head_sha256: str | None,
+) -> dict[str, Any]:
+    payload = {
+        "schema_version": SCHEMA_VERSION,
+        "event_count": event_count,
+        "head_event_sha256": head_event_sha256,
+        "previous_head_sha256": previous_head_sha256,
+    }
+    payload["head_record_sha256"] = sha256_bytes(canonical_json_bytes(payload))
+    return payload
+
+
+def _validate_interruption_bounded_head(head: Mapping[str, Any]) -> None:
+    unsigned = dict(head)
+    digest = unsigned.pop("head_record_sha256", None)
+    count = unsigned.get("event_count")
+    event_digest = unsigned.get("head_event_sha256")
+    previous_head = unsigned.get("previous_head_sha256")
+    if (
+        unsigned.get("schema_version") != SCHEMA_VERSION
+        or not isinstance(count, int)
+        or count < 0
+        or (count == 0 and event_digest is not None)
+        or (count > 0 and not isinstance(event_digest, str))
+        or (
+            isinstance(event_digest, str)
+            and re.fullmatch(r"[0-9a-f]{64}", event_digest) is None
+        )
+        or (
+            previous_head is not None
+            and (
+                not isinstance(previous_head, str)
+                or re.fullmatch(r"[0-9a-f]{64}", previous_head) is None
+            )
+        )
+        or digest != sha256_bytes(canonical_json_bytes(unsigned))
+    ):
+        raise StageTransitionError("interruption-bounded trusted head is malformed")
+
+
+def _initialize_interruption_bounded_head(paths: Mapping[str, Any]) -> dict[str, Any]:
+    head_path = Path(paths["ledger_head"])
+    history_dir = Path(paths["ledger_head_history"])
+    if head_path.exists():
+        head = json.loads(head_path.read_text(encoding="utf-8"))
+        _validate_interruption_bounded_head(head)
+        return head
+    if _ledger_events(Path(paths["ledger"])) or history_dir.exists():
+        raise StageTransitionError("trusted ledger head is missing despite ledger history")
+    head = _interruption_bounded_head_payload(0, None, None)
+    history_path = history_dir / "00000000.json"
+    write_one_shot_gate(history_path, head)
+    write_one_shot_gate(head_path, head)
+    return head
+
+
+def _replace_interruption_bounded_head(
+    paths: Mapping[str, Any], events: Sequence[Mapping[str, Any]]
+) -> dict[str, Any]:
+    head_path = Path(paths["ledger_head"])
+    if not head_path.is_file():
+        raise StageTransitionError("trusted ledger head disappeared")
+    current = json.loads(head_path.read_text(encoding="utf-8"))
+    _validate_interruption_bounded_head(current)
+    expected_count = int(current["event_count"]) + 1
+    if len(events) != expected_count:
+        raise StageTransitionError("trusted head advance is not exactly one event")
+    if expected_count > 1 and events[-1].get("previous_event_sha256") != current.get(
+        "head_event_sha256"
+    ):
+        raise StageTransitionError("trusted head advance does not extend the committed head")
+    if expected_count == 1 and events[-1].get("previous_event_sha256") is not None:
+        raise StageTransitionError("first trusted event does not extend the null head")
+    next_head = _interruption_bounded_head_payload(
+        expected_count,
+        str(events[-1]["event_sha256"]),
+        str(current["head_record_sha256"]),
+    )
+    history_path = Path(paths["ledger_head_history"]) / f"{expected_count:08d}.json"
+    if history_path.exists():
+        persisted = json.loads(history_path.read_text(encoding="utf-8"))
+        if persisted != next_head:
+            raise StageTransitionError("trusted head history conflicts with recovery")
+    else:
+        write_one_shot_gate(history_path, next_head)
+    atomic_replace_json(head_path, next_head)
+    persisted_head = json.loads(head_path.read_text(encoding="utf-8"))
+    if persisted_head != next_head:
+        raise StageTransitionError("trusted head atomic replacement did not read back")
+    return next_head
+
+
+def _interruption_bounded_ledger_events(
+    paths: Mapping[str, Any], *, recover_one_event: bool = True
+) -> list[dict[str, Any]]:
+    ledger_path = Path(paths["ledger"])
+    head_path = Path(paths["ledger_head"])
+    history_dir = Path(paths["ledger_head_history"])
+    events = _ledger_events(ledger_path)
+    if not head_path.is_file():
+        if events or history_dir.exists():
+            raise StageTransitionError("trusted ledger head is missing despite history")
+        return events
+    head = json.loads(head_path.read_text(encoding="utf-8"))
+    _validate_interruption_bounded_head(head)
+    history_paths = sorted(history_dir.glob("*.json")) if history_dir.exists() else []
+    committed_count = int(head["event_count"])
+    history_names = [path.name for path in history_paths]
+    committed_history_names = [
+        f"{index:08d}.json" for index in range(committed_count + 1)
+    ]
+    recoverable_history_names = [
+        f"{index:08d}.json" for index in range(committed_count + 2)
+    ]
+    if (
+        history_names != committed_history_names
+        and history_names != recoverable_history_names
+    ):
+        raise StageTransitionError("trusted head history count regressed or diverged")
+    prior_record_digest: str | None = None
+    for index, history_path in enumerate(history_paths):
+        record = json.loads(history_path.read_text(encoding="utf-8"))
+        _validate_interruption_bounded_head(record)
+        if (
+            int(record["event_count"]) != index
+            or record.get("previous_head_sha256") != prior_record_digest
+        ):
+            raise StageTransitionError("trusted head history chain drift")
+        prior_record_digest = str(record["head_record_sha256"])
+    if not history_paths or json.loads(
+        history_paths[committed_count].read_text(encoding="utf-8")
+    ) != head:
+        raise StageTransitionError("trusted current head disagrees with immutable history")
+    if len(events) < committed_count:
+        raise StageTransitionError("ledger suffix truncation detected by trusted head")
+    if len(events) == committed_count:
+        actual_digest = events[-1]["event_sha256"] if events else None
+        if actual_digest != head.get("head_event_sha256"):
+            raise StageTransitionError("ledger digest regressed from trusted head")
+        return events
+    if len(events) != committed_count + 1 or not recover_one_event:
+        raise StageTransitionError("ledger advanced beyond the trusted recovery window")
+    anchored_digest = events[committed_count - 1]["event_sha256"] if committed_count else None
+    if (
+        anchored_digest != head.get("head_event_sha256")
+        or events[-1].get("previous_event_sha256") != anchored_digest
+    ):
+        raise StageTransitionError("uncommitted ledger event does not extend trusted head")
+    _replace_interruption_bounded_head(paths, events)
+    return events
 
 
 def _interruption_bounded_ledger_state(paths: Mapping[str, Any]) -> dict[str, Any]:
-    events = _ledger_events(paths["ledger"])
+    events = _interruption_bounded_ledger_events(paths)
     cursor = 0
     properties_complete = False
     completed_pairs: list[str] = []
@@ -5427,9 +5594,12 @@ def _interruption_bounded_ledger_state(paths: Mapping[str, Any]) -> dict[str, An
 def _append_interruption_bounded_event(
     paths: Mapping[str, Any], event_type: str, **fields: Any
 ) -> dict[str, Any]:
+    _initialize_interruption_bounded_head(paths)
+    _interruption_bounded_ledger_events(paths)
     event = _append_ledger_event(
         paths["ledger"], {"event_type": event_type, **fields}
     )
+    _interruption_bounded_ledger_events(paths)
     _interruption_bounded_ledger_state(paths)
     return event
 
@@ -5440,6 +5610,7 @@ def _land_interruption_bounded_close(
     status: str,
     reason: str,
     dangling_pair: str | None,
+    details: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     report_path = Path(paths["report"])
     if report_path.exists():
@@ -5477,7 +5648,19 @@ def _land_interruption_bounded_close(
             "automatic_cap_exception_authorized": False,
             "owner_exception_decision_required": True,
         },
+        "durability": {
+            "ordinary_process_kill_windows_protected": True,
+            "windows_directory_metadata_fsync_available": os.name != "nt",
+            "power_loss_durability_established": False,
+            "limitation": (
+                "Windows directory metadata fsync is unavailable; ordinary "
+                "process-kill windows are protected, but power-loss durability "
+                "is not established."
+            ),
+        },
     }
+    if details is not None:
+        report["details"] = dict(details)
     write_one_shot_gate(report_path, report)
     return report
 
@@ -5494,6 +5677,170 @@ def _reconcile_interruption_bounded_fork(
         reason="INTERRUPTED_AFTER_PAIR_STARTED_BEFORE_PAIR_COMPLETE",
         dangling_pair=state["dangling_pair"],
     )
+
+
+def _validate_orphan_interruption_bounded_adjudication(
+    paths: Mapping[str, Any], artifact: Mapping[str, Any]
+) -> None:
+    state = _interruption_bounded_ledger_state(paths)
+    if (
+        state["dangling_pair"] is not None
+        or state["adjudication_complete"]
+        or len(state["completed_pairs"]) != len(INTERRUPTION_BOUNDED_FORK_PAIR_SPECS)
+    ):
+        raise StageTransitionError("orphan adjudication lacks four completed pairs")
+    expected_pair_hashes = {
+        pair_id: sha256_file(Path(paths["pairs"][pair_id]))
+        for pair_id, _, _, _ in INTERRUPTION_BOUNDED_FORK_PAIR_SPECS
+    }
+    expected_bank_hashes = {
+        f"batch_{batch_size}": sha256_file(Path(paths["banks"][batch_size]))
+        for batch_size in ELIGIBLE_BATCH_SIZES
+    }
+    authorization = artifact.get("authorization")
+    status = artifact.get("status")
+    equivalence = artifact.get("equivalence")
+    technical = artifact.get("technical_telemetry")
+    timing = artifact.get("timing")
+    batch8_adjudication = (
+        timing.get("batch_8", {}).get("adjudication", {})
+        if isinstance(timing, dict)
+        else {}
+    )
+    durability = artifact.get("durability")
+    equivalence_pass = (
+        equivalence.get("pass") if isinstance(equivalence, dict) else None
+    )
+    technical_pass = (
+        technical.get("technical_eligibility")
+        if isinstance(technical, dict)
+        else None
+    )
+    speedup_pass = batch8_adjudication.get("speedup_pass")
+    projection_pass = batch8_adjudication.get("projection_pass")
+    derived_ready = all(
+        value is True
+        for value in (
+            equivalence_pass,
+            technical_pass,
+            speedup_pass,
+            projection_pass,
+        )
+    )
+    if (
+        artifact.get("schema_version") != SCHEMA_VERSION
+        or artifact.get("experiment_id")
+        != "exp_bon_safe_selection_interruption_bounded_fork"
+        or artifact.get("pre_data_engineering_only") is not True
+        or int(artifact.get("retained_responses_or_scores", -1)) != 0
+        or artifact.get("calibration_or_test_outcomes_accessed") is not False
+        or artifact.get("scientific_protocol_changed") is not False
+        or int(artifact.get("candidate_streams_checked", -1)) != 128
+        or artifact.get("runner_source_sha256")
+        != sha256_file(Path(__file__).resolve())
+        or artifact.get("timing_pair_artifact_sha256") != expected_pair_hashes
+        or artifact.get("local_throwaway_probe_bank_sha256") != expected_bank_hashes
+        or artifact.get("source_terminal_probe_artifact_sha256")
+        != {
+            f"batch_{key}": value
+            for key, value in TERMINAL_PROBE_ARTIFACT_SHA256.items()
+        }
+        or not isinstance(authorization, dict)
+        or not isinstance(equivalence, dict)
+        or not isinstance(technical, dict)
+        or int(technical.get("execution_count", -1)) != 8
+        or not isinstance(timing, dict)
+        or not isinstance(durability, dict)
+        or durability.get("ordinary_process_kill_windows_protected") is not True
+        or durability.get("power_loss_durability_established") is not False
+        or status
+        not in {
+            INTERRUPTION_BOUNDED_FORK_STATUS_READY,
+            INTERRUPTION_BOUNDED_FORK_STATUS_CLOSED,
+        }
+        or authorization.get(
+            "fresh_cap_compliant_successor_registration_authorized"
+        )
+        != derived_ready
+        or (status == INTERRUPTION_BOUNDED_FORK_STATUS_READY) != derived_ready
+        or authorization.get("equivalence_pass") != equivalence_pass
+        or authorization.get("technical_eligibility_pass") != technical_pass
+        or authorization.get("batch_8_speedup_pass") != speedup_pass
+        or authorization.get("batch_8_full_bank_projection_pass")
+        != projection_pass
+        or authorization.get("retained_generation_authorized") is not False
+        or authorization.get("automatic_cap_exception_authorized") is not False
+        or authorization.get("all_four_timing_pairs_complete") is not True
+    ):
+        raise StageTransitionError("orphan adjudication structure or bindings drifted")
+
+
+def _reconcile_orphan_interruption_bounded_adjudication(
+    paths: Mapping[str, Any]
+) -> dict[str, Any] | None:
+    adjudication_path = Path(paths["adjudication"])
+    state = _interruption_bounded_ledger_state(paths)
+    if state["adjudication_complete"] or not adjudication_path.exists():
+        return None
+    try:
+        artifact = json.loads(adjudication_path.read_text(encoding="utf-8"))
+        _validate_orphan_interruption_bounded_adjudication(paths, artifact)
+    except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError, StageTransitionError) as error:
+        return _land_interruption_bounded_close(
+            paths,
+            status="CLOSED_IDENTITY_OR_HASH_MISMATCH",
+            reason="ORPHAN_ADJUDICATION_INVALID",
+            dangling_pair=None,
+            details={"integrity_error": f"{type(error).__name__}: {error}"},
+        )
+    _append_interruption_bounded_event(
+        paths,
+        "ADJUDICATION_COMPLETE",
+        artifact_sha256=sha256_file(adjudication_path),
+        status=artifact["status"],
+        recovered_orphan=True,
+    )
+    return artifact
+
+
+def _interruption_bounded_history_exists(paths: Mapping[str, Any]) -> bool:
+    ledger = Path(paths["ledger"])
+    head_history = Path(paths["ledger_head_history"])
+    artifact_paths = [
+        Path(paths["properties"]),
+        Path(paths["ledger_head"]),
+        Path(paths["adjudication"]),
+        *(Path(path) for path in paths["pairs"].values()),
+        *(Path(path) for path in paths["banks"].values()),
+    ]
+    return (
+        any(path.exists() for path in artifact_paths)
+        or (ledger.exists() and any(ledger.glob("*.json")))
+        or (head_history.exists() and any(head_history.glob("*.json")))
+    )
+
+
+def _persist_or_validate_interruption_bounded_start(
+    paths: Mapping[str, Any], identity: Mapping[str, Any]
+) -> dict[str, Any]:
+    started_path = Path(paths["started"])
+    if started_path.exists():
+        started = json.loads(started_path.read_text(encoding="utf-8"))
+        if any(started.get(key) != value for key, value in identity.items()):
+            raise StageTransitionError("durable start identity drift")
+        return started
+    if _interruption_bounded_history_exists(paths):
+        raise StageTransitionError("durable start is missing despite fork history")
+    started = {
+        "schema_version": SCHEMA_VERSION,
+        "created_at": utc_now(),
+        "status": "STARTED",
+        **dict(identity),
+        "retained_generation_authorized": False,
+    }
+    write_one_shot_gate(started_path, started)
+    _initialize_interruption_bounded_head(paths)
+    return started
 
 
 def _interruption_bounded_gate_arithmetic(
@@ -5541,6 +5888,19 @@ def _interruption_bounded_gate_arithmetic(
     }
 
 
+def _checkpoint_identity_comparison(
+    pre_load_identity: Mapping[str, Any], post_load_identity: Mapping[str, Any]
+) -> dict[str, Any]:
+    pre = dict(pre_load_identity)
+    post = dict(post_load_identity)
+    return {
+        "measured_after_model_load": True,
+        "pre_load_identity": pre,
+        "post_load_identity": post,
+        "match": pre == post,
+    }
+
+
 def _require_interruption_bounded_pair_startable(
     paths: Mapping[str, Any],
     spec: tuple[str, int, int, tuple[str, str]],
@@ -5567,6 +5927,7 @@ def _run_interruption_bounded_pair(
     generation_load_seconds: float,
     invocation_id: str,
     invocation_child_pids_before: Sequence[int],
+    checkpoint_identity_check: Mapping[str, Any],
 ) -> dict[str, Any]:
     pair_id, batch_size, pair_index, order = spec
     _require_interruption_bounded_pair_startable(paths, spec)
@@ -5613,7 +5974,8 @@ def _run_interruption_bounded_pair(
         "outcomes_or_scores_accessed": False,
         "retained_bank_members": 0,
         "process_leak": child_pids_after != list(invocation_child_pids_before),
-        "checkpoint_inconsistency": False,
+        "checkpoint_identity_check": dict(checkpoint_identity_check),
+        "checkpoint_inconsistency": not bool(checkpoint_identity_check.get("match")),
         "nan_or_cuda_error": False,
         "executions": wrapped_executions,
     }
@@ -5824,6 +6186,10 @@ def _adjudicate_interruption_bounded_fork(
             "all_stopping_checks_pass": all_stopping_checks_pass,
             "repeat_determinism_pass": repeat_determinism_pass,
             "no_process_leak": no_process_leak,
+            "post_load_checkpoint_identity_checks": {
+                pair_id: pair_artifacts[pair_id]["checkpoint_identity_check"]
+                for pair_id, _, _, _ in INTERRUPTION_BOUNDED_FORK_PAIR_SPECS
+            },
             "technical_eligibility": technical_eligibility,
         },
         "authorization": {
@@ -5849,6 +6215,16 @@ def _adjudicate_interruption_bounded_fork(
             f"batch_{key}": value for key, value in TERMINAL_PROBE_ARTIFACT_SHA256.items()
         },
         "runner_source_sha256": sha256_file(Path(__file__).resolve()),
+        "durability": {
+            "ordinary_process_kill_windows_protected": True,
+            "windows_directory_metadata_fsync_available": os.name != "nt",
+            "power_loss_durability_established": False,
+            "limitation": (
+                "Windows directory metadata fsync is unavailable; ordinary "
+                "process-kill windows are protected, but power-loss durability "
+                "is not established."
+            ),
+        },
     }
     adjudication_path = Path(paths["adjudication"])
     write_one_shot_gate(adjudication_path, report)
@@ -5871,6 +6247,13 @@ def run_interruption_bounded_performance_fork(
     report_path = Path(paths["report"])
     if report_path.exists():
         raise RuntimeError("the interruption-bounded performance fork is already resolved")
+    if not Path(paths["started"]).exists() and _interruption_bounded_history_exists(paths):
+        return _land_interruption_bounded_close(
+            paths,
+            status="CLOSED_IDENTITY_OR_HASH_MISMATCH",
+            reason="DURABLE_START_MISSING_DESPITE_FORK_HISTORY",
+            dangling_pair=None,
+        )
     try:
         interrupted = _reconcile_interruption_bounded_fork(paths)
     except StageTransitionError:
@@ -5882,6 +6265,12 @@ def run_interruption_bounded_performance_fork(
         )
     if interrupted is not None:
         return interrupted
+    orphan_adjudication = _reconcile_orphan_interruption_bounded_adjudication(paths)
+    if orphan_adjudication is not None:
+        if Path(paths["report"]).exists():
+            return json.loads(Path(paths["report"]).read_text(encoding="utf-8"))
+        write_one_shot_gate(Path(paths["report"]), orphan_adjudication)
+        return orphan_adjudication
     state = _interruption_bounded_ledger_state(paths)
     if state["adjudication_complete"]:
         report = json.loads(Path(paths["adjudication"]).read_text(encoding="utf-8"))
@@ -5920,25 +6309,16 @@ def run_interruption_bounded_performance_fork(
             reason="FROZEN_IDENTITY_VALIDATION_FAILED",
             dangling_pair=None,
         )
-    started_path = Path(paths["started"])
-    if started_path.exists():
-        started = json.loads(started_path.read_text(encoding="utf-8"))
-        if any(started.get(key) != value for key, value in identity.items()):
-            return _land_interruption_bounded_close(
-                paths,
-                status="CLOSED_IDENTITY_OR_HASH_MISMATCH",
-                reason="DURABLE_START_IDENTITY_DRIFT",
-                dangling_pair=None,
-            )
-    else:
-        started = {
-            "schema_version": SCHEMA_VERSION,
-            "created_at": utc_now(),
-            "status": "STARTED",
-            **identity,
-            "retained_generation_authorized": False,
-        }
-        write_one_shot_gate(started_path, started)
+    try:
+        _persist_or_validate_interruption_bounded_start(paths, identity)
+    except (OSError, json.JSONDecodeError, StageTransitionError) as error:
+        return _land_interruption_bounded_close(
+            paths,
+            status="CLOSED_IDENTITY_OR_HASH_MISMATCH",
+            reason="DURABLE_START_MISSING_OR_DRIFTED",
+            dangling_pair=None,
+            details={"integrity_error": f"{type(error).__name__}: {error}"},
+        )
     state = _interruption_bounded_ledger_state(paths)
     tokenizer = None
     if not state["properties_complete"]:
@@ -5990,6 +6370,37 @@ def run_interruption_bounded_performance_fork(
         load_started = time.perf_counter()
         loaded_tokenizer, model = load_generator(manifest, device)
         generation_load_seconds = time.perf_counter() - load_started
+        try:
+            post_load_generator_identity = validate_public_snapshot_identity(
+                manifest, PUBLIC_GENERATOR
+            )
+        except Exception as error:
+            del model
+            gc.collect()
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
+            return _land_interruption_bounded_close(
+                paths,
+                status=INTERRUPTION_BOUNDED_FORK_STATUS_CLOSED,
+                reason="POST_LOAD_GENERATOR_IDENTITY_VALIDATION_FAILED",
+                dangling_pair=None,
+                details={"integrity_error": f"{type(error).__name__}: {error}"},
+            )
+        checkpoint_identity_check = _checkpoint_identity_comparison(
+            generator_identity, post_load_generator_identity
+        )
+        if not checkpoint_identity_check["match"]:
+            del model
+            gc.collect()
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
+            return _land_interruption_bounded_close(
+                paths,
+                status=INTERRUPTION_BOUNDED_FORK_STATUS_CLOSED,
+                reason="POST_LOAD_GENERATOR_IDENTITY_MISMATCH",
+                dangling_pair=None,
+                details={"checkpoint_identity_check": checkpoint_identity_check},
+            )
         tokenizer = loaded_tokenizer
         invocation_id = uuid.uuid4().hex
         def release_loaded_model() -> None:
@@ -6012,6 +6423,7 @@ def run_interruption_bounded_performance_fork(
                     generation_load_seconds=generation_load_seconds,
                     invocation_id=invocation_id,
                     invocation_child_pids_before=invocation_child_pids_before,
+                    checkpoint_identity_check=checkpoint_identity_check,
                 )
         except BaseException:
             release_loaded_model()
@@ -7232,6 +7644,12 @@ def _synthetic_interruption_bounded_pair(
         "outcomes_or_scores_accessed": False,
         "retained_bank_members": 0,
         "process_leak": False,
+        "checkpoint_identity_check": {
+            "measured_after_model_load": True,
+            "pre_load_identity": {"identity_sha256": "self-test"},
+            "post_load_identity": {"identity_sha256": "self-test"},
+            "match": True,
+        },
         "checkpoint_inconsistency": False,
         "nan_or_cuda_error": False,
         "executions": [
@@ -7260,6 +7678,111 @@ def _seed_interruption_bounded_property_stage(paths: Mapping[str, Any]) -> None:
         passed=11,
         total=11,
     )
+
+
+def _seed_synthetic_interruption_bounded_pairs(paths: Mapping[str, Any]) -> None:
+    for spec in INTERRUPTION_BOUNDED_FORK_PAIR_SPECS:
+        pair_id, batch_size, pair_index, order = spec
+        artifact = _synthetic_interruption_bounded_pair(spec)
+        _append_interruption_bounded_event(
+            paths,
+            "PAIR_STARTED",
+            pair_id=pair_id,
+            batch_size=batch_size,
+            pair_index=pair_index,
+            execution_order=list(order),
+            invocation_id="self-test-complete",
+        )
+        pair_path = Path(paths["pairs"][pair_id])
+        write_one_shot_gate(pair_path, artifact)
+        _append_interruption_bounded_event(
+            paths,
+            "PAIR_COMPLETE",
+            pair_id=pair_id,
+            batch_size=batch_size,
+            pair_index=pair_index,
+            artifact_sha256=sha256_file(pair_path),
+        )
+
+
+def _synthetic_orphan_adjudication(
+    paths: Mapping[str, Any], *, corrupt_pair_hash: bool = False
+) -> dict[str, Any]:
+    for batch_size in ELIGIBLE_BATCH_SIZES:
+        specs = [spec for spec in INTERRUPTION_BOUNDED_FORK_PAIR_SPECS if spec[1] == batch_size]
+        old_executions = [
+            _execution_by_label(
+                json.loads(Path(paths["pairs"][spec[0]]).read_text(encoding="utf-8")),
+                "old",
+            )
+            for spec in specs
+        ]
+        write_one_shot_gate(
+            Path(paths["banks"][batch_size]),
+            {
+                "schema_version": SCHEMA_VERSION,
+                "created_at": utc_now(),
+                "mode": "interruption_bounded_throwaway_old_stopping_probe_bank",
+                "batch_size": batch_size,
+                "diagnostic_rows": [3290, 77],
+                "outcomes_or_scores_accessed": False,
+                "retained_bank_members": 0,
+                "executions": old_executions,
+            },
+        )
+    artifact = {
+        "schema_version": SCHEMA_VERSION,
+        "created_at": utc_now(),
+        "experiment_id": "exp_bon_safe_selection_interruption_bounded_fork",
+        "status": INTERRUPTION_BOUNDED_FORK_STATUS_READY,
+        "pre_data_engineering_only": True,
+        "retained_responses_or_scores": 0,
+        "calibration_or_test_outcomes_accessed": False,
+        "scientific_protocol_changed": False,
+        "candidate_streams_checked": 128,
+        "equivalence": {"pass": True},
+        "timing": {
+            "batch_8": {
+                "adjudication": {"speedup_pass": True, "projection_pass": True}
+            }
+        },
+        "technical_telemetry": {
+            "execution_count": 8,
+            "technical_eligibility": True,
+        },
+        "timing_pair_artifact_sha256": {
+            pair_id: sha256_file(Path(paths["pairs"][pair_id]))
+            for pair_id, _, _, _ in INTERRUPTION_BOUNDED_FORK_PAIR_SPECS
+        },
+        "local_throwaway_probe_bank_sha256": {
+            f"batch_{batch_size}": sha256_file(Path(paths["banks"][batch_size]))
+            for batch_size in ELIGIBLE_BATCH_SIZES
+        },
+        "source_terminal_probe_artifact_sha256": {
+            f"batch_{key}": value for key, value in TERMINAL_PROBE_ARTIFACT_SHA256.items()
+        },
+        "authorization": {
+            "equivalence_pass": True,
+            "batch_8_speedup_pass": True,
+            "batch_8_full_bank_projection_pass": True,
+            "technical_eligibility_pass": True,
+            "fresh_cap_compliant_successor_registration_authorized": True,
+            "retained_generation_authorized": False,
+            "automatic_cap_exception_authorized": False,
+            "all_four_timing_pairs_complete": True,
+        },
+        "runner_source_sha256": sha256_file(Path(__file__).resolve()),
+        "durability": {
+            "ordinary_process_kill_windows_protected": True,
+            "windows_directory_metadata_fsync_available": os.name != "nt",
+            "power_loss_durability_established": False,
+            "limitation": "self-test",
+        },
+    }
+    if corrupt_pair_hash:
+        artifact["timing_pair_artifact_sha256"]["batch_8_pair_1"] = "0" * 64
+    write_one_shot_gate(Path(paths["adjudication"]), artifact)
+    return artifact
 
 
 def interruption_bounded_self_test_worker(root: Path) -> NoReturn:
@@ -7395,6 +7918,139 @@ def interruption_bounded_lifecycle_self_test() -> dict[str, Any]:
             raise AssertionError("timing-pair artifact hash drift was not detected")
         lifecycle_checks.append("pair_artifact_hash_drift_detected")
 
+        orphan_root = container / "orphan_adjudication"
+        orphan_paths = _interruption_bounded_fork_paths(
+            orphan_root, orphan_root / "terminal.json"
+        )
+        write_one_shot_gate(
+            Path(orphan_paths["started"]),
+            {"schema_version": SCHEMA_VERSION, "status": "STARTED", "self_test": True},
+        )
+        _seed_interruption_bounded_property_stage(orphan_paths)
+        _seed_synthetic_interruption_bounded_pairs(orphan_paths)
+        orphan_artifact = _synthetic_orphan_adjudication(orphan_paths)
+        promoted = _reconcile_orphan_interruption_bounded_adjudication(orphan_paths)
+        promoted_state = _interruption_bounded_ledger_state(orphan_paths)
+        if (
+            promoted != orphan_artifact
+            or not promoted_state["adjudication_complete"]
+            or promoted_state["event_count"] != 10
+            or Path(orphan_paths["adjudication"]).read_bytes()
+            != (json.dumps(orphan_artifact, indent=2, allow_nan=False) + "\n").encode(
+                "utf-8"
+            )
+        ):
+            raise AssertionError("valid orphan adjudication was not promoted exactly once")
+        lifecycle_checks.append("adjudication_orphan_promoted")
+
+        invalid_orphan_root = container / "invalid_orphan_adjudication"
+        invalid_orphan_paths = _interruption_bounded_fork_paths(
+            invalid_orphan_root, invalid_orphan_root / "terminal.json"
+        )
+        write_one_shot_gate(
+            Path(invalid_orphan_paths["started"]),
+            {"schema_version": SCHEMA_VERSION, "status": "STARTED", "self_test": True},
+        )
+        _seed_interruption_bounded_property_stage(invalid_orphan_paths)
+        _seed_synthetic_interruption_bounded_pairs(invalid_orphan_paths)
+        _synthetic_orphan_adjudication(
+            invalid_orphan_paths, corrupt_pair_hash=True
+        )
+        invalid_close = _reconcile_orphan_interruption_bounded_adjudication(
+            invalid_orphan_paths
+        )
+        if (
+            invalid_close is None
+            or invalid_close["status"] != "CLOSED_IDENTITY_OR_HASH_MISMATCH"
+            or invalid_close["reason"] != "ORPHAN_ADJUDICATION_INVALID"
+            or invalid_close["authorization"][
+                "fresh_cap_compliant_successor_registration_authorized"
+            ]
+        ):
+            raise AssertionError("invalid orphan adjudication did not terminal-close")
+        lifecycle_checks.append("invalid_adjudication_orphan_closed")
+
+        truncation_root = container / "suffix_truncation"
+        truncation_paths = _interruption_bounded_fork_paths(
+            truncation_root, truncation_root / "terminal.json"
+        )
+        write_one_shot_gate(
+            Path(truncation_paths["started"]),
+            {"schema_version": SCHEMA_VERSION, "status": "STARTED", "self_test": True},
+        )
+        _seed_interruption_bounded_property_stage(truncation_paths)
+        truncation_spec = INTERRUPTION_BOUNDED_FORK_PAIR_SPECS[0]
+        _append_interruption_bounded_event(
+            truncation_paths,
+            "PAIR_STARTED",
+            pair_id=truncation_spec[0],
+            batch_size=truncation_spec[1],
+            pair_index=truncation_spec[2],
+            execution_order=list(truncation_spec[3]),
+            invocation_id="self-test-truncation",
+        )
+        truncated_event = Path(truncation_paths["ledger"]) / "00000002.json"
+        truncated_event.unlink()
+        try:
+            _interruption_bounded_ledger_state(truncation_paths)
+        except StageTransitionError as error:
+            if "suffix truncation" not in str(error):
+                raise AssertionError("suffix truncation raised the wrong integrity error")
+        else:
+            raise AssertionError("trusted head did not detect ledger suffix truncation")
+        truncation_close = _land_interruption_bounded_close(
+            truncation_paths,
+            status="CLOSED_IDENTITY_OR_HASH_MISMATCH",
+            reason="STAGE_LEDGER_OR_BOUND_ARTIFACT_DRIFT",
+            dangling_pair=None,
+        )
+        if truncation_close["authorization"][
+            "fresh_cap_compliant_successor_registration_authorized"
+        ]:
+            raise AssertionError("suffix truncation close authorized recomputation")
+        lifecycle_checks.append("suffix_truncation_detected_and_closed")
+
+        missing_start_root = container / "missing_started"
+        missing_start_paths = _interruption_bounded_fork_paths(
+            missing_start_root, missing_start_root / "terminal.json"
+        )
+        missing_start_path = Path(missing_start_paths["started"])
+        write_one_shot_gate(
+            missing_start_path,
+            {"schema_version": SCHEMA_VERSION, "status": "STARTED", "self_test": True},
+        )
+        _seed_interruption_bounded_property_stage(missing_start_paths)
+        missing_start_path.unlink()
+        try:
+            _persist_or_validate_interruption_bounded_start(
+                missing_start_paths, {"self_test": True}
+            )
+        except StageTransitionError:
+            pass
+        else:
+            raise AssertionError("missing durable start was recreated despite history")
+        if missing_start_path.exists():
+            raise AssertionError("started.json recreation refusal mutated the path")
+        lifecycle_checks.append("started_recreation_refused")
+
+        identity_match = _checkpoint_identity_comparison(
+            {"identity_sha256": "before"}, {"identity_sha256": "after"}
+        )
+        mismatch_artifact = _synthetic_interruption_bounded_pair(
+            INTERRUPTION_BOUNDED_FORK_PAIR_SPECS[0]
+        )
+        mismatch_artifact["checkpoint_identity_check"] = identity_match
+        mismatch_artifact["checkpoint_inconsistency"] = not identity_match["match"]
+        try:
+            _validate_interruption_bounded_pair_artifact(
+                mismatch_artifact, INTERRUPTION_BOUNDED_FORK_PAIR_SPECS[0]
+            )
+        except StageTransitionError:
+            pass
+        else:
+            raise AssertionError("post-load checkpoint identity mismatch passed")
+        lifecycle_checks.append("post_load_identity_mismatch_rejected")
+
         pass_fixture = _interruption_bounded_gate_arithmetic(
             [30.0, 29.0], [15.0, 16.0], 3.148669400019571
         )
@@ -7434,7 +8090,7 @@ def interruption_bounded_lifecycle_self_test() -> dict[str, Any]:
         "elapsed_seconds": time.perf_counter() - started,
         "lifecycle_checks": {
             "passed": len(lifecycle_checks),
-            "total": 8,
+            "total": 13,
             "names": lifecycle_checks,
         },
         "arithmetic_checks": {
